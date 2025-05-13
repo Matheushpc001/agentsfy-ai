@@ -84,7 +84,7 @@ export interface AuthContextType {
   loading: boolean;
 }
 
-// Interface para os itens de navegação do Sidebar
+// Interface for Sidebar navigation items
 export interface NavItem {
   label: string;
   icon: React.ComponentType<any>; // Changed from ReactNode to ComponentType
