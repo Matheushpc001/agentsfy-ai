@@ -18,6 +18,7 @@ import Analytics from "./pages/admin/Analytics";
 // Franchisee pages
 import Agents from "./pages/franchisee/Agents";
 import Customers from "./pages/franchisee/Customers";
+import Schedule from "./pages/franchisee/Schedule";
 
 // Customer pages
 import CustomerDashboard from "./pages/customer/Dashboard";
@@ -65,6 +66,7 @@ const AppRoutes = () => {
       {/* Franchisee routes */}
       <Route path="/franchisee/agents" element={<ProtectedRoute element={<Agents />} allowedRoles={["franchisee"]} />} />
       <Route path="/franchisee/customers" element={<ProtectedRoute element={<Customers />} allowedRoles={["franchisee"]} />} />
+      <Route path="/franchisee/schedule" element={<ProtectedRoute element={<Schedule />} allowedRoles={["franchisee"]} />} />
 
       {/* Customer routes */}
       <Route path="/customer/dashboard" element={<ProtectedRoute element={<CustomerDashboard />} allowedRoles={["customer"]} />} />
