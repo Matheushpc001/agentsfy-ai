@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -32,51 +33,51 @@ export default function Sidebar() {
     admin: [
       { 
         label: "Dashboard", 
-        icon: <LayoutDashboard size={18} />, 
+        icon: LayoutDashboard, 
         href: "/dashboard" 
       },
       { 
         label: "Franqueados", 
-        icon: <Users size={18} />, 
+        icon: Users, 
         href: "/admin/franchisees" 
       },
       { 
         label: "Estatísticas", 
-        icon: <BarChart2 size={18} />, 
+        icon: BarChart2, 
         href: "/admin/analytics" 
       },
     ],
     franchisee: [
       { 
         label: "Dashboard", 
-        icon: <LayoutDashboard size={18} />, 
+        icon: LayoutDashboard, 
         href: "/dashboard" 
       },
       { 
         label: "Agentes", 
-        icon: <Bot size={18} />, 
+        icon: Bot, 
         href: "/franchisee/agents" 
       },
       { 
         label: "Clientes", 
-        icon: <Store size={18} />, 
+        icon: Store, 
         href: "/franchisee/customers" 
       },
       { 
         label: "Agenda", 
-        icon: <Calendar size={18} />, 
+        icon: Calendar, 
         href: "/franchisee/schedule" 
       },
     ],
     customer: [
       { 
         label: "Dashboard", 
-        icon: <LayoutDashboard size={18} />, 
+        icon: LayoutDashboard, 
         href: "/dashboard" 
       },
       { 
         label: "Estatísticas", 
-        icon: <BarChart2 size={18} />, 
+        icon: BarChart2, 
         href: "/customer/dashboard" 
       },
     ],
@@ -121,17 +122,20 @@ export default function Sidebar() {
               </p>
             </div>
             <div className="space-y-1">
-              {NAV_ITEMS[user.role].map((item) => (
-                <Button
-                  key={item.label}
-                  variant="ghost"
-                  className="w-full justify-start dark:hover:bg-gray-700"
-                  onClick={() => navigate(item.href)}
-                >
-                  <item.icon className="mr-2 h-4 w-4" />
-                  {item.label}
-                </Button>
-              ))}
+              {NAV_ITEMS[user.role].map((item) => {
+                const Icon = item.icon; // Create a capitalized variable to use as a component
+                return (
+                  <Button
+                    key={item.label}
+                    variant="ghost"
+                    className="w-full justify-start dark:hover:bg-gray-700"
+                    onClick={() => navigate(item.href)}
+                  >
+                    <Icon className="mr-2 h-4 w-4" size={18} />
+                    {item.label}
+                  </Button>
+                );
+              })}
             </div>
           </div>
           <div className="px-3 py-2">

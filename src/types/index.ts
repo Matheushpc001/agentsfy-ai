@@ -1,3 +1,4 @@
+import { ReactNode } from "react";
 
 export type UserRole = "admin" | "franchisee" | "customer";
 
@@ -86,6 +87,6 @@ export interface AuthContextType {
 // Interface para os itens de navegação do Sidebar
 export interface NavItem {
   label: string;
-  icon: React.ReactNode;
+  icon: React.ComponentType<any>; // Changed from ReactNode to ComponentType
   href: string;
 }
