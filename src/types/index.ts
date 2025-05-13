@@ -82,3 +82,10 @@ export interface AuthContextType {
   logout: () => void;
   loading: boolean;
 }
+
+// Interface para os itens de navegação do Sidebar
+export interface NavItem {
+  label: string;
+  icon: React.ReactNode;
+  href: string;
+}
