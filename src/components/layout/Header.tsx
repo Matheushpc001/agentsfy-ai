@@ -1,8 +1,11 @@
 
-import { Bell, Search } from "lucide-react";
+import { Bell, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/AuthContext";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useIsMobile } from "@/hooks/use-mobile";
+import Sidebar from "./Sidebar";
 
 interface HeaderProps {
   title: string;
@@ -10,6 +13,7 @@ interface HeaderProps {
 
 export default function Header({ title }: HeaderProps) {
   const { user } = useAuth();
+  const isMobile = useIsMobile();
   
   // Get greeting based on time of day
   const getGreeting = () => {
@@ -34,14 +38,29 @@ export default function Header({ title }: HeaderProps) {
 
   return (
     <header className="bg-white dark:bg-gray-900 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-      <div>
-        <h1 className="text-lg font-semibold">{title}</h1>
-        <p className="text-muted-foreground text-sm">
-          {getGreeting()}, {user?.name}
-          <span className="text-xs ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-            {getRoleDisplay()}
-          </span>
-        </p>
+      <div className="flex items-center">
+        {isMobile && (
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="ghost" size="icon" className="mr-2">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Menu</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="left" className="p-0 w-64">
+              <Sidebar />
+            </SheetContent>
+          </Sheet>
+        )}
+        <div>
+          <h1 className="text-lg font-semibold">{title}</h1>
+          <p className="text-muted-foreground text-sm">
+            {getGreeting()}, {user?.name}
+            <span className="text-xs ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+              {getRoleDisplay()}
+            </span>
+          </p>
+        </div>
       </div>
       <div className="flex items-center">
         <div className="relative mr-2 hidden md:block">

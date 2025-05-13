@@ -156,7 +156,7 @@ export default function Dashboard() {
     <DashboardLayout title="Dashboard">
       <div className="space-y-6">
         {/* Stats Section */}
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
             title="Total de Mensagens"
             value={analytics.messageCount.toLocaleString()}
@@ -240,7 +240,7 @@ export default function Dashboard() {
                     )}
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <div className="font-medium text-sm">
+                      <div className="font-medium text-sm truncate max-w-[70%]">
                         {message.sender}
                         {message.isAi && (
                           <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
@@ -252,7 +252,7 @@ export default function Dashboard() {
                         {formatDateTime(message.timestamp)}
                       </div>
                     </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <p className="text-sm text-gray-700 dark:text-gray-300 break-words">
                       {message.content}
                     </p>
                   </div>

@@ -85,57 +85,61 @@ export default function CustomerDashboard() {
     <DashboardLayout title="Dashboard do Cliente">
       <div className="space-y-6">
         {/* Client Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl p-6 shadow border">
+        <div className="bg-white dark:bg-gray-800 rounded-xl p-4 md:p-6 shadow border">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center">
-              <div className="w-16 h-16 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
-                <span className="text-2xl font-bold text-primary">EA</span>
+              <div className="w-12 h-12 md:w-16 md:h-16 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
+                <span className="text-xl md:text-2xl font-bold text-primary">EA</span>
               </div>
               <div className="ml-4">
-                <h2 className="text-xl font-semibold">Empresa A</h2>
+                <h2 className="text-lg md:text-xl font-semibold">Empresa A</h2>
                 <p className="text-muted-foreground">Painel de Controle</p>
               </div>
             </div>
-            <div className="flex flex-wrap gap-3 md:gap-4">
-              <Badge className="bg-primary/10 hover:bg-primary/10 text-primary border-primary/10 px-3 py-1.5">
-                <Bot className="w-3.5 h-3.5 mr-1" /> 2 Agentes Ativos
+            <div className="flex flex-wrap gap-2 md:gap-4 w-full md:w-auto justify-center md:justify-start">
+              <Badge className="bg-primary/10 hover:bg-primary/10 text-primary border-primary/10 px-2 md:px-3 py-1 md:py-1.5 text-xs">
+                <Bot className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1" /> 2 Agentes Ativos
               </Badge>
-              <Badge className="bg-green-100 hover:bg-green-100 text-green-800 border-green-200 px-3 py-1.5">
-                <Phone className="w-3.5 h-3.5 mr-1" /> WhatsApp Conectado
+              <Badge className="bg-green-100 hover:bg-green-100 text-green-800 border-green-200 px-2 md:px-3 py-1 md:py-1.5 text-xs">
+                <Phone className="w-3 h-3 md:w-3.5 md:h-3.5 mr-1" /> WhatsApp Conectado
               </Badge>
             </div>
           </div>
         </div>
 
         {/* Stats Section */}
-        <section className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <section className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <StatCard
             title="Total de Mensagens"
             value="876"
             description="Últimos 30 dias"
-            icon={<MessageCircle size={20} />}
+            icon={<MessageCircle size={18} />}
             trend={{ value: 12, positive: true }}
+            className="p-3 md:p-6"
           />
           
           <StatCard
             title="Tempo de Resposta"
             value="1.9s"
             description="Média"
-            icon={<Clock size={20} />}
+            icon={<Clock size={18} />}
+            className="p-3 md:p-6"
           />
           
           <StatCard
             title="Agentes"
             value="2/2"
             description="100% ativos"
-            icon={<Bot size={20} />}
+            icon={<Bot size={18} />}
+            className="p-3 md:p-6"
           />
           
           <StatCard
-            title="Visitantes Únicos"
+            title="Visitantes"
             value="124"
             description="Este mês"
-            icon={<Users size={20} />}
+            icon={<Users size={18} />}
+            className="p-3 md:p-6"
           />
         </section>
         
@@ -143,35 +147,35 @@ export default function CustomerDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Messages */}
           <Card className="lg:col-span-2">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-medium">Mensagens Recentes</CardTitle>
+            <CardHeader className="pb-2 md:pb-3">
+              <CardTitle className="text-base md:text-lg font-medium">Mensagens Recentes</CardTitle>
             </CardHeader>
-            <CardContent className="px-0">
-              <div className="space-y-4">
+            <CardContent className="px-0 max-h-[450px] overflow-y-auto">
+              <div className="space-y-3 md:space-y-4">
                 {recentMessages.map(message => (
                   <div 
                     key={message.id} 
                     className={cn(
-                      "px-4 py-3 rounded-lg mx-4",
+                      "px-3 md:px-4 py-2 md:py-3 rounded-lg mx-3 md:mx-4",
                       message.isAi 
                         ? "bg-primary/5 border border-primary/10" 
                         : "bg-gray-50 dark:bg-gray-800"
                     )}
                   >
                     <div className="flex justify-between items-start mb-1">
-                      <div className="font-medium text-sm">
+                      <div className="font-medium text-xs md:text-sm truncate max-w-[70%]">
                         {message.sender}
                         {message.isAi && (
-                          <span className="ml-2 text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+                          <span className="ml-1 md:ml-2 text-[10px] md:text-xs px-1 md:px-2 py-0.5 bg-primary/10 text-primary rounded-full">
                             Agente IA
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className="text-[10px] md:text-xs text-muted-foreground">
                         {formatDateTime(message.timestamp)}
                       </div>
                     </div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                    <p className="text-xs md:text-sm text-gray-700 dark:text-gray-300 break-words">
                       {message.content}
                     </p>
                   </div>
@@ -182,36 +186,36 @@ export default function CustomerDashboard() {
           
           {/* Activity Chart */}
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-medium">Horários de Movimento</CardTitle>
+            <CardHeader className="pb-2 md:pb-3">
+              <CardTitle className="text-base md:text-lg font-medium">Horários de Movimento</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="h-[220px] flex items-end justify-between mt-4">
+              <div className="h-[180px] md:h-[220px] flex items-end justify-between mt-2 md:mt-4">
                 {MOCK_HOURLY_ACTIVITY.map((item, index) => (
                   <div key={index} className="flex flex-col items-center w-full">
                     <div 
                       className="w-4/5 bg-primary/80 hover:bg-primary rounded-t-md transition-all"
-                      style={{ height: `${(item.count / maxCount) * 180}px` }}
+                      style={{ height: `${(item.count / maxCount) * (isMobile ? 140 : 180)}px` }}
                     />
-                    <div className="text-xs text-muted-foreground mt-2">{item.hour}h</div>
-                    <div className="text-xs font-medium mt-1">{item.count}</div>
+                    <div className="text-[10px] md:text-xs text-muted-foreground mt-1 md:mt-2">{item.hour}h</div>
+                    <div className="text-[10px] md:text-xs font-medium mt-0.5 md:mt-1">{item.count}</div>
                   </div>
                 ))}
               </div>
               
-              <div className="mt-6">
+              <div className="mt-4 md:mt-6 text-xs md:text-sm">
                 <div className="flex justify-between items-center pb-2 border-b">
-                  <span className="text-sm">Horário de pico</span>
-                  <span className="text-sm font-medium">14h - 16h</span>
+                  <span>Horário de pico</span>
+                  <span className="font-medium">14h - 16h</span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b">
-                  <span className="text-sm">Média de mensagens/hora</span>
-                  <span className="text-sm font-medium">21</span>
+                  <span>Média de mensagens/hora</span>
+                  <span className="font-medium">21</span>
                 </div>
                 <div className="flex justify-between items-center pt-2">
-                  <span className="text-sm">Data da análise</span>
-                  <span className="text-sm font-medium flex items-center">
-                    <Calendar className="h-3.5 w-3.5 mr-1" />
+                  <span>Data da análise</span>
+                  <span className="font-medium flex items-center">
+                    <Calendar className="h-3 w-3 md:h-3.5 md:w-3.5 mr-1" />
                     {new Date().toLocaleDateString("pt-BR")}
                   </span>
                 </div>
@@ -222,37 +226,37 @@ export default function CustomerDashboard() {
         
         {/* Token Usage Section */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-medium">Uso de Tokens</CardTitle>
+          <CardHeader className="pb-2 md:pb-3">
+            <CardTitle className="text-base md:text-lg font-medium">Uso de Tokens</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="space-y-3 md:space-y-4">
             <div>
-              <div className="flex justify-between mb-1">
-                <span className="text-sm">Consumo Total</span>
-                <span className="text-sm font-medium">98.421 tokens (aprox. 59%)</span>
+              <div className="flex justify-between items-center mb-1 text-xs md:text-sm">
+                <span>Consumo Total</span>
+                <span className="font-medium">98.421 tokens (59%)</span>
               </div>
-              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
-                <div className="bg-primary h-2.5 rounded-full" style={{ width: '59%' }}></div>
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 md:h-2.5">
+                <div className="bg-primary h-2 md:h-2.5 rounded-full" style={{ width: '59%' }}></div>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">
+              <p className="text-[10px] md:text-xs text-muted-foreground mt-1">
                 Baseado no uso deste mês. Última atualização: {new Date().toLocaleDateString("pt-BR")}
               </p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg border bg-muted/50">
-                <div className="flex justify-between">
-                  <span className="text-sm">Agente: Atendente Virtual</span>
-                  <span className="text-sm font-medium">61.348 tokens</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+              <div className="p-3 md:p-4 rounded-lg border bg-muted/50">
+                <div className="flex justify-between text-xs md:text-sm">
+                  <span>Agente: Atendente Virtual</span>
+                  <span className="font-medium">61.348</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-2">
                   <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: '62%' }}></div>
                 </div>
               </div>
-              <div className="p-4 rounded-lg border bg-muted/50">
-                <div className="flex justify-between">
-                  <span className="text-sm">Agente: Vendedor Virtual</span>
-                  <span className="text-sm font-medium">37.073 tokens</span>
+              <div className="p-3 md:p-4 rounded-lg border bg-muted/50">
+                <div className="flex justify-between text-xs md:text-sm">
+                  <span>Agente: Vendedor Virtual</span>
+                  <span className="font-medium">37.073</span>
                 </div>
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-2">
                   <div className="bg-green-500 h-1.5 rounded-full" style={{ width: '38%' }}></div>

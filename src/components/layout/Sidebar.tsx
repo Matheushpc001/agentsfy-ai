@@ -15,9 +15,11 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
+  const isMobile = useIsMobile();
 
   // Define navigation items based on user role
   const getNavItems = () => {
@@ -55,8 +57,12 @@ export default function Sidebar() {
 
   if (!user) return null;
 
+  const sidebarStyles = isMobile 
+    ? "h-full bg-sidebar text-sidebar-foreground w-full flex flex-col"
+    : "h-screen fixed inset-y-0 left-0 z-50 bg-sidebar text-sidebar-foreground w-64 flex flex-col";
+
   return (
-    <aside className="h-screen fixed inset-y-0 left-0 z-50 bg-sidebar text-sidebar-foreground w-64 flex flex-col">
+    <aside className={sidebarStyles}>
       <div className="p-6 flex flex-col h-full">
         <div className="flex items-center mb-8">
           <div className="w-10 h-10 bg-white rounded-md flex items-center justify-center">
@@ -81,6 +87,7 @@ export default function Sidebar() {
                     : "text-white/70 hover:bg-white/5 hover:text-white"
                 )
               }
+              onClick={(e) => isMobile && document.querySelector('[data-radix-dialog-close]')?.click()}
             >
               <span className="mr-3">{item.icon}</span>
               {item.label}
@@ -101,7 +108,10 @@ export default function Sidebar() {
           <Button 
             variant="ghost" 
             className="w-full justify-start text-white/70 hover:text-white hover:bg-white/10"
-            onClick={logout}
+            onClick={() => {
+              logout();
+              if (isMobile) document.querySelector('[data-radix-dialog-close]')?.click();
+            }}
           >
             <LogOut size={18} className="mr-2" />
             <span>Sair</span>
