@@ -5,7 +5,7 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageCircle, Bot, Clock, Zap, Users, CircleDollarSign, BarChart3, BriefcaseBusiness } from "lucide-react";
-import { Analytics, Agent, Message } from "@/types";
+import { Analytics, Agent, Message, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 
 // Mock data for demonstration
