@@ -7,6 +7,7 @@ import { MessageCircle, Clock, Bot, Users, Phone, Calendar } from "lucide-react"
 import { Message } from "@/types";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Mock data for demonstration
 const MOCK_MESSAGES: Message[] = [
@@ -64,6 +65,7 @@ const MOCK_HOURLY_ACTIVITY = [
 
 export default function CustomerDashboard() {
   const [recentMessages, setRecentMessages] = useState<Message[]>([]);
+  const isMobile = useIsMobile();
   
   useEffect(() => {
     // Simulate API call to get recent messages

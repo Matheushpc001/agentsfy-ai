@@ -87,7 +87,11 @@ export default function Sidebar() {
                     : "text-white/70 hover:bg-white/5 hover:text-white"
                 )
               }
-              onClick={(e) => isMobile && document.querySelector('[data-radix-dialog-close]')?.click()}
+              onClick={(e) => {
+                if (isMobile && document.querySelector('[data-radix-dialog-close]')) {
+                  (document.querySelector('[data-radix-dialog-close]') as HTMLElement)?.click();
+                }
+              }}
             >
               <span className="mr-3">{item.icon}</span>
               {item.label}
@@ -110,7 +114,9 @@ export default function Sidebar() {
             className="w-full justify-start text-white/70 hover:text-white hover:bg-white/10"
             onClick={() => {
               logout();
-              if (isMobile) document.querySelector('[data-radix-dialog-close]')?.click();
+              if (isMobile && document.querySelector('[data-radix-dialog-close]')) {
+                (document.querySelector('[data-radix-dialog-close]') as HTMLElement)?.click();
+              }
             }}
           >
             <LogOut size={18} className="mr-2" />
