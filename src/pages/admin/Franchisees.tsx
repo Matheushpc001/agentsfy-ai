@@ -158,26 +158,26 @@ export default function Franchisees() {
 
   return (
     <DashboardLayout title="Franqueados">
-      <div className="space-y-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="relative w-full md:w-auto">
+      <div className="space-y-4 md:space-y-6">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="relative w-full sm:w-auto">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               type="search"
               placeholder="Buscar franqueados..."
-              className="w-full md:w-[300px] pl-8"
+              className="w-full sm:w-[250px] md:w-[300px] pl-8"
               value={searchTerm}
               onChange={handleSearch}
             />
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)}>
+          <Button onClick={() => setIsAddModalOpen(true)} className="w-full sm:w-auto">
             <PlusCircle className="mr-2 h-4 w-4" />
             Novo Franqueado
           </Button>
         </div>
 
         {filteredFranchisees.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
             {filteredFranchisees.map(franchisee => (
               <FranchiseeCard 
                 key={franchisee.id} 
@@ -201,7 +201,7 @@ export default function Franchisees() {
 
       {/* Add Franchisee Modal */}
       <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-w-[90vw]">
           <DialogHeader>
             <DialogTitle>Adicionar Novo Franqueado</DialogTitle>
           </DialogHeader>
@@ -240,11 +240,11 @@ export default function Franchisees() {
               />
               <Label htmlFor="isActive">Ativo</Label>
             </div>
-            <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setIsAddModalOpen(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+              <Button variant="outline" type="button" onClick={() => setIsAddModalOpen(false)} className="w-full sm:w-auto">
                 Cancelar
               </Button>
-              <Button type="submit">Adicionar</Button>
+              <Button type="submit" className="w-full sm:w-auto">Adicionar</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -252,7 +252,7 @@ export default function Franchisees() {
 
       {/* Edit Franchisee Modal */}
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md max-w-[90vw]">
           <DialogHeader>
             <DialogTitle>Editar Franqueado</DialogTitle>
           </DialogHeader>
@@ -291,11 +291,11 @@ export default function Franchisees() {
               />
               <Label htmlFor="edit-isActive">Ativo</Label>
             </div>
-            <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setIsEditModalOpen(false)}>
+            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
+              <Button variant="outline" type="button" onClick={() => setIsEditModalOpen(false)} className="w-full sm:w-auto">
                 Cancelar
               </Button>
-              <Button type="submit">Salvar Alterações</Button>
+              <Button type="submit" className="w-full sm:w-auto">Salvar Alterações</Button>
             </DialogFooter>
           </form>
         </DialogContent>

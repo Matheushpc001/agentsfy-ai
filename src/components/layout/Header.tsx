@@ -37,7 +37,7 @@ export default function Header({ title }: HeaderProps) {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-900 p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+    <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
       <div className="flex items-center">
         {isMobile && (
           <Sheet>
@@ -47,16 +47,16 @@ export default function Header({ title }: HeaderProps) {
                 <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-64">
+            <SheetContent side="left" className="p-0 w-[80vw] max-w-[280px]">
               <Sidebar />
             </SheetContent>
           </Sheet>
         )}
         <div>
           <h1 className="text-lg font-semibold">{title}</h1>
-          <p className="text-muted-foreground text-sm">
+          <p className="text-muted-foreground text-xs sm:text-sm">
             {getGreeting()}, {user?.name}
-            <span className="text-xs ml-2 px-2 py-0.5 bg-primary/10 text-primary rounded-full">
+            <span className="text-xs ml-1 md:ml-2 px-1.5 py-0.5 bg-primary/10 text-primary rounded-full inline-block mt-1 md:mt-0 md:inline">
               {getRoleDisplay()}
             </span>
           </p>
