@@ -5,13 +5,32 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { StatCard } from "@/components/ui/stat-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { BarChart3, MessageCircle, Zap, Clock, Bot, User, Users } from "lucide-react";
+import { ChartContainer } from "@/components/ui/chart";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { cn } from "@/lib/utils";
 
 // Mock data for analytics
-const MOCK_DAILY_MESSAGES = [4580, 5240, 4920, 5100, 4800, 5300, 5680];
-const MOCK_MONTHLY_REVENUE = [8740, 9450, 10200, 11980];
+const MOCK_DAILY_MESSAGES = [
+  { day: "dom", value: 4580 },
+  { day: "seg", value: 5240 },
+  { day: "ter", value: 4920 },
+  { day: "qua", value: 5100 },
+  { day: "qui", value: 4800 }, 
+  { day: "sex", value: 5300 },
+  { day: "sab", value: 5680 }
+];
+
+const MOCK_MONTHLY_REVENUE = [
+  { month: "jan", value: 8740 },
+  { month: "fev", value: 9450 },
+  { month: "mar", value: 10200 },
+  { month: "abr", value: 11980 }
+];
 
 export default function Analytics() {
   const [periodTab, setPeriodTab] = useState("7d");
+  const isMobile = useIsMobile();
 
   return (
     <DashboardLayout title="Estatísticas">
@@ -69,22 +88,48 @@ export default function Analytics() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-2">
-              <div className="h-[300px] w-full flex items-end justify-between px-2">
-                {MOCK_DAILY_MESSAGES.map((value, index) => (
-                  <div key={index} className="relative h-full flex flex-col justify-end items-center">
-                    <div 
-                      className="w-12 bg-primary/80 hover:bg-primary rounded-t-md transition-all"
-                      style={{ height: `${(value / 6000) * 100}%` }}
+              <div className="h-[300px]">
+                <ChartContainer 
+                  config={{
+                    messages: {
+                      color: "hsl(var(--primary))"
+                    }
+                  }}
+                >
+                  <BarChart data={MOCK_DAILY_MESSAGES} margin={{ top: 10, right: 10, left: isMobile ? 0 : 20, bottom: 20 }}>
+                    <XAxis 
+                      dataKey="day" 
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
                     />
-                    <span className="absolute bottom-[-24px] text-xs text-muted-foreground">
-                      {new Date(Date.now() - (6 - index) * 24 * 60 * 60 * 1000)
-                        .toLocaleDateString("pt-BR", { weekday: "short" })}
-                    </span>
-                    <span className="absolute bottom-[-40px] text-[10px] text-muted-foreground">
-                      {value.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
+                    <YAxis 
+                      hide={isMobile} 
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip 
+                      cursor={false}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="rounded-lg border bg-background p-2 shadow-md">
+                              <p className="text-xs">{`${payload[0].value.toLocaleString()} mensagens`}</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar 
+                      dataKey="value" 
+                      fill="currentColor" 
+                      radius={[4, 4, 0, 0]}
+                      className="fill-primary/80 hover:fill-primary"
+                      barSize={isMobile ? 25 : 40}
+                    />
+                  </BarChart>
+                </ChartContainer>
               </div>
             </CardContent>
           </Card>
@@ -98,22 +143,48 @@ export default function Analytics() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-2">
-              <div className="h-[300px] w-full flex items-end justify-between px-2">
-                {MOCK_MONTHLY_REVENUE.map((value, index) => (
-                  <div key={index} className="relative h-full flex flex-col justify-end items-center">
-                    <div 
-                      className="w-16 bg-secondary/80 hover:bg-secondary rounded-t-md transition-all"
-                      style={{ height: `${(value / 12000) * 100}%` }}
+              <div className="h-[300px]">
+                <ChartContainer 
+                  config={{
+                    revenue: {
+                      color: "hsl(var(--secondary))"
+                    }
+                  }}
+                >
+                  <BarChart data={MOCK_MONTHLY_REVENUE} margin={{ top: 10, right: 10, left: isMobile ? 0 : 20, bottom: 20 }}>
+                    <XAxis 
+                      dataKey="month" 
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={false}
                     />
-                    <span className="absolute bottom-[-24px] text-xs text-muted-foreground">
-                      {new Date(Date.now() - (3 - index) * 30 * 24 * 60 * 60 * 1000)
-                        .toLocaleDateString("pt-BR", { month: "short" })}
-                    </span>
-                    <span className="absolute bottom-[-40px] text-[10px] text-muted-foreground">
-                      {value.toLocaleString()}
-                    </span>
-                  </div>
-                ))}
+                    <YAxis 
+                      hide={isMobile}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip 
+                      cursor={false}
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="rounded-lg border bg-background p-2 shadow-md">
+                              <p className="text-xs">{`R$ ${payload[0].value.toLocaleString()}`}</p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar 
+                      dataKey="value" 
+                      fill="currentColor" 
+                      radius={[4, 4, 0, 0]}
+                      className="fill-secondary/80 hover:fill-secondary"
+                      barSize={isMobile ? 25 : 40}
+                    />
+                  </BarChart>
+                </ChartContainer>
               </div>
             </CardContent>
           </Card>
