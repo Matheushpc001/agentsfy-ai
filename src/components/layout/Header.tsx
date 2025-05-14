@@ -6,6 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Sidebar from "./Sidebar";
+import { useState } from "react";
 
 interface HeaderProps {
   title: string;
@@ -14,6 +15,7 @@ interface HeaderProps {
 export default function Header({ title }: HeaderProps) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   // Get greeting based on time of day
   const getGreeting = () => {
@@ -36,18 +38,22 @@ export default function Header({ title }: HeaderProps) {
     }
   };
 
+  const handleSheetOpenChange = (open: boolean) => {
+    setIsMenuOpen(open);
+  };
+
   return (
     <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
       <div className="flex items-center">
         {isMobile && (
-          <Sheet>
+          <Sheet open={isMenuOpen} onOpenChange={handleSheetOpenChange}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="mr-2">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-[80vw] max-w-[280px]">
+            <SheetContent side="left" className="p-0 w-[80vw] max-w-[280px]" onClick={(e) => e.stopPropagation()}>
               <Sidebar />
             </SheetContent>
           </Sheet>

@@ -12,7 +12,8 @@ import {
   Bot,
   Store,
   Calendar,
-  LogOut
+  LogOut,
+  ChevronLeft
 } from "lucide-react";
 import { UserRole, NavItem } from "@/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -88,6 +89,15 @@ export default function Sidebar() {
     navigate('/login');
   };
 
+  const handleNavigate = (href: string) => {
+    navigate(href);
+    // On mobile, close the sidebar after navigation
+    if (isMobile) {
+      // This will close the sheet via the parent component
+      document.body.click(); // Trigger a body click to close the Sheet component
+    }
+  };
+
   if (!user) return null;
 
   return (
@@ -106,8 +116,8 @@ export default function Sidebar() {
                   {isCollapsed && !isMobile ? "" : "Painel"}
                 </h2>
                 {!isMobile && (
-                  <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-                    <LayoutDashboard size={16} />
+                  <Button variant="ghost" size="icon" onClick={toggleSidebar} className="flex-shrink-0">
+                    <ChevronLeft className={`h-5 w-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
                     <span className="sr-only">Toggle sidebar</span>
                   </Button>
                 )}
@@ -132,7 +142,7 @@ export default function Sidebar() {
                     key={item.label}
                     variant="ghost"
                     className="w-full justify-start text-left dark:hover:bg-gray-700"
-                    onClick={() => navigate(item.href)}
+                    onClick={() => handleNavigate(item.href)}
                   >
                     <Icon className="mr-2 h-4 w-4" size={18} />
                     {(!isCollapsed || isMobile) && item.label}
