@@ -74,7 +74,10 @@ export interface Analytics {
   tokensUsed: number;
   franchiseeCount?: number;
   customerCount?: number;
+  activeCustomers?: number;
   revenue?: number;
+  monthlyRevenue?: number;
+  installationRevenue?: number;
 }
 
 export interface AuthContextType {

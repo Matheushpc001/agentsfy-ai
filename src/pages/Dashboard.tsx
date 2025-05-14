@@ -4,9 +4,11 @@ import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageCircle, Bot, Clock, Zap, Users, CircleDollarSign, BarChart3, BriefcaseBusiness } from "lucide-react";
+import { MessageCircle, Bot, Clock, Zap, Users, CircleDollarSign, BarChart3, BriefcaseBusiness, Building2, UserCheck } from "lucide-react";
 import { Analytics, Agent, Message, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
+import { AspectRatio } from "@/components/ui/aspect-ratio";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 // Mock data for demonstration
 const MOCK_ANALYTICS: Record<UserRole, Analytics> = {
@@ -18,7 +20,8 @@ const MOCK_ANALYTICS: Record<UserRole, Analytics> = {
     tokensUsed: 1458962,
     franchiseeCount: 8,
     customerCount: 24,
-    revenue: 11980.50
+    revenue: 11980.50,
+    monthlyRevenue: 45600.75
   },
   franchisee: {
     messageCount: 3245,
@@ -26,7 +29,10 @@ const MOCK_ANALYTICS: Record<UserRole, Analytics> = {
     totalAgents: 10,
     responseTime: 2.1,
     tokensUsed: 387429,
-    customerCount: 5
+    customerCount: 5,
+    activeCustomers: 4,
+    installationRevenue: 2500.00,
+    monthlyRevenue: 4800.50
   },
   customer: {
     messageCount: 876,
@@ -120,6 +126,7 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [recentMessages, setRecentMessages] = useState<Message[]>([]);
   const [topAgents, setTopAgents] = useState<Agent[]>([]);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (user) {
@@ -155,6 +162,73 @@ export default function Dashboard() {
   return (
     <DashboardLayout title="Dashboard">
       <div className="space-y-6">
+        {/* Admin Results Section */}
+        {user.role === "admin" && (
+          <section>
+            <h2 className="text-xl font-semibold mb-4">Resultados</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <StatCard
+                title="Faturamento Mensal"
+                value={`R$ ${analytics.monthlyRevenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                icon={<CircleDollarSign size={20} />}
+                trend={{ value: 12, positive: true }}
+              />
+              
+              <StatCard
+                title="Franqueados"
+                value={analytics.franchiseeCount?.toString() || "0"}
+                icon={<Building2 size={20} />}
+              />
+              
+              <StatCard
+                title="Clientes"
+                value={analytics.customerCount?.toString() || "0"}
+                icon={<Users size={20} />}
+              />
+            </div>
+          </section>
+        )}
+
+        {/* Franchisee Results Section */}
+        {user.role === "franchisee" && (
+          <>
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Resultado com agentes</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <StatCard
+                  title="Instalação"
+                  value={`R$ ${analytics.installationRevenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  icon={<Bot size={20} />}
+                />
+                
+                <StatCard
+                  title="Faturamento Mensal"
+                  value={`R$ ${analytics.monthlyRevenue?.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  icon={<CircleDollarSign size={20} />}
+                  trend={{ value: 8, positive: true }}
+                />
+              </div>
+            </section>
+            
+            <section>
+              <h2 className="text-xl font-semibold mb-4">Total Clientes</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <StatCard
+                  title="Nº de Clientes"
+                  value={analytics.customerCount?.toString() || "0"}
+                  icon={<Users size={20} />}
+                />
+                
+                <StatCard
+                  title="Status"
+                  value={`${analytics.activeCustomers} ativos`}
+                  icon={<UserCheck size={20} />}
+                />
+              </div>
+            </section>
+          </>
+        )}
+        
         {/* Stats Section */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard
@@ -186,38 +260,6 @@ export default function Dashboard() {
             description="Últimos 30 dias"
             icon={<Zap size={20} />}
           />
-
-          {user.role === "admin" && (
-            <>
-              <StatCard
-                title="Franqueados"
-                value={analytics.franchiseeCount?.toString() || "0"}
-                icon={<Users size={20} />}
-              />
-              
-              <StatCard
-                title="Clientes"
-                value={analytics.customerCount?.toString() || "0"}
-                icon={<BriefcaseBusiness size={20} />}
-              />
-              
-              <StatCard
-                title="Faturamento"
-                value={`R$ ${analytics.revenue?.toLocaleString() || "0"}`}
-                description="Este mês"
-                icon={<CircleDollarSign size={20} />}
-                trend={{ value: 8, positive: true }}
-              />
-            </>
-          )}
-
-          {user.role === "franchisee" && (
-            <StatCard
-              title="Clientes"
-              value={analytics.customerCount?.toString() || "0"}
-              icon={<BriefcaseBusiness size={20} />}
-            />
-          )}
         </section>
         
         {/* Main Content Section */}
@@ -268,7 +310,7 @@ export default function Dashboard() {
           </Card>
           
           {/* Stats/Charts */}
-          <Card>
+          <Card className="h-fit">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg font-medium">
                 {user.role === "admin" 
@@ -280,85 +322,87 @@ export default function Dashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {user.role === "admin" && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm">Agentes</span>
-                    <span className="text-sm font-medium">{analytics.totalAgents}</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm">Taxa de Resposta</span>
-                    <span className="text-sm font-medium">98.5%</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm">Satisfação</span>
-                    <span className="text-sm font-medium">4.8/5</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Conversões</span>
-                    <span className="text-sm font-medium">16%</span>
-                  </div>
-                  
-                  <div className="text-center pt-4">
-                    <BarChart3 className="mx-auto h-20 w-20 text-primary opacity-50" />
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Dados completos no painel de estatísticas
-                    </p>
-                  </div>
-                </div>
-              )}
-              
-              {user.role === "franchisee" && (
-                <div className="space-y-3">
-                  {topAgents.map(agent => (
-                    <div key={agent.id} className="flex items-center p-2 rounded-lg border bg-gray-50 dark:bg-gray-800">
-                      <div className="mr-3 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                        <Bot size={20} className="text-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{agent.name}</p>
-                        <p className="text-xs text-muted-foreground">{agent.messageCount} mensagens</p>
-                      </div>
-                      <div className={cn(
-                        "h-2.5 w-2.5 rounded-full",
-                        agent.isActive ? "bg-green-500" : "bg-gray-300" 
-                      )}></div>
+              <AspectRatio ratio={isMobile ? 16/12 : 16/9} className="overflow-hidden">
+                {user.role === "admin" && (
+                  <div className="space-y-4 h-full">
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-sm">Agentes</span>
+                      <span className="text-sm font-medium">{analytics.totalAgents}</span>
                     </div>
-                  ))}
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-sm">Taxa de Resposta</span>
+                      <span className="text-sm font-medium">98.5%</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-sm">Satisfação</span>
+                      <span className="text-sm font-medium">4.8/5</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Conversões</span>
+                      <span className="text-sm font-medium">16%</span>
+                    </div>
+                    
+                    <div className="text-center pt-4">
+                      <BarChart3 className="mx-auto h-20 w-20 text-primary opacity-50" />
+                      <p className="text-sm text-muted-foreground mt-2">
+                        Dados completos no painel de estatísticas
+                      </p>
+                    </div>
+                  </div>
+                )}
+                
+                {user.role === "franchisee" && (
+                  <div className="space-y-3 h-full">
+                    {topAgents.map(agent => (
+                      <div key={agent.id} className="flex items-center p-2 rounded-lg border bg-gray-50 dark:bg-gray-800">
+                        <div className="mr-3 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
+                          <Bot size={20} className="text-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{agent.name}</p>
+                          <p className="text-xs text-muted-foreground">{agent.messageCount} mensagens</p>
+                        </div>
+                        <div className={cn(
+                          "h-2.5 w-2.5 rounded-full",
+                          agent.isActive ? "bg-green-500" : "bg-gray-300" 
+                        )}></div>
+                      </div>
+                    ))}
 
-                  {topAgents.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      <Bot className="mx-auto h-12 w-12 text-muted-foreground/50 mb-2" />
-                      <p>Nenhum agente cadastrado</p>
+                    {topAgents.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground h-full flex flex-col items-center justify-center">
+                        <Bot className="h-12 w-12 text-muted-foreground/50 mb-2" />
+                        <p>Nenhum agente cadastrado</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {user.role === "customer" && (
+                  <div className="space-y-4 h-full">
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-sm">Conversas Hoje</span>
+                      <span className="text-sm font-medium">24</span>
                     </div>
-                  )}
-                </div>
-              )}
-              
-              {user.role === "customer" && (
-                <div className="space-y-4">
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm">Conversas Hoje</span>
-                    <span className="text-sm font-medium">24</span>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-sm">Tempo Médio</span>
+                      <span className="text-sm font-medium">2:45 min</span>
+                    </div>
+                    <div className="flex justify-between items-center pb-2 border-b">
+                      <span className="text-sm">Horário de Pico</span>
+                      <span className="text-sm font-medium">14h - 16h</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm">Tokens Restantes</span>
+                      <span className="text-sm font-medium">41%</span>
+                    </div>
+                    
+                    <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                      <div className="bg-primary h-2.5 rounded-full" style={{ width: '41%' }}></div>
+                    </div>
                   </div>
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm">Tempo Médio</span>
-                    <span className="text-sm font-medium">2:45 min</span>
-                  </div>
-                  <div className="flex justify-between items-center pb-2 border-b">
-                    <span className="text-sm">Horário de Pico</span>
-                    <span className="text-sm font-medium">14h - 16h</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm">Tokens Restantes</span>
-                    <span className="text-sm font-medium">41%</span>
-                  </div>
-                  
-                  <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                    <div className="bg-primary h-2.5 rounded-full" style={{ width: '41%' }}></div>
-                  </div>
-                </div>
-              )}
+                )}
+              </AspectRatio>
             </CardContent>
           </Card>
         </div>
