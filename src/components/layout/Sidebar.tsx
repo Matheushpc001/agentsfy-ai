@@ -93,9 +93,8 @@ export default function Sidebar() {
   return (
     <aside
       className={cn(
-        "bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 fixed h-full z-50",
-        isCollapsed ? "w-16" : "w-64",
-        isMobile ? "hidden" : "block"
+        "bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-full w-full",
+        !isMobile && (isCollapsed ? "w-16" : "w-64 fixed")
       )}
     >
       <ScrollArea className="py-4 h-full">
@@ -104,48 +103,52 @@ export default function Sidebar() {
             <div className="px-3 py-2">
               <div className="flex items-center justify-between">
                 <h2 className="mb-2 text-sm font-semibold tracking-tight">
-                  {isCollapsed ? "Menu" : "Painel"}
+                  {isCollapsed && !isMobile ? "" : "Painel"}
                 </h2>
                 {!isMobile && (
                   <Button variant="ghost" size="icon" onClick={toggleSidebar}>
-                    {isCollapsed ? <LayoutDashboard size={16} /> : <LayoutDashboard size={16} />}
+                    <LayoutDashboard size={16} />
                     <span className="sr-only">Toggle sidebar</span>
                   </Button>
                 )}
               </div>
-              <Avatar className="w-9 h-9">
-                <AvatarImage src="https://github.com/shadcn.png" alt="Avatar" />
-                <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
-              </Avatar>
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {user?.email}
-              </p>
+              <div className="flex items-center gap-2">
+                <Avatar className="w-9 h-9">
+                  <AvatarImage src="https://github.com/shadcn.png" alt="Avatar" />
+                  <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+                {(!isCollapsed || isMobile) && (
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                    {user?.email}
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1 px-3">
               {NAV_ITEMS[user.role].map((item) => {
-                const Icon = item.icon; // Create a capitalized variable to use as a component
+                const Icon = item.icon;
                 return (
                   <Button
                     key={item.label}
                     variant="ghost"
-                    className="w-full justify-start dark:hover:bg-gray-700"
+                    className="w-full justify-start text-left dark:hover:bg-gray-700"
                     onClick={() => navigate(item.href)}
                   >
                     <Icon className="mr-2 h-4 w-4" size={18} />
-                    {item.label}
+                    {(!isCollapsed || isMobile) && item.label}
                   </Button>
                 );
               })}
             </div>
           </div>
-          <div className="px-3 py-2">
+          <div className="px-3 py-2 mt-auto">
             <Button
               variant="ghost"
               className="w-full justify-start dark:hover:bg-gray-700"
               onClick={handleLogout}
             >
               <LogOut className="mr-2 h-4 w-4" />
-              Sair
+              {(!isCollapsed || isMobile) && "Sair"}
             </Button>
           </div>
         </div>
