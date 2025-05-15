@@ -47,24 +47,28 @@ export default function PlanCard({ plan, currentPlanId, onSelect }: PlanCardProp
       
       <CardContent className="flex-grow">
         <div className="mb-6">
-          <p className="text-3xl font-bold">{formatCurrency(plan.price)}</p>
-          <p className="text-sm text-muted-foreground">
-            {plan.billingCycle === "monthly" ? "por mês" : "por ano"}
-          </p>
-          
-          {isAnnualPlan && monthlyEquivalent && (
-            <div className="mt-2 flex items-center gap-1.5">
-              <DollarSign className="h-4 w-4 text-green-500" />
-              <p className="text-sm font-medium text-green-600">
-                Equivalente a {formatCurrency(monthlyEquivalent)}/mês
+          {isAnnualPlan && monthlyEquivalent ? (
+            <>
+              <p className="text-3xl font-bold">{formatCurrency(monthlyEquivalent)}<span className="text-sm font-normal">/mês</span></p>
+              
+              <div className="mt-2 flex items-center gap-1.5 text-muted-foreground">
+                <DollarSign className="h-4 w-4" />
+                <p className="text-sm">
+                  {formatCurrency(plan.price)} por ano
+                </p>
+              </div>
+              
+              <Badge className="mt-2 bg-green-100 text-green-800 hover:bg-green-100">
+                Economia de 20%
+              </Badge>
+            </>
+          ) : (
+            <>
+              <p className="text-3xl font-bold">{formatCurrency(plan.price)}</p>
+              <p className="text-sm text-muted-foreground">
+                por mês
               </p>
-            </div>
-          )}
-          
-          {isAnnualPlan && (
-            <Badge className="mt-2 bg-green-100 text-green-800 hover:bg-green-100">
-              Economia de 20%
-            </Badge>
+            </>
           )}
         </div>
         
