@@ -8,11 +8,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Plan } from "@/types";
-import { ArrowRight, Calendar, CalendarCheck, Info, MessageSquare } from "lucide-react";
+import { ArrowRight, Calendar, CalendarCheck, Info } from "lucide-react";
 import { formatCurrency } from "@/constants/plans";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 // Mock data for the current franchisee
 const MOCK_FRANCHISEE = {
@@ -33,10 +32,8 @@ const MOCK_FRANCHISEE = {
 export default function Plans() {
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [confirmDialog, setConfirmDialog] = useState(false);
-  const [contactDialog, setContactDialog] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
   const navigate = useNavigate();
-  const isMobile = useIsMobile();
   
   // In a real app, this would come from user context or API
   const currentPlanId = MOCK_FRANCHISEE.planId;
@@ -47,11 +44,7 @@ export default function Plans() {
     const plan = getPlanById(planId);
     if (plan) {
       setSelectedPlan(plan);
-      if (plan.isCustom) {
-        setContactDialog(true);
-      } else {
-        setConfirmDialog(true);
-      }
+      setConfirmDialog(true);
     }
   };
   
@@ -67,12 +60,6 @@ export default function Plans() {
         navigate("/franchisee/agents");
       }, 2000);
     }
-  };
-
-  const handleContactSubmit = () => {
-    toast.success("Solicitação enviada com sucesso! Em breve entraremos em contato.");
-    setContactDialog(false);
-    setSelectedPlan(null);
   };
   
   return (
@@ -136,7 +123,7 @@ export default function Plans() {
         </div>
         
         {/* Plan cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {plansToShow.map((plan) => (
             <PlanCard 
               key={plan.id}
@@ -229,55 +216,6 @@ export default function Plans() {
           </DialogContent>
         </Dialog>
       )}
-
-      {/* Contact dialog for custom plans */}
-      <Dialog open={contactDialog} onOpenChange={setContactDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Solicitar contato para plano personalizado</DialogTitle>
-            <DialogDescription>
-              Nossa equipe entrará em contato para discutir suas necessidades específicas.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="grid gap-4 py-4">
-            <div className="flex items-center gap-2 rounded-lg border p-4 bg-purple-50/50">
-              <MessageSquare className="h-8 w-8 text-purple-500" />
-              <div>
-                <p className="font-medium">Atendimento personalizado</p>
-                <p className="text-sm text-muted-foreground">Um consultor especializado entrará em contato em até 24h</p>
-              </div>
-            </div>
-            
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Informações de contato:</p>
-              <p className="text-sm">{MOCK_FRANCHISEE.name}</p>
-              <p className="text-sm">{MOCK_FRANCHISEE.email}</p>
-            </div>
-            
-            <div className="space-y-2">
-              <p className="text-sm font-medium">Necessidades adicionais (opcional):</p>
-              <textarea 
-                className="min-h-[80px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm" 
-                placeholder="Descreva suas necessidades específicas..."
-              ></textarea>
-            </div>
-          </div>
-          
-          <DialogFooter className="sm:justify-start">
-            <Button variant="outline" onClick={() => setContactDialog(false)}>
-              Cancelar
-            </Button>
-            <Button 
-              variant="secondary"
-              className="bg-purple-600 hover:bg-purple-700 text-white"
-              onClick={handleContactSubmit}
-            >
-              Enviar solicitação
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 }

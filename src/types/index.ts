@@ -1,3 +1,4 @@
+
 import { ReactNode } from "react";
 
 export type UserRole = "admin" | "franchisee" | "customer";
@@ -61,7 +62,6 @@ export interface Plan {
   agentLimit: number;
   features?: string[];
   recommended?: boolean;
-  isCustom?: boolean;
 }
 
 export interface Message {

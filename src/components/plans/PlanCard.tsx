@@ -2,11 +2,10 @@
 import { Plan } from "@/types";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check, DollarSign, MessageSquare } from "lucide-react";
+import { Check, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/constants/plans";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 
 interface PlanCardProps {
   plan: Plan;
@@ -17,8 +16,6 @@ interface PlanCardProps {
 export default function PlanCard({ plan, currentPlanId, onSelect }: PlanCardProps) {
   const isCurrentPlan = currentPlanId === plan.id;
   const isAnnualPlan = plan.billingCycle === "annual";
-  const isCustomPlan = plan.isCustom === true;
-  const isMobile = useIsMobile();
   
   // Calculate monthly equivalent price for annual plans
   const monthlyEquivalent = isAnnualPlan ? plan.price / 12 : null;
@@ -30,21 +27,15 @@ export default function PlanCard({ plan, currentPlanId, onSelect }: PlanCardProp
         ? "border-primary shadow-md" 
         : isCurrentPlan 
           ? "border-green-500 shadow-sm" 
-          : isCustomPlan
-            ? "border-purple-500 shadow-md"
-            : "border-border"
+          : "border-border"
     )}>
-      {(plan.recommended || isCurrentPlan || isCustomPlan) && (
-        <div className={cn(
-          "absolute top-0 right-0 translate-x-2 -translate-y-2",
-          isMobile && "translate-x-1 -translate-y-1"
-        )}>
+      {(plan.recommended || isCurrentPlan) && (
+        <div className="absolute top-0 right-0 translate-x-2 -translate-y-2">
           <Badge className={cn(
             "px-3 py-1",
-            plan.recommended ? "bg-primary" : isCustomPlan ? "bg-purple-500" : "bg-green-500",
-            isMobile && "text-xs px-2 py-0.5"
+            plan.recommended ? "bg-primary" : "bg-green-500"
           )}>
-            {plan.recommended ? "Recomendado" : isCurrentPlan ? "Seu Plano" : "Enterprise"}
+            {plan.recommended ? "Recomendado" : "Seu Plano"}
           </Badge>
         </div>
       )}
@@ -56,14 +47,7 @@ export default function PlanCard({ plan, currentPlanId, onSelect }: PlanCardProp
       
       <CardContent className="flex-grow">
         <div className="mb-6">
-          {isCustomPlan ? (
-            <>
-              <p className="text-3xl font-bold">Consulte</p>
-              <p className="text-sm text-muted-foreground">
-                preços personalizados
-              </p>
-            </>
-          ) : isAnnualPlan && monthlyEquivalent ? (
+          {isAnnualPlan && monthlyEquivalent ? (
             <>
               <p className="text-3xl font-bold">{formatCurrency(monthlyEquivalent)}<span className="text-sm font-normal">/mês</span></p>
               
@@ -101,11 +85,11 @@ export default function PlanCard({ plan, currentPlanId, onSelect }: PlanCardProp
       <CardFooter>
         <Button 
           className="w-full" 
-          variant={isCurrentPlan ? "outline" : isCustomPlan ? "secondary" : "default"}
+          variant={isCurrentPlan ? "outline" : "default"}
           disabled={isCurrentPlan}
           onClick={() => onSelect(plan.id)}
         >
-          {isCurrentPlan ? "Plano Atual" : isCustomPlan ? "Falar com Consultor" : "Selecionar Plano"}
+          {isCurrentPlan ? "Plano Atual" : "Selecionar Plano"}
         </Button>
       </CardFooter>
     </Card>

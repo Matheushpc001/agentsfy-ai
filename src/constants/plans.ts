@@ -47,24 +47,6 @@ export const MONTHLY_PLANS: Plan[] = [
       "Integração com WhatsApp",
       "Treinamento da equipe"
     ]
-  },
-  {
-    id: "custom-monthly",
-    name: "Plano Personalizado",
-    description: "Sob medida para grandes organizações com necessidades exclusivas de IA conversacional",
-    price: 0,
-    billingCycle: "monthly",
-    agentLimit: 50,
-    isCustom: true,
-    features: [
-      "50+ agentes",
-      "Atendimento dedicado",
-      "Funcionalidades customizadas",
-      "API exclusiva",
-      "Integração com sistemas empresariais",
-      "Treinamento especializado",
-      "Personalização de marca completa"
-    ]
   }
 ];
 
@@ -115,25 +97,6 @@ export const ANNUAL_PLANS: Plan[] = [
       "API avançada",
       "Integração com WhatsApp",
       "Treinamento da equipe",
-      "Economia de ~20% em relação ao mensal"
-    ]
-  },
-  {
-    id: "custom-annual",
-    name: "Plano Personalizado Anual",
-    description: "Sob medida para grandes organizações com necessidades exclusivas de IA conversacional",
-    price: 0,
-    billingCycle: "annual",
-    agentLimit: 50,
-    isCustom: true,
-    features: [
-      "50+ agentes",
-      "Atendimento dedicado",
-      "Funcionalidades customizadas",
-      "API exclusiva",
-      "Integração com sistemas empresariais",
-      "Treinamento especializado",
-      "Personalização de marca completa",
       "Economia de ~20% em relação ao mensal"
     ]
   }
