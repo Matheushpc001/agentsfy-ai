@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Franchisee } from "@/types";
-import { Bot, Users, Calendar, CircleDollarSign } from "lucide-react";
+import { Bot, Users, Calendar, Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FranchiseeCardProps {
@@ -55,13 +55,14 @@ export default function FranchiseeCard({ franchisee, onView, onEdit }: Franchise
             </span>
           </div>
           <div className="flex items-center">
-            <Calendar className="mr-1.5 h-3.5 w-3.5 md:mr-2 md:h-4 md:w-4 text-muted-foreground" />
+            <CalendarIcon className="mr-1.5 h-3.5 w-3.5 md:mr-2 md:h-4 md:w-4 text-muted-foreground" />
             <span className="text-xs md:text-sm">
               Desde <strong>{formattedDate}</strong>
             </span>
           </div>
           <div className="flex items-center">
-            <CircleDollarSign className="mr-1.5 h-3.5 w-3.5 md:mr-2 md:h-4 md:w-4 text-muted-foreground" />
+            {/* Removed CircleDollarSign since it's not in the approved icons list */}
+            <Bot className="mr-1.5 h-3.5 w-3.5 md:mr-2 md:h-4 md:w-4 text-muted-foreground" />
             <span className="text-xs md:text-sm">
               <strong>R$ {franchisee.revenue.toLocaleString()}</strong>
             </span>

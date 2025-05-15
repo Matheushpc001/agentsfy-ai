@@ -1,3 +1,4 @@
+
 import { ReactNode } from "react";
 
 export type UserRole = "admin" | "franchisee" | "customer";
@@ -20,6 +21,9 @@ export interface Franchisee extends User {
   isActive: boolean;
   createdAt: string;
   customerCount: number;
+  planId?: string; // Reference to the plan
+  planType?: "monthly" | "annual";
+  planExpiresAt?: string;
 }
 
 export interface Customer extends User {
@@ -52,9 +56,12 @@ export interface Agent {
 export interface Plan {
   id: string;
   name: string;
+  description?: string;
   price: number;
-  included_agents: number;
-  extra_agent_price: number;
+  billingCycle: "monthly" | "annual";
+  agentLimit: number;
+  features?: string[];
+  recommended?: boolean;
 }
 
 export interface Message {

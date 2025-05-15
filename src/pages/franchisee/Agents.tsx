@@ -3,12 +3,30 @@ import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search, QrCode, Bot } from "lucide-react";
+import { PlusCircle, Search, QrCode, Bot, ArrowRight } from "lucide-react";
 import AgentCard from "@/components/agents/AgentCard";
 import CreateAgentModal from "@/components/agents/CreateAgentModal";
-import { Agent } from "@/types";
+import { Agent, Plan } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import { useNavigate } from "react-router-dom";
+import { getPlanById } from "@/constants/plans";
+
+// Mock data for the current franchisee with plan info
+const MOCK_FRANCHISEE = {
+  id: "franchisee1",
+  name: "João Silva",
+  email: "joao@exemplo.com",
+  role: "franchisee" as const,
+  agentCount: 2,
+  revenue: 1500,
+  isActive: true,
+  createdAt: "2023-01-15",
+  customerCount: 5,
+  planId: "starter-monthly",
+  planType: "monthly" as const,
+  planExpiresAt: "2023-12-31"
+};
 
 // Mock agents data
 const MOCK_AGENTS: Agent[] = [
@@ -43,20 +61,6 @@ const MOCK_AGENTS: Agent[] = [
     phoneNumber: "+5511888888888",
     responseTime: 1.8,
     demoUrl: "https://demo.whatsapp.com/agent2"
-  },
-  {
-    id: "agent3",
-    name: "Suporte Técnico",
-    sector: "Suporte",
-    prompt: "Você é um agente de suporte técnico especializado em resolver problemas técnicos.",
-    isActive: true,
-    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-    customerId: "customer3",
-    franchiseeId: "franchisee1",
-    openAiKey: "sk-xxxxxxxxxxxxxxxxxxxx",
-    whatsappConnected: false,
-    messageCount: 980,
-    responseTime: 2.5
   }
 ];
 
@@ -66,8 +70,14 @@ export default function Agents() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isPlanLimitModalOpen, setIsPlanLimitModalOpen] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
-
+  const navigate = useNavigate();
+  
+  // Get current plan details from the mock franchisee data
+  const currentPlanId = MOCK_FRANCHISEE.planId;
+  const currentPlan = currentPlanId ? getPlanById(currentPlanId) : null;
+  
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value.toLowerCase());
   };
@@ -89,6 +99,14 @@ export default function Agents() {
   const handleConnectAgent = (agent: Agent) => {
     setCurrentAgent(agent);
     setIsConnectModalOpen(true);
+  };
+
+  const handleCreateAgentClick = () => {
+    if (currentPlan && agents.length >= currentPlan.agentLimit) {
+      setIsPlanLimitModalOpen(true);
+    } else {
+      setIsCreateModalOpen(true);
+    }
   };
 
   const handleSubmitAgent = (agentData: Partial<Agent>) => {
@@ -140,9 +158,14 @@ export default function Agents() {
     }, 2000);
   };
 
+  const handleUpgradePlan = () => {
+    setIsPlanLimitModalOpen(false);
+    navigate("/franchisee/plans");
+  };
+
   const totalAgents = agents.length;
-  const connectedAgents = agents.filter(agent => agent.whatsappConnected).length;
-  const availableAgents = 3 - totalAgents; // Basic plan includes 3 agents
+  const agentLimit = currentPlan?.agentLimit || 3; // Default to 3 if no plan is found
+  const availableAgents = agentLimit - totalAgents;
 
   return (
     <DashboardLayout title="Agentes">
@@ -155,7 +178,7 @@ export default function Agents() {
               <div>
                 <p className="text-sm text-muted-foreground">Agentes</p>
                 <p className="font-medium">
-                  {totalAgents} <span className="text-xs text-muted-foreground">/ Plano: 3</span>
+                  {totalAgents} <span className="text-xs text-muted-foreground">/ {agentLimit}</span>
                 </p>
               </div>
             </div>
@@ -165,7 +188,7 @@ export default function Agents() {
               <div>
                 <p className="text-sm text-muted-foreground">Conectados</p>
                 <p className="font-medium">
-                  {connectedAgents} <span className="text-xs text-muted-foreground">/ {totalAgents}</span>
+                  {agents.filter(agent => agent.whatsappConnected).length} <span className="text-xs text-muted-foreground">/ {totalAgents}</span>
                 </p>
               </div>
             </div>
@@ -183,7 +206,7 @@ export default function Agents() {
               />
             </div>
             <Button 
-              onClick={() => setIsCreateModalOpen(true)}
+              onClick={handleCreateAgentClick}
               disabled={availableAgents <= 0}
             >
               <PlusCircle className="mr-2 h-4 w-4" />
@@ -197,17 +220,35 @@ export default function Agents() {
           </div>
         </div>
 
-        {/* Plan alert */}
-        {availableAgents <= 0 && (
-          <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 flex items-start">
-            <div className="mr-3 mt-0.5">⚠️</div>
+        {/* Plan info card */}
+        {currentPlan && (
+          <div className="bg-white dark:bg-gray-800 border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <p className="font-medium">Limite de agentes do plano atingido</p>
-              <p className="text-sm">Seu plano atual inclui até 3 agentes. Para adicionar mais agentes, você pode adquiri-los por R$ 100/mês cada.</p>
-              <Button variant="outline" className="mt-2 bg-amber-100 hover:bg-amber-200 border-amber-200">
-                Adquirir agente adicional
-              </Button>
+              <h3 className="font-medium">Plano atual: {currentPlan.name}</h3>
+              <p className="text-sm text-muted-foreground">
+                Limite de {currentPlan.agentLimit} agentes • {currentPlan.billingCycle === "monthly" ? "Mensal" : "Anual"}
+              </p>
+              <div className="mt-2 w-full sm:max-w-xs">
+                <div className="flex justify-between text-xs mb-1">
+                  <span>{totalAgents} agentes usados</span>
+                  <span>{agentLimit} total</span>
+                </div>
+                <div className="w-full bg-muted rounded-full h-1.5">
+                  <div 
+                    className="bg-primary h-1.5 rounded-full" 
+                    style={{ width: `${(totalAgents / agentLimit) * 100}%` }}
+                  ></div>
+                </div>
+              </div>
             </div>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="shrink-0"
+              onClick={() => navigate("/franchisee/plans")}
+            >
+              Gerenciar Plano
+            </Button>
           </div>
         )}
 
@@ -278,6 +319,40 @@ export default function Agents() {
             </Button>
             <Button onClick={handleConnectQrCode}>
               Simular Conexão
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Plan limit modal */}
+      <Dialog open={isPlanLimitModalOpen} onOpenChange={setIsPlanLimitModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Limite de Agentes Atingido</DialogTitle>
+            <DialogDescription>
+              Você atingiu o limite de agentes do seu plano atual.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4 text-center space-y-4">
+            <div className="bg-muted p-4 rounded-lg inline-block mx-auto">
+              <Bot size={36} className="text-muted-foreground mx-auto mb-2" />
+              <p className="text-lg font-medium">{agentLimit}/{agentLimit} Agentes</p>
+              <p className="text-sm text-muted-foreground">Limite máximo atingido</p>
+            </div>
+            
+            <p>
+              Para criar mais agentes, você precisa fazer upgrade para um plano com maior capacidade.
+            </p>
+          </div>
+          
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button variant="outline" onClick={() => setIsPlanLimitModalOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleUpgradePlan}>
+              Ver planos disponíveis
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </DialogFooter>
         </DialogContent>
