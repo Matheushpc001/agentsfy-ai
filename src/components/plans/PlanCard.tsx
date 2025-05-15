@@ -2,7 +2,7 @@
 import { Plan } from "@/types";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Check, DollarSign } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/constants/plans";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,10 @@ interface PlanCardProps {
 
 export default function PlanCard({ plan, currentPlanId, onSelect }: PlanCardProps) {
   const isCurrentPlan = currentPlanId === plan.id;
+  const isAnnualPlan = plan.billingCycle === "annual";
+  
+  // Calculate monthly equivalent price for annual plans
+  const monthlyEquivalent = isAnnualPlan ? plan.price / 12 : null;
   
   return (
     <Card className={cn(
@@ -47,6 +51,21 @@ export default function PlanCard({ plan, currentPlanId, onSelect }: PlanCardProp
           <p className="text-sm text-muted-foreground">
             {plan.billingCycle === "monthly" ? "por mês" : "por ano"}
           </p>
+          
+          {isAnnualPlan && monthlyEquivalent && (
+            <div className="mt-2 flex items-center gap-1.5">
+              <DollarSign className="h-4 w-4 text-green-500" />
+              <p className="text-sm font-medium text-green-600">
+                Equivalente a {formatCurrency(monthlyEquivalent)}/mês
+              </p>
+            </div>
+          )}
+          
+          {isAnnualPlan && (
+            <Badge className="mt-2 bg-green-100 text-green-800 hover:bg-green-100">
+              Economia de 20%
+            </Badge>
+          )}
         </div>
         
         <div className="space-y-2">
