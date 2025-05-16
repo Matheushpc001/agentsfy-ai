@@ -43,6 +43,7 @@ import { toast } from "sonner";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
+import { AgentConfig } from "@/types";
 
 // Esquema de validação para o formulário do agente
 const agentFormSchema = z.object({
@@ -60,26 +61,6 @@ const agentFormSchema = z.object({
   maxResponseTokens: z.number().int().min(100).max(4000).default(1500),
   temperature: z.number().min(0).max(2).default(0.7),
 });
-
-// Tipo para configuração do agente
-interface AgentConfig {
-  id: string;
-  name: string;
-  instructions: string;
-  openAIApiKey?: string;
-  enableVoice: boolean;
-  voiceModel?: string;
-  personalityType: "informative" | "friendly" | "professional" | "creative";
-  knowledgeBase?: string;
-  maxResponseTokens: number;
-  temperature: number;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  messageCount: number;
-  avgResponseTime: number;
-  associatedWhatsAppId?: string;
-}
 
 // Dados simulados de configuração de agentes
 const MOCK_AGENT_CONFIGS: AgentConfig[] = [
@@ -205,10 +186,18 @@ export default function AIAgentConfig() {
       setIsEditModalOpen(false);
       toast.success("Agente de IA atualizado com sucesso!");
     } else {
-      // Criar novo agente
+      // Criar novo agente - garantindo que todos os campos obrigatórios estejam presentes
       const newAgent: AgentConfig = {
         id: `agent-${Date.now()}`,
-        ...values,
+        name: values.name,
+        instructions: values.instructions,
+        openAIApiKey: values.openAIApiKey || undefined,
+        enableVoice: values.enableVoice,
+        voiceModel: values.voiceModel,
+        personalityType: values.personalityType,
+        knowledgeBase: values.knowledgeBase,
+        maxResponseTokens: values.maxResponseTokens,
+        temperature: values.temperature,
         isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
@@ -287,7 +276,7 @@ export default function AIAgentConfig() {
           <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 dark:bg-yellow-900/20 dark:border-yellow-600">
             <div className="flex">
               <div className="flex-shrink-0">
-                <AlertTriangle className="h-5 w-5 text-yellow-400" />
+                <AlertTriangle className="h-5 w-5 text-yellow-400" aria-hidden="true" />
               </div>
               <div className="ml-3">
                 <p className="text-sm text-yellow-700 dark:text-yellow-200">
@@ -355,7 +344,7 @@ export default function AIAgentConfig() {
                     <CardTitle className="text-xl flex items-center gap-2">
                       {agent.name}
                       {agent.enableVoice && (
-                        <Mic className="h-4 w-4 text-blue-500" title="Com suporte a voz" />
+                        <Mic className="h-4 w-4 text-blue-500" aria-label="Com suporte a voz" />
                       )}
                     </CardTitle>
                     <CardDescription>

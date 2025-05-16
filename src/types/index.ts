@@ -144,6 +144,9 @@ export interface AIAgentConfig {
   associatedWhatsAppId?: string;
 }
 
+// Alias para compatibilidade com o componente AIAgentConfig
+export type AgentConfig = AIAgentConfig;
+
 // Interface para configurações de voz com Eleven Labs
 export interface ElevenLabsVoiceConfig {
   voiceId: string;
