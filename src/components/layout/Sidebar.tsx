@@ -81,6 +81,11 @@ export default function Sidebar() {
         icon: BarChart2, 
         href: "/customer/dashboard" 
       },
+      { 
+        label: "Agenda", 
+        icon: Calendar, 
+        href: "/customer/schedule" 
+      },
     ],
   };
 

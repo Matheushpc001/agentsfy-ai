@@ -49,7 +49,7 @@ export default function Header({ title }: HeaderProps) {
         {isMobile && (
           <Sheet open={isMenuOpen} onOpenChange={handleSheetOpenChange}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="mr-2">
+              <Button variant="ghost" size="icon" className="mr-3">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Menu</span>
               </Button>

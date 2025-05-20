@@ -25,6 +25,7 @@ import WhatsAppConnections from "./pages/franchisee/WhatsAppConnections";
 // Customer pages
 import CustomerDashboard from "./pages/customer/Dashboard";
 import AIAgentConfig from "./pages/customer/AIAgentConfig";
+import CustomerSchedule from "./pages/customer/Schedule";
 
 const queryClient = new QueryClient();
 
@@ -76,6 +77,7 @@ const AppRoutes = () => {
       {/* Customer routes */}
       <Route path="/customer/dashboard" element={<ProtectedRoute element={<CustomerDashboard />} allowedRoles={["customer"]} />} />
       <Route path="/customer/ai-agents" element={<ProtectedRoute element={<AIAgentConfig />} allowedRoles={["customer"]} />} />
+      <Route path="/customer/schedule" element={<ProtectedRoute element={<CustomerSchedule />} allowedRoles={["customer"]} />} />
       
       {/* Redirect root to login or dashboard */}
       <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
