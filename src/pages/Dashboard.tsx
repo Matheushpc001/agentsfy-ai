@@ -8,6 +8,7 @@ import { Analytics, Agent, Message, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 
 // Mock data for demonstration
 const MOCK_ANALYTICS: Record<UserRole, Analytics> = {
@@ -41,6 +42,24 @@ const MOCK_ANALYTICS: Record<UserRole, Analytics> = {
     tokensUsed: 98421
   }
 };
+
+// Data for charts
+const MOCK_WEEKLY_MESSAGES = [
+  { day: "Dom", count: 345 },
+  { day: "Seg", count: 456 },
+  { day: "Ter", count: 523 },
+  { day: "Qua", count: 578 },
+  { day: "Qui", count: 498 },
+  { day: "Sex", count: 467 },
+  { day: "Sáb", count: 389 }
+];
+
+const MOCK_CHANNEL_DISTRIBUTION = [
+  { name: "WhatsApp", value: 68, color: "#25D366" },
+  { name: "Web", value: 22, color: "#0EA5E9" },
+  { name: "Email", value: 10, color: "#6366F1" }
+];
+
 const MOCK_MESSAGES: Message[] = [{
   id: "1",
   sender: "+5511999999999",
@@ -142,6 +161,12 @@ export default function Dashboard() {
       minute: "2-digit"
     });
   };
+  // Formatter for currency values
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2
+  });
   return <DashboardLayout title="Dashboard">
       <div className="space-y-6">
         {/* Admin Results Section */}
@@ -210,8 +235,61 @@ export default function Dashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Recent Messages */}
           <Card className="lg:col-span-2">
-            
-            
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg font-medium">
+                Mensagens Recentes
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="h-[300px] overflow-hidden">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart
+                    data={MOCK_WEEKLY_MESSAGES}
+                    margin={{ top: 20, right: 20, left: isMobile ? 0 : 20, bottom: 20 }}
+                  >
+                    <defs>
+                      <linearGradient id="colorMessages" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0.1}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                    <XAxis 
+                      dataKey="day" 
+                      tick={{ fontSize: 12 }} 
+                      tickLine={false} 
+                      axisLine={{ stroke: 'rgba(255,255,255,0.2)' }}
+                    />
+                    <YAxis 
+                      width={isMobile ? 30 : 40}
+                      tickFormatter={(value) => value.toString()}
+                      tick={{ fontSize: 12 }}
+                      tickLine={false}
+                      axisLine={{ stroke: 'rgba(255,255,255,0.2)' }}
+                    />
+                    <Tooltip
+                      contentStyle={{ 
+                        backgroundColor: 'rgba(15, 23, 42, 0.9)', 
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        borderRadius: '8px',
+                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                      }}
+                      itemStyle={{ color: '#fff' }}
+                      formatter={(value) => [`${value} mensagens`, 'Quantidade']}
+                      labelFormatter={(label) => `${label}`}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="count" 
+                      stroke="#0EA5E9" 
+                      strokeWidth={2}
+                      fillOpacity={1} 
+                      fill="url(#colorMessages)" 
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </CardContent>
           </Card>
           
           {/* Stats/Charts */}
@@ -224,15 +302,15 @@ export default function Dashboard() {
             <CardContent>
               <AspectRatio ratio={isMobile ? 16 / 12 : 16 / 9} className="overflow-hidden">
                 {user.role === "admin" && <div className="space-y-4 h-full">
-                    <div className="flex justify-between items-center pb-2 border-b">
+                    <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-sm">Agentes</span>
                       <span className="text-sm font-medium">{analytics.totalAgents}</span>
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
+                    <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-sm">Taxa de Resposta</span>
                       <span className="text-sm font-medium">98.5%</span>
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
+                    <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-sm">Satisfação</span>
                       <span className="text-sm font-medium">4.8/5</span>
                     </div>
@@ -241,11 +319,34 @@ export default function Dashboard() {
                       <span className="text-sm font-medium">16%</span>
                     </div>
                     
-                    <div className="text-center pt-4">
-                      <BarChart3 className="mx-auto h-20 w-20 text-primary opacity-50" />
-                      <p className="text-sm text-muted-foreground mt-2">
-                        Dados completos no painel de estatísticas
-                      </p>
+                    <div className="mt-4 h-24">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={MOCK_CHANNEL_DISTRIBUTION}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={20}
+                            outerRadius={40}
+                            paddingAngle={2}
+                            dataKey="value"
+                          >
+                            {MOCK_CHANNEL_DISTRIBUTION.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip
+                            contentStyle={{ 
+                              backgroundColor: 'rgba(15, 23, 42, 0.9)', 
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              borderRadius: '8px'
+                            }}
+                            itemStyle={{ color: '#fff' }}
+                            formatter={(value) => [`${value}%`, 'Porcentagem']}
+                            labelFormatter={(name) => `${name}`}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>}
                 
@@ -268,15 +369,15 @@ export default function Dashboard() {
                   </div>}
                 
                 {user.role === "customer" && <div className="space-y-4 h-full">
-                    <div className="flex justify-between items-center pb-2 border-b">
+                    <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-sm">Conversas Hoje</span>
                       <span className="text-sm font-medium">24</span>
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
+                    <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-sm">Tempo Médio</span>
                       <span className="text-sm font-medium">2:45 min</span>
                     </div>
-                    <div className="flex justify-between items-center pb-2 border-b">
+                    <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-sm">Horário de Pico</span>
                       <span className="text-sm font-medium">14h - 16h</span>
                     </div>
@@ -285,10 +386,34 @@ export default function Dashboard() {
                       <span className="text-sm font-medium">41%</span>
                     </div>
                     
-                    <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mt-2">
                       <div className="bg-primary h-2.5 rounded-full" style={{
                     width: '41%'
                   }}></div>
+                    </div>
+                    
+                    <div className="mt-2 h-24">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={MOCK_WEEKLY_MESSAGES}>
+                          <Line 
+                            type="monotone" 
+                            dataKey="count" 
+                            stroke="#0EA5E9" 
+                            strokeWidth={2}
+                            dot={false}
+                          />
+                          <Tooltip
+                            contentStyle={{ 
+                              backgroundColor: 'rgba(15, 23, 42, 0.9)', 
+                              border: '1px solid rgba(255,255,255,0.2)',
+                              borderRadius: '8px'
+                            }}
+                            itemStyle={{ color: '#fff' }}
+                            formatter={(value) => [`${value} msgs`, '']}
+                            labelFormatter={(label) => `${label}`}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
                     </div>
                   </div>}
               </AspectRatio>
