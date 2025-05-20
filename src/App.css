@@ -1,3 +1,4 @@
+
 #root {
   max-width: 1280px;
   margin: 0 auto;
@@ -12,10 +13,10 @@
   transition: filter 300ms;
 }
 .logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
+  filter: drop-shadow(0 0 2em rgba(100, 108, 255, 0.6));
 }
 .logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+  filter: drop-shadow(0 0 2em rgba(97, 218, 251, 0.6));
 }
 
 @keyframes logo-spin {
@@ -39,4 +40,21 @@
 
 .read-the-docs {
   color: #888;
+}
+
+/* Dark mode enhancements */
+.dark #root {
+  color-scheme: dark;
+}
+
+.dark .logo:hover {
+  filter: drop-shadow(0 0 2em rgba(100, 108, 255, 0.8));
+}
+
+.dark .logo.react:hover {
+  filter: drop-shadow(0 0 2em rgba(97, 218, 251, 0.8));
+}
+
+.dark .read-the-docs {
+  color: #aaa;
 }

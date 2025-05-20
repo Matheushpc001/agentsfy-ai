@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Sidebar from "./Sidebar";
 import { useState } from "react";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface HeaderProps {
   title: string;
@@ -77,10 +78,11 @@ export default function Header({ title }: HeaderProps) {
             className="w-[200px] lg:w-[300px] pl-8"
           />
         </div>
+        <ThemeToggle />
         <Button 
           variant="ghost" 
           size="icon" 
-          className="relative"
+          className="relative ml-2"
         >
           <Bell className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
