@@ -4,11 +4,12 @@ import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatCard } from "@/components/ui/stat-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, MessageCircle, Zap, Clock, Bot, User, Users } from "lucide-react";
+import { MessageCircle, Zap, Clock, Bot, User, Users, ChartPie } from "lucide-react";
 import { ChartContainer } from "@/components/ui/chart";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { cn } from "@/lib/utils";
+import { DashboardStatCard } from "@/components/ui/dashboard-stat-card";
 
 // Mock data for analytics
 const MOCK_DAILY_MESSAGES = [
@@ -28,9 +29,29 @@ const MOCK_MONTHLY_REVENUE = [
   { month: "abr", value: 11980 }
 ];
 
+// Mock data for pie charts
+const MOCK_CHANNEL_DISTRIBUTION = [
+  { name: "WhatsApp", value: 67, color: "#25D366" },
+  { name: "Web Chat", value: 23, color: "#0099FF" },
+  { name: "Messenger", value: 10, color: "#006AFF" }
+];
+
+const MOCK_MARKET_DISTRIBUTION = [
+  { name: "Atendimento", value: 45, color: "#4264FB" },
+  { name: "Vendas", value: 35, color: "#00C48C" },
+  { name: "Suporte", value: 20, color: "#FFB946" }
+];
+
 export default function Analytics() {
   const [periodTab, setPeriodTab] = useState("7d");
   const isMobile = useIsMobile();
+
+  // Formatter for currency values
+  const currencyFormatter = new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+    minimumFractionDigits: 2
+  });
 
   return (
     <DashboardLayout title="Estatísticas">
@@ -44,6 +65,45 @@ export default function Analytics() {
             <TabsTrigger value="12m">12 meses</TabsTrigger>
           </TabsList>
         </Tabs>
+
+        {/* Main Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <DashboardStatCard 
+            title="Faturamento" 
+            value={currencyFormatter.format(50598.98)}
+            change={{
+              value: 9.2,
+              positive: true,
+              label: "desde mês anterior"
+            }}
+            chartData={MOCK_MONTHLY_REVENUE}
+            chartColor="#0EA5E9"
+          />
+          
+          <DashboardStatCard 
+            title="Vendas Realizadas" 
+            value="120"
+            change={{
+              value: 10.5,
+              positive: true,
+              label: "desde semana anterior"
+            }}
+            chartData={MOCK_DAILY_MESSAGES}
+            chartColor="#0EA5E9"
+          />
+          
+          <DashboardStatCard 
+            title="Média por Venda" 
+            value={currencyFormatter.format(421.66)}
+            change={{
+              value: 2.8,
+              positive: false,
+              label: "desde mês anterior"
+            }}
+            chartData={[...MOCK_DAILY_MESSAGES].reverse()}
+            chartColor="#0EA5E9"
+          />
+        </div>
 
         {/* Overview stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -81,7 +141,7 @@ export default function Analytics() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Message volume chart */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle>Volume de Mensagens</CardTitle>
               <CardDescription>
                 Total de mensagens trocadas por dia
@@ -92,43 +152,46 @@ export default function Analytics() {
                 <ChartContainer 
                   config={{
                     messages: {
-                      color: "hsl(var(--primary))"
+                      color: "hsl(var(--chart-blue))"
                     }
                   }}
                 >
-                  <BarChart data={MOCK_DAILY_MESSAGES} margin={{ top: 10, right: 10, left: isMobile ? 0 : 20, bottom: 20 }}>
-                    <XAxis 
-                      dataKey="day" 
-                      tick={{ fontSize: 12 }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis 
-                      hide={isMobile} 
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip 
-                      cursor={false}
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          return (
-                            <div className="rounded-lg border bg-background p-2 shadow-md">
-                              <p className="text-xs">{`${payload[0].value.toLocaleString()} mensagens`}</p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar 
-                      dataKey="value" 
-                      fill="currentColor" 
-                      radius={[4, 4, 0, 0]}
-                      className="fill-primary/80 hover:fill-primary"
-                      barSize={isMobile ? 25 : 40}
-                    />
-                  </BarChart>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={MOCK_DAILY_MESSAGES} margin={{ top: 20, right: 10, left: isMobile ? 0 : 20, bottom: 20 }}>
+                      <XAxis 
+                        dataKey="day" 
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis 
+                        hide={isMobile} 
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip 
+                        cursor={{fill: 'rgba(0, 0, 0, 0.1)'}}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="rounded-lg border bg-background p-2 shadow-md">
+                                <p className="text-xs font-semibold">{`${payload[0].payload.day}`}</p>
+                                <p className="text-sm">{`${payload[0].value.toLocaleString()} mensagens`}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Bar 
+                        dataKey="value" 
+                        fill="currentColor" 
+                        radius={[4, 4, 0, 0]}
+                        className="fill-[#0EA5E9] hover:fill-[#0284C7]"
+                        barSize={isMobile ? 25 : 40}
+                      />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </ChartContainer>
               </div>
             </CardContent>
@@ -136,7 +199,7 @@ export default function Analytics() {
 
           {/* Revenue chart */}
           <Card>
-            <CardHeader>
+            <CardHeader className="pb-2">
               <CardTitle>Faturamento</CardTitle>
               <CardDescription>
                 Total faturado por mês (R$)
@@ -147,44 +210,147 @@ export default function Analytics() {
                 <ChartContainer 
                   config={{
                     revenue: {
-                      color: "hsl(var(--secondary))"
+                      color: "hsl(var(--chart-green))"
                     }
                   }}
                 >
-                  <BarChart data={MOCK_MONTHLY_REVENUE} margin={{ top: 10, right: 10, left: isMobile ? 0 : 20, bottom: 20 }}>
-                    <XAxis 
-                      dataKey="month" 
-                      tick={{ fontSize: 12 }}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis 
-                      hide={isMobile}
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <Tooltip 
-                      cursor={false}
-                      content={({ active, payload }) => {
-                        if (active && payload && payload.length) {
-                          return (
-                            <div className="rounded-lg border bg-background p-2 shadow-md">
-                              <p className="text-xs">{`R$ ${payload[0].value.toLocaleString()}`}</p>
-                            </div>
-                          );
-                        }
-                        return null;
-                      }}
-                    />
-                    <Bar 
-                      dataKey="value" 
-                      fill="currentColor" 
-                      radius={[4, 4, 0, 0]}
-                      className="fill-secondary/80 hover:fill-secondary"
-                      barSize={isMobile ? 25 : 40}
-                    />
-                  </BarChart>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={MOCK_MONTHLY_REVENUE} margin={{ top: 20, right: 10, left: isMobile ? 0 : 20, bottom: 20 }}>
+                      <XAxis 
+                        dataKey="month" 
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <YAxis 
+                        hide={isMobile}
+                        tickLine={false}
+                        axisLine={false}
+                      />
+                      <Tooltip 
+                        cursor={false}
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="rounded-lg border bg-background p-2 shadow-md">
+                                <p className="text-xs font-semibold">{`${payload[0].payload.month}`}</p>
+                                <p className="text-sm">{`R$ ${payload[0].value.toLocaleString()}`}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="value" 
+                        stroke="#10B981" 
+                        strokeWidth={3}
+                        dot={{ r: 4, strokeWidth: 2, fill: "#fff" }}
+                        activeDot={{ r: 6, strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
                 </ChartContainer>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Distribution Charts */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Channel Distribution */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Distribuição por Canal</CardTitle>
+              <CardDescription>
+                Porcentagem de uso por canal de comunicação
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-center h-[300px]">
+                <div className="w-full max-w-[300px]">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={MOCK_CHANNEL_DISTRIBUTION}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={100}
+                        innerRadius={60}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {MOCK_CHANNEL_DISTRIBUTION.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="rounded-lg border bg-background p-2 shadow-md">
+                                <p className="text-xs font-semibold" style={{ color: payload[0].payload.color }}>{payload[0].name}</p>
+                                <p className="text-sm">{`${payload[0].value}%`}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Market Distribution */}
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle>Distribuição por Tipo</CardTitle>
+              <CardDescription>
+                Porcentagem de uso por tipo de atendimento
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-center h-[300px]">
+                <div className="w-full max-w-[300px]">
+                  <ResponsiveContainer width="100%" height={300}>
+                    <PieChart>
+                      <Pie
+                        data={MOCK_MARKET_DISTRIBUTION}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        outerRadius={100}
+                        innerRadius={60}
+                        paddingAngle={3}
+                        dataKey="value"
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {MOCK_MARKET_DISTRIBUTION.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        content={({ active, payload }) => {
+                          if (active && payload && payload.length) {
+                            return (
+                              <div className="rounded-lg border bg-background p-2 shadow-md">
+                                <p className="text-xs font-semibold" style={{ color: payload[0].payload.color }}>{payload[0].name}</p>
+                                <p className="text-sm">{`${payload[0].value}%`}</p>
+                              </div>
+                            );
+                          }
+                          return null;
+                        }}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -192,8 +358,8 @@ export default function Analytics() {
 
         {/* Usage by franchisees */}
         <Card>
-          <CardHeader>
-            <CardTitle>Uso por Franqueados</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-medium">Uso por Franqueados</CardTitle>
             <CardDescription>
               Detalhamento de atividade por franqueado
             </CardDescription>

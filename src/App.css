@@ -58,3 +58,30 @@
 .dark .read-the-docs {
   color: #aaa;
 }
+
+/* Chart Colors */
+:root {
+  --chart-blue: 199 89% 48%;
+  --chart-blue-dark: 200 98% 39%;
+  --chart-green: 159 90% 44%;
+  --chart-green-dark: 160 84% 39%;
+  --chart-purple: 262 80% 58%;
+  --chart-purple-dark: 262 83% 52%;
+  --chart-orange: 30 94% 64%;
+  --chart-orange-dark: 21 90% 48%;
+}
+
+.dark {
+  --chart-blue: 201 94% 67%;
+  --chart-blue-dark: 201 94% 57%;
+  --chart-green: 158 64% 52%;
+  --chart-green-dark: 158 64% 42%;
+  --chart-purple: 263 70% 71%;
+  --chart-purple-dark: 263 70% 61%;
+  --chart-orange: 33 97% 70%;
+  --chart-orange-dark: 33 97% 60%;
+}
+
+.recharts-tooltip-wrapper {
+  z-index: 1000;
+}

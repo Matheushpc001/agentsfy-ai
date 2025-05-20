@@ -62,6 +62,17 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				// Add new chart colors
+				chart: {
+					blue: 'hsl(var(--chart-blue))',
+					'blue-dark': 'hsl(var(--chart-blue-dark))',
+					green: 'hsl(var(--chart-green))',
+					'green-dark': 'hsl(var(--chart-green-dark))',
+					purple: 'hsl(var(--chart-purple))',
+					'purple-dark': 'hsl(var(--chart-purple-dark))',
+					orange: 'hsl(var(--chart-orange))',
+					'orange-dark': 'hsl(var(--chart-orange-dark))',
 				}
 			},
 			borderRadius: {
