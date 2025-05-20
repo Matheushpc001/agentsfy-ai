@@ -1,3 +1,4 @@
+
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -6,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Bot } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -14,6 +17,7 @@ export default function Login() {
     login
   } = useAuth();
   const navigate = useNavigate();
+  
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -28,8 +32,14 @@ export default function Login() {
       setIsLoading(false);
     }
   };
-  return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4 relative">
+  
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4 relative">
       <div className="absolute inset-0 gradient-bg opacity-5 z-0" />
+      
+      <div className="absolute top-4 right-4 z-20">
+        <ThemeToggle />
+      </div>
       
       <Card className="w-full max-w-md shadow-lg z-10">
         <CardHeader className="text-center pb-2">
@@ -48,7 +58,16 @@ export default function Login() {
               <label htmlFor="email" className="text-sm font-medium">
                 Email
               </label>
-              <Input id="email" type="email" placeholder="seu@email.com" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} required />
+              <Input 
+                id="email" 
+                type="email" 
+                placeholder="seu@email.com" 
+                autoComplete="email" 
+                value={email} 
+                onChange={e => setEmail(e.target.value)} 
+                disabled={isLoading} 
+                required 
+              />
             </div>
             
             <div className="space-y-2">
@@ -60,7 +79,16 @@ export default function Login() {
                   Esqueceu a senha?
                 </a>
               </div>
-              <Input id="password" type="password" placeholder="••••••••" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} disabled={isLoading} required />
+              <Input 
+                id="password" 
+                type="password" 
+                placeholder="••••••••" 
+                autoComplete="current-password" 
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+                disabled={isLoading} 
+                required 
+              />
             </div>
             
             <Button type="submit" className="w-full" disabled={isLoading}>
@@ -86,5 +114,6 @@ export default function Login() {
           </div>
         </CardContent>
       </Card>
-    </div>;
+    </div>
+  );
 }
