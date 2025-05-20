@@ -1,4 +1,3 @@
-
 import { useState, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -7,18 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Bot } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const {
+    login
+  } = useAuth();
   const navigate = useNavigate();
-
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
     try {
       await login(email, password);
       toast.success("Login realizado com sucesso!");
@@ -30,9 +28,7 @@ export default function Login() {
       setIsLoading(false);
     }
   };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4 relative">
+  return <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4 relative">
       <div className="absolute inset-0 gradient-bg opacity-5 z-0" />
       
       <Card className="w-full max-w-md shadow-lg z-10">
@@ -40,7 +36,7 @@ export default function Login() {
           <div className="mx-auto w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4">
             <Bot size={28} className="text-white" />
           </div>
-          <CardTitle className="text-2xl">AI Agents WhatsApp</CardTitle>
+          <CardTitle className="text-2xl">AgentsFy</CardTitle>
           <CardDescription className="text-muted-foreground">
             Plataforma de microfranquias para agentes de IA no WhatsApp
           </CardDescription>
@@ -52,16 +48,7 @@ export default function Login() {
               <label htmlFor="email" className="text-sm font-medium">
                 Email
               </label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="seu@email.com"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                disabled={isLoading}
-                required
-              />
+              <Input id="email" type="email" placeholder="seu@email.com" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} disabled={isLoading} required />
             </div>
             
             <div className="space-y-2">
@@ -69,30 +56,14 @@ export default function Login() {
                 <label htmlFor="password" className="text-sm font-medium">
                   Senha
                 </label>
-                <a 
-                  href="#" 
-                  className="text-xs text-primary hover:underline"
-                >
+                <a href="#" className="text-xs text-primary hover:underline">
                   Esqueceu a senha?
                 </a>
               </div>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                autoComplete="current-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={isLoading}
-                required
-              />
+              <Input id="password" type="password" placeholder="••••••••" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} disabled={isLoading} required />
             </div>
             
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={isLoading}
-            >
+            <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
@@ -115,6 +86,5 @@ export default function Login() {
           </div>
         </CardContent>
       </Card>
-    </div>
-  );
+    </div>;
 }
