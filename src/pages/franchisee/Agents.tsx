@@ -1,16 +1,17 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search, QrCode, Bot, ArrowRight } from "lucide-react";
+import { PlusCircle, Search, QrCode, Bot, ArrowRight, Check } from "lucide-react";
 import AgentCard from "@/components/agents/AgentCard";
 import CreateAgentModal from "@/components/agents/CreateAgentModal";
-import { Agent, Plan } from "@/types";
+import { Agent, Customer, WhatsAppConnectionStatus, CustomerPortalAccess } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { getPlanById } from "@/constants/plans";
+import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
 
 // Mock data for the current franchisee with plan info
 const MOCK_FRANCHISEE = {
@@ -64,14 +65,50 @@ const MOCK_AGENTS: Agent[] = [
   }
 ];
 
+// Mock customers data
+const MOCK_CUSTOMERS: Customer[] = [
+  {
+    id: "customer1",
+    name: "Cliente Empresa A",
+    email: "contato@empresaa.com",
+    businessName: "Empresa A",
+    role: "customer",
+    franchiseeId: "franchisee1",
+    agentCount: 2,
+    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
+    logo: "https://ui-avatars.com/api/?name=Empresa+A&background=0D8ABC&color=fff",
+    document: "12.345.678/0001-90",
+    contactPhone: "+5511977777777",
+    portalUrl: "https://cliente.plataforma.com/customer1"
+  },
+  {
+    id: "customer2",
+    name: "Cliente Empresa B",
+    email: "contato@empresab.com",
+    businessName: "Empresa B",
+    role: "customer",
+    franchiseeId: "franchisee1",
+    agentCount: 1,
+    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
+    document: "98.765.432/0001-21",
+    contactPhone: "+5511966666666"
+  }
+];
+
 export default function Agents() {
   const [agents, setAgents] = useState<Agent[]>(MOCK_AGENTS);
+  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
   const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
+  const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
+  const [isCustomerPortalModalOpen, setIsCustomerPortalModalOpen] = useState(false);
   const [isPlanLimitModalOpen, setIsPlanLimitModalOpen] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  const [currentQrCode, setCurrentQrCode] = useState<string | null>(null);
+  const [currentCustomerPortal, setCurrentCustomerPortal] = useState<CustomerPortalAccess | null>(null);
+  const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
   const navigate = useNavigate();
   
   // Get current plan details from the mock franchisee data
@@ -98,7 +135,7 @@ export default function Agents() {
 
   const handleConnectAgent = (agent: Agent) => {
     setCurrentAgent(agent);
-    setIsConnectModalOpen(true);
+    setIsWhatsAppModalOpen(true);
   };
 
   const handleCreateAgentClick = () => {
@@ -109,7 +146,56 @@ export default function Agents() {
     }
   };
 
-  const handleSubmitAgent = (agentData: Partial<Agent>) => {
+  const generateRandomId = () => `id${Math.floor(Math.random() * 10000)}`;
+  const generateRandomPassword = () => Math.random().toString(36).slice(-8);
+
+  const handleSubmitAgent = (
+    agentData: Partial<Agent>, 
+    customerData?: Partial<Customer>, 
+    isNewCustomer?: boolean
+  ) => {
+    // Handle existing customer case
+    let customerId = "";
+    let customer: Customer | undefined;
+
+    if (isNewCustomer && customerData) {
+      // Create new customer
+      const newCustomer: Customer = {
+        id: `customer${Date.now()}`,
+        name: customerData.name || "",
+        email: customerData.email || "",
+        businessName: customerData.businessName || "",
+        role: "customer",
+        franchiseeId: "franchisee1", // Would come from current user in a real app
+        agentCount: 1,
+        createdAt: new Date().toISOString(),
+        document: customerData.document,
+        contactPhone: customerData.contactPhone,
+        portalUrl: `https://cliente.plataforma.com/c/${generateRandomId()}`,
+        password: generateRandomPassword()
+      };
+      
+      setCustomers([...customers, newCustomer]);
+      customerId = newCustomer.id;
+      customer = newCustomer;
+      
+      // Update franchisee customer count
+      MOCK_FRANCHISEE.customerCount += 1;
+      
+    } else if (agentData.customerId) {
+      // Use existing customer
+      customerId = agentData.customerId;
+      customer = customers.find(c => c.id === customerId);
+      
+      // Update customer's agent count
+      if (customer) {
+        const updatedCustomers = customers.map(c => 
+          c.id === customerId ? { ...c, agentCount: c.agentCount + 1 } : c
+        );
+        setCustomers(updatedCustomers);
+      }
+    }
+    
     if (isEditModalOpen && currentAgent) {
       // Edit existing agent
       const updatedAgents = agents.map(agent =>
@@ -118,6 +204,7 @@ export default function Agents() {
       setAgents(updatedAgents);
       toast.success(`Agente ${agentData.name} atualizado com sucesso!`);
       setIsEditModalOpen(false);
+      setCurrentAgent(null);
     } else {
       // Create new agent
       const newAgent: Agent = {
@@ -127,7 +214,7 @@ export default function Agents() {
         prompt: agentData.prompt || "",
         isActive: true,
         createdAt: new Date().toISOString(),
-        customerId: "customer1", // Would come from selection in a real app
+        customerId: customerId,
         franchiseeId: "franchisee1", // Would come from current user in a real app
         openAiKey: agentData.openAiKey!,
         whatsappConnected: false,
@@ -136,14 +223,37 @@ export default function Agents() {
       };
       
       setAgents([...agents, newAgent]);
-      toast.success(`Agente ${agentData.name} criado com sucesso!`);
+      setCurrentAgent(newAgent);
       setIsCreateModalOpen(false);
+      
+      if (customer) {
+        setCurrentCustomer(customer);
+        
+        // Show WhatsApp connection modal after agent creation
+        setIsWhatsAppModalOpen(true);
+        
+        // Generate customer portal access
+        const customerPortal: CustomerPortalAccess = {
+          url: customer.portalUrl || `https://cliente.plataforma.com/c/${customer.id}`,
+          username: customer.email,
+          password: customer.password || generateRandomPassword(),
+          customerId: customer.id,
+        };
+        setCurrentCustomerPortal(customerPortal);
+      }
     }
-    
-    setCurrentAgent(null);
   };
 
-  const handleConnectQrCode = () => {
+  const handleGenerateQrCode = () => {
+    setIsGeneratingQr(true);
+    // Simulate API call delay
+    setTimeout(() => {
+      setCurrentQrCode("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=whatsapp-connection-code-" + Date.now());
+      setIsGeneratingQr(false);
+    }, 1500);
+  };
+
+  const handleConnectWhatsApp = () => {
     if (!currentAgent) return;
     
     // Simulate connecting the agent to WhatsApp
@@ -152,15 +262,30 @@ export default function Agents() {
         agent.id === currentAgent.id ? { ...agent, whatsappConnected: true } : agent
       );
       setAgents(updatedAgents);
-      setIsConnectModalOpen(false);
-      setCurrentAgent(null);
+      setIsWhatsAppModalOpen(false);
+      
+      // Show customer portal access after WhatsApp connection
+      setIsCustomerPortalModalOpen(true);
+      
       toast.success("Agente conectado ao WhatsApp com sucesso!");
-    }, 2000);
+    }, 1000);
+  };
+
+  const handleCopyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast.success("Copiado para a área de transferência!");
   };
 
   const handleUpgradePlan = () => {
     setIsPlanLimitModalOpen(false);
     navigate("/franchisee/plans");
+  };
+
+  const handleClosePortalModal = () => {
+    setIsCustomerPortalModalOpen(false);
+    setCurrentCustomerPortal(null);
+    setCurrentAgent(null);
+    toast.success("Agente criado e conectado com sucesso!");
   };
 
   const totalAgents = agents.length;
@@ -287,11 +412,12 @@ export default function Agents() {
         }}
         onSubmit={handleSubmitAgent}
         editing={isEditModalOpen ? currentAgent! : undefined}
+        existingCustomers={customers}
       />
 
-      {/* Connect WhatsApp Modal */}
-      <Dialog open={isConnectModalOpen} onOpenChange={setIsConnectModalOpen}>
-        <DialogContent>
+      {/* WhatsApp Connection Modal */}
+      <Dialog open={isWhatsAppModalOpen} onOpenChange={setIsWhatsAppModalOpen}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Conectar Agente ao WhatsApp</DialogTitle>
             <DialogDescription>
@@ -299,26 +425,117 @@ export default function Agents() {
             </DialogDescription>
           </DialogHeader>
           
-          <div className="flex flex-col items-center py-6">
-            {/* Placeholder for QR code */}
-            <div className="w-64 h-64 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center mb-4">
-              <div className="text-center">
-                <QrCode size={80} className="mx-auto text-gray-400 mb-2" />
-                <p className="text-sm text-muted-foreground animate-pulse">Gerando código QR...</p>
-              </div>
-            </div>
+          <div className="flex flex-col items-center py-2">
+            <WhatsAppQRCode
+              isGenerating={isGeneratingQr}
+              qrCodeUrl={currentQrCode || undefined}
+              onRefresh={handleGenerateQrCode}
+              onConnect={handleConnectWhatsApp}
+              className="mb-4"
+            />
             
-            <p className="text-sm text-center text-muted-foreground mt-4">
-              Abra o WhatsApp no seu celular, acesse Configurações &gt; WhatsApp Web e escaneie o código QR.
-            </p>
+            <div className="mt-2 text-center">
+              <p className="text-sm text-muted-foreground">
+                Cliente: <span className="font-medium text-foreground">{currentCustomer?.businessName}</span>
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Agente: <span className="font-medium text-foreground">{currentAgent?.name}</span>
+              </p>
+            </div>
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsConnectModalOpen(false)}>
-              Cancelar
+            <Button variant="outline" onClick={() => setIsWhatsAppModalOpen(false)}>
+              Configurar depois
             </Button>
-            <Button onClick={handleConnectQrCode}>
-              Simular Conexão
+            {currentQrCode && (
+              <Button onClick={handleConnectWhatsApp}>
+                Simular Conexão
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Customer Portal Access Modal */}
+      <Dialog open={isCustomerPortalModalOpen} onOpenChange={setIsCustomerPortalModalOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Acesso ao Portal do Cliente</DialogTitle>
+            <DialogDescription>
+              O portal do cliente foi criado com sucesso. Compartilhe estas informações com o cliente.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {currentCustomerPortal && (
+            <div className="space-y-6 py-4">
+              <div className="bg-muted p-4 rounded-lg text-center">
+                <Check size={40} className="mx-auto text-green-500 mb-2" />
+                <h3 className="text-lg font-medium">Cliente e Agente criados com sucesso!</h3>
+                <p className="text-sm text-muted-foreground">
+                  O cliente já pode acessar seu portal e configurar seu WhatsApp
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <div>
+                  <p className="text-sm font-medium mb-1">URL do Portal</p>
+                  <div className="flex">
+                    <Input readOnly value={currentCustomerPortal.url} className="flex-1" />
+                    <Button 
+                      variant="outline" 
+                      className="ml-2" 
+                      size="icon"
+                      onClick={() => handleCopyToClipboard(currentCustomerPortal.url)}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm font-medium mb-1">Usuário</p>
+                    <div className="flex">
+                      <Input readOnly value={currentCustomerPortal.username} />
+                      <Button 
+                        variant="outline" 
+                        className="ml-2" 
+                        size="icon"
+                        onClick={() => handleCopyToClipboard(currentCustomerPortal.username)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium mb-1">Senha</p>
+                    <div className="flex">
+                      <Input readOnly value={currentCustomerPortal.password} type="text" />
+                      <Button 
+                        variant="outline" 
+                        className="ml-2" 
+                        size="icon"
+                        onClick={() => handleCopyToClipboard(currentCustomerPortal.password)}
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={handleClosePortalModal}>
+              Fechar
+            </Button>
+            <Button onClick={() => {
+              toast.success("Email com instruções enviado ao cliente!");
+              handleClosePortalModal();
+            }}>
+              Enviar credenciais por Email
             </Button>
           </DialogFooter>
         </DialogContent>

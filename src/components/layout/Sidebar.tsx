@@ -82,6 +82,11 @@ export default function Sidebar() {
         href: "/customer/dashboard" 
       },
       { 
+        label: "Configurar IA", 
+        icon: Bot, 
+        href: "/customer/ai-agents" 
+      },
+      { 
         label: "Agenda", 
         icon: Calendar, 
         href: "/customer/schedule" 

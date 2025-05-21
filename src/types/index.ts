@@ -1,4 +1,3 @@
-
 import { ReactNode } from "react";
 
 export type UserRole = "admin" | "franchisee" | "customer";
@@ -33,6 +32,10 @@ export interface Customer extends User {
   franchiseeId: string;
   agentCount: number;
   createdAt: string;
+  document?: string; // CNPJ or CPF
+  contactPhone?: string; // WhatsApp number for contact
+  portalUrl?: string; // URL for customer portal
+  password?: string; // Temporary password for first access
 }
 
 export interface Agent {
@@ -164,4 +167,20 @@ export interface ElevenLabsVoice {
   category: string;
   description?: string;
   labels?: Record<string, string>;
+}
+
+// Add new types for WhatsApp connection flow
+export interface WhatsAppConnectionStatus {
+  status: "pending" | "connected" | "failed";
+  qrCodeUrl?: string;
+  agentId: string;
+  customerId: string;
+  timestamp: string;
+}
+
+export interface CustomerPortalAccess {
+  url: string;
+  username: string;
+  password: string;
+  customerId: string;
 }
