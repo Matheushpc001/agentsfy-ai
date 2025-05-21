@@ -1,33 +1,18 @@
-import { useState, useEffect } from "react";
+
+import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { 
-  Plus, 
-  QrCode, 
-  MoreVertical, 
-  RefreshCw, 
-  Smartphone, 
-  Trash2, 
-  Phone, 
-  MessageSquare, 
-  Check, 
-  X, 
-  Settings, 
-  Copy, 
-  Bot,
-  Search,
-  PlusCircle,
-  ArrowRight
-} from "lucide-react";
-import AgentCard from "@/components/agents/AgentCard";
-import CreateAgentModal from "@/components/agents/CreateAgentModal";
-import { Agent, Customer, WhatsAppConnectionStatus, CustomerPortalAccess } from "@/types";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { PlusCircle } from "lucide-react";
+import { Agent, Customer, CustomerPortalAccess } from "@/types";
 import { toast } from "sonner";
-import { useNavigate } from "react-router-dom";
 import { getPlanById } from "@/constants/plans";
-import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
+import AgentsList from "@/components/agents/AgentsList";
+import AgentStats from "@/components/agents/AgentStats";
+import PlanInfoCard from "@/components/agents/PlanInfoCard";
+import CreateAgentModal from "@/components/agents/CreateAgentModal";
+import WhatsAppConnectionModal from "@/components/agents/WhatsAppConnectionModal";
+import CustomerPortalModal from "@/components/agents/CustomerPortalModal";
+import PlanLimitModal from "@/components/agents/PlanLimitModal";
 
 // Mock data for the current franchisee with plan info
 const MOCK_FRANCHISEE = {
@@ -114,32 +99,19 @@ const MOCK_CUSTOMERS: Customer[] = [
 export default function Agents() {
   const [agents, setAgents] = useState<Agent[]>(MOCK_AGENTS);
   const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
-  const [searchTerm, setSearchTerm] = useState("");
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false);
   const [isCustomerPortalModalOpen, setIsCustomerPortalModalOpen] = useState(false);
   const [isPlanLimitModalOpen, setIsPlanLimitModalOpen] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<Agent | null>(null);
-  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
-  const [currentQrCode, setCurrentQrCode] = useState<string | null>(null);
-  const [currentCustomerPortal, setCurrentCustomerPortal] = useState<CustomerPortalAccess | null>(null);
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
-  const navigate = useNavigate();
+  const [currentCustomerPortal, setCurrentCustomerPortal] = useState<CustomerPortalAccess | null>(null);
   
   // Get current plan details from the mock franchisee data
   const currentPlanId = MOCK_FRANCHISEE.planId;
   const currentPlan = currentPlanId ? getPlanById(currentPlanId) : null;
   
-  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value.toLowerCase());
-  };
-
-  const filteredAgents = agents.filter(agent => 
-    agent.name.toLowerCase().includes(searchTerm) ||
-    agent.sector.toLowerCase().includes(searchTerm)
-  );
-
   const handleViewAgent = (agent: Agent) => {
     toast.info(`Visualizando estatísticas do agente ${agent.name}`);
   };
@@ -260,15 +232,6 @@ export default function Agents() {
     }
   };
 
-  const handleGenerateQrCode = () => {
-    setIsGeneratingQr(true);
-    // Simulate API call delay
-    setTimeout(() => {
-      setCurrentQrCode("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=whatsapp-connection-code-" + Date.now());
-      setIsGeneratingQr(false);
-    }, 1500);
-  };
-
   const handleConnectWhatsApp = () => {
     if (!currentAgent) return;
     
@@ -287,16 +250,6 @@ export default function Agents() {
     }, 1000);
   };
 
-  const handleCopyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success("Copiado para a área de transferência!");
-  };
-
-  const handleUpgradePlan = () => {
-    setIsPlanLimitModalOpen(false);
-    navigate("/franchisee/plans");
-  };
-
   const handleClosePortalModal = () => {
     setIsCustomerPortalModalOpen(false);
     setCurrentCustomerPortal(null);
@@ -304,51 +257,32 @@ export default function Agents() {
     toast.success("Agente criado e conectado com sucesso!");
   };
 
+  const handleSendCredentialsEmail = () => {
+    toast.success("Email com instruções enviado ao cliente!");
+    handleClosePortalModal();
+  };
+
   const totalAgents = agents.length;
   const agentLimit = currentPlan?.agentLimit || 3; // Default to 3 if no plan is found
   const availableAgents = agentLimit - totalAgents;
+  const connectedAgents = agents.filter(agent => agent.whatsappConnected).length;
 
   return (
     <DashboardLayout title="Agentes">
       <div className="space-y-6">
-        {/* Stats and search bar */}
+        {/* Stats and create button */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-4 w-full md:w-auto">
-            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border flex items-center gap-2">
-              <Bot className="text-primary h-5 w-5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Agentes</p>
-                <p className="font-medium">
-                  {totalAgents} <span className="text-xs text-muted-foreground">/ {agentLimit}</span>
-                </p>
-              </div>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border flex items-center gap-2">
-              <QrCode className="text-green-500 h-5 w-5" />
-              <div>
-                <p className="text-sm text-muted-foreground">Conectados</p>
-                <p className="font-medium">
-                  {agents.filter(agent => agent.whatsappConnected).length} <span className="text-xs text-muted-foreground">/ {totalAgents}</span>
-                </p>
-              </div>
-            </div>
-          </div>
+          <AgentStats 
+            totalAgents={totalAgents} 
+            agentLimit={agentLimit} 
+            connectedAgents={connectedAgents}
+          />
           
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            <div className="relative w-full sm:w-auto">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="search"
-                placeholder="Buscar agentes..."
-                className="w-full sm:w-[250px] pl-8"
-                value={searchTerm}
-                onChange={handleSearch}
-              />
-            </div>
+          <div className="flex w-full md:w-auto">
             <Button 
               onClick={handleCreateAgentClick}
               disabled={availableAgents <= 0}
+              className="w-full md:w-auto"
             >
               <PlusCircle className="mr-2 h-4 w-4" />
               Novo Agente
@@ -363,63 +297,24 @@ export default function Agents() {
 
         {/* Plan info card */}
         {currentPlan && (
-          <div className="bg-white dark:bg-gray-800 border rounded-lg p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h3 className="font-medium">Plano atual: {currentPlan.name}</h3>
-              <p className="text-sm text-muted-foreground">
-                Limite de {currentPlan.agentLimit} agentes • {currentPlan.billingCycle === "monthly" ? "Mensal" : "Anual"}
-              </p>
-              <div className="mt-2 w-full sm:max-w-xs">
-                <div className="flex justify-between text-xs mb-1">
-                  <span>{totalAgents} agentes usados</span>
-                  <span>{agentLimit} total</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-1.5">
-                  <div 
-                    className="bg-primary h-1.5 rounded-full" 
-                    style={{ width: `${(totalAgents / agentLimit) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="shrink-0"
-              onClick={() => navigate("/franchisee/plans")}
-            >
-              Gerenciar Plano
-            </Button>
-          </div>
+          <PlanInfoCard 
+            planName={currentPlan.name}
+            agentLimit={agentLimit}
+            billingCycle={currentPlan.billingCycle}
+            totalAgents={totalAgents}
+          />
         )}
 
-        {/* Agents grid */}
-        {filteredAgents.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredAgents.map(agent => (
-              <AgentCard 
-                key={agent.id} 
-                agent={agent} 
-                onView={handleViewAgent}
-                onEdit={handleEditAgent}
-                onConnect={handleConnectAgent}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-64">
-            <Bot size={48} className="text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground mb-2">Nenhum agente encontrado.</p>
-            {searchTerm && (
-              <Button variant="link" onClick={() => setSearchTerm("")}>
-                Limpar busca
-              </Button>
-            )}
-          </div>
-        )}
+        {/* Agents list */}
+        <AgentsList 
+          agents={agents} 
+          onViewAgent={handleViewAgent}
+          onEditAgent={handleEditAgent}
+          onConnectAgent={handleConnectAgent}
+        />
       </div>
 
-      {/* Create/Edit Agent Modal */}
+      {/* Modals */}
       <CreateAgentModal
         open={isCreateModalOpen || isEditModalOpen}
         onClose={() => {
@@ -431,165 +326,26 @@ export default function Agents() {
         existingCustomers={customers}
       />
 
-      {/* WhatsApp Connection Modal */}
-      <Dialog open={isWhatsAppModalOpen} onOpenChange={setIsWhatsAppModalOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Conectar Agente ao WhatsApp</DialogTitle>
-            <DialogDescription>
-              Escaneie o código QR com o WhatsApp para conectar o agente.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="flex flex-col items-center py-2">
-            <WhatsAppQRCode
-              isGenerating={isGeneratingQr}
-              qrCodeUrl={currentQrCode || undefined}
-              onRefresh={handleGenerateQrCode}
-              onConnect={handleConnectWhatsApp}
-              className="mb-4"
-            />
-            
-            <div className="mt-2 text-center">
-              <p className="text-sm text-muted-foreground">
-                Cliente: <span className="font-medium text-foreground">{currentCustomer?.businessName}</span>
-              </p>
-              <p className="text-sm text-muted-foreground">
-                Agente: <span className="font-medium text-foreground">{currentAgent?.name}</span>
-              </p>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsWhatsAppModalOpen(false)}>
-              Configurar depois
-            </Button>
-            {currentQrCode && (
-              <Button onClick={handleConnectWhatsApp}>
-                Simular Conexão
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <WhatsAppConnectionModal
+        isOpen={isWhatsAppModalOpen}
+        onClose={() => setIsWhatsAppModalOpen(false)}
+        onConnect={handleConnectWhatsApp}
+        agent={currentAgent}
+        customer={currentCustomer}
+      />
 
-      {/* Customer Portal Access Modal */}
-      <Dialog open={isCustomerPortalModalOpen} onOpenChange={setIsCustomerPortalModalOpen}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Acesso ao Portal do Cliente</DialogTitle>
-            <DialogDescription>
-              O portal do cliente foi criado com sucesso. Compartilhe estas informações com o cliente.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {currentCustomerPortal && (
-            <div className="space-y-6 py-4">
-              <div className="bg-muted p-4 rounded-lg text-center">
-                <Check size={40} className="mx-auto text-green-500 mb-2" />
-                <h3 className="text-lg font-medium">Cliente e Agente criados com sucesso!</h3>
-                <p className="text-sm text-muted-foreground">
-                  O cliente já pode acessar seu portal e configurar seu WhatsApp
-                </p>
-              </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <p className="text-sm font-medium mb-1">URL do Portal</p>
-                  <div className="flex">
-                    <Input readOnly value={currentCustomerPortal.url} className="flex-1" />
-                    <Button 
-                      variant="outline" 
-                      className="ml-2" 
-                      size="icon"
-                      onClick={() => handleCopyToClipboard(currentCustomerPortal.url)}
-                    >
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium mb-1">Usuário</p>
-                    <div className="flex">
-                      <Input readOnly value={currentCustomerPortal.username} />
-                      <Button 
-                        variant="outline" 
-                        className="ml-2" 
-                        size="icon"
-                        onClick={() => handleCopyToClipboard(currentCustomerPortal.username)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium mb-1">Senha</p>
-                    <div className="flex">
-                      <Input readOnly value={currentCustomerPortal.password} type="text" />
-                      <Button 
-                        variant="outline" 
-                        className="ml-2" 
-                        size="icon"
-                        onClick={() => handleCopyToClipboard(currentCustomerPortal.password)}
-                      >
-                        <Copy className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={handleClosePortalModal}>
-              Fechar
-            </Button>
-            <Button onClick={() => {
-              toast.success("Email com instruções enviado ao cliente!");
-              handleClosePortalModal();
-            }}>
-              Enviar credenciais por Email
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <CustomerPortalModal
+        isOpen={isCustomerPortalModalOpen}
+        onClose={handleClosePortalModal}
+        portalAccess={currentCustomerPortal}
+        onSendEmail={handleSendCredentialsEmail}
+      />
 
-      {/* Plan limit modal */}
-      <Dialog open={isPlanLimitModalOpen} onOpenChange={setIsPlanLimitModalOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Limite de Agentes Atingido</DialogTitle>
-            <DialogDescription>
-              Você atingiu o limite de agentes do seu plano atual.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="py-4 text-center space-y-4">
-            <div className="bg-muted p-4 rounded-lg inline-block mx-auto">
-              <Bot size={36} className="text-muted-foreground mx-auto mb-2" />
-              <p className="text-lg font-medium">{agentLimit}/{agentLimit} Agentes</p>
-              <p className="text-sm text-muted-foreground">Limite máximo atingido</p>
-            </div>
-            
-            <p>
-              Para criar mais agentes, você precisa fazer upgrade para um plano com maior capacidade.
-            </p>
-          </div>
-          
-          <DialogFooter className="flex-col sm:flex-row gap-2">
-            <Button variant="outline" onClick={() => setIsPlanLimitModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleUpgradePlan}>
-              Ver planos disponíveis
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <PlanLimitModal
+        isOpen={isPlanLimitModalOpen}
+        onClose={() => setIsPlanLimitModalOpen(false)}
+        agentLimit={agentLimit}
+      />
     </DashboardLayout>
   );
 }
