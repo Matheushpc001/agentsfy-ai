@@ -1,9 +1,8 @@
-
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search, QrCode, Bot, ArrowRight, Check } from "lucide-react";
+import { Plus, QrCode, MoreVertical, RefreshCw, Smartphone, Trash2, Phone, MessageSquare, Check, X, Settings, Copy } from "lucide-react";
 import AgentCard from "@/components/agents/AgentCard";
 import CreateAgentModal from "@/components/agents/CreateAgentModal";
 import { Agent, Customer, WhatsAppConnectionStatus, CustomerPortalAccess } from "@/types";

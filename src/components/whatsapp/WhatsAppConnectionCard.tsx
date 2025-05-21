@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { QrCode, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { WhatsAppQRCode } from "@/components/whatsapp/WhatsAppQRCode";
+import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
 import { Agent } from "@/types";
 
 interface WhatsAppConnectionCardProps {
