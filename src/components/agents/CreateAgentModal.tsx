@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +10,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Upload } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface CreateAgentModalProps {
   open: boolean;
@@ -180,253 +180,255 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-w-[90vw]">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-w-[90vw] max-h-[90vh] p-0 overflow-hidden">
+        <DialogHeader className="p-6 pb-2">
           <DialogTitle>{editing ? "Editar Agente" : "Criar Novo Agente"}</DialogTitle>
         </DialogHeader>
         
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="agent">Dados do Agente</TabsTrigger>
-            <TabsTrigger value="customer">Dados do Cliente</TabsTrigger>
-          </TabsList>
-          
-          <form onSubmit={handleSubmit} className="space-y-4 py-4">
-            <TabsContent value="agent" className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Nome do Agente</Label>
-                <Input
-                  id="name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Ex: Atendente Virtual"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="sector">Setor / Especialidade</Label>
-                <Input
-                  id="sector"
-                  name="sector"
-                  value={formData.sector}
-                  onChange={handleChange}
-                  placeholder="Ex: Atendimento ao Cliente"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="prompt" className="flex justify-between">
-                  <span>Prompt da IA</span>
-                  <span className="text-xs text-muted-foreground">
-                    Instruções para o comportamento do agente
-                  </span>
-                </Label>
-                <Textarea
-                  id="prompt"
-                  name="prompt"
-                  value={formData.prompt}
-                  onChange={handleChange}
-                  placeholder="Descreva como o agente deve se comportar, que tipo de respostas dar, etc."
-                  rows={5}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="openAiKey" className="flex justify-between">
-                  <span>Chave da API OpenAI</span>
-                  <a 
-                    href="https://platform.openai.com/api-keys" 
-                    target="_blank" 
-                    rel="noreferrer" 
-                    className="text-xs text-primary hover:underline"
-                  >
-                    Obter chave
-                  </a>
-                </Label>
-                <Input
-                  id="openAiKey"
-                  name="openAiKey"
-                  value={formData.openAiKey}
-                  onChange={handleChange}
-                  type="password"
-                  placeholder="sk-..."
-                />
-                <p className="text-xs text-muted-foreground">
-                  Sua chave ficará armazenada de forma segura e será usada apenas para este agente.
-                </p>
-              </div>
-
-              {/* Voice Recognition Switch */}
-              <div className="flex items-center justify-between space-y-0 py-4 border-t">
-                <div>
-                  <h4 className="font-medium text-sm">Habilitar reconhecimento de voz</h4>
+        <ScrollArea className="max-h-[calc(90vh-130px)] px-6">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="agent">Dados do Agente</TabsTrigger>
+              <TabsTrigger value="customer">Dados do Cliente</TabsTrigger>
+            </TabsList>
+            
+            <form onSubmit={handleSubmit} className="space-y-4 py-4">
+              <TabsContent value="agent" className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome do Agente</Label>
+                  <Input
+                    id="name"
+                    name="name"
+                    value={formData.name}
+                    onChange={handleChange}
+                    placeholder="Ex: Atendente Virtual"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="sector">Setor / Especialidade</Label>
+                  <Input
+                    id="sector"
+                    name="sector"
+                    value={formData.sector}
+                    onChange={handleChange}
+                    placeholder="Ex: Atendimento ao Cliente"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="prompt" className="flex justify-between">
+                    <span>Prompt da IA</span>
+                    <span className="text-xs text-muted-foreground">
+                      Instruções para o comportamento do agente
+                    </span>
+                  </Label>
+                  <Textarea
+                    id="prompt"
+                    name="prompt"
+                    value={formData.prompt}
+                    onChange={handleChange}
+                    placeholder="Descreva como o agente deve se comportar, que tipo de respostas dar, etc."
+                    rows={5}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="openAiKey" className="flex justify-between">
+                    <span>Chave da API OpenAI</span>
+                    <a 
+                      href="https://platform.openai.com/api-keys" 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      className="text-xs text-primary hover:underline"
+                    >
+                      Obter chave
+                    </a>
+                  </Label>
+                  <Input
+                    id="openAiKey"
+                    name="openAiKey"
+                    value={formData.openAiKey}
+                    onChange={handleChange}
+                    type="password"
+                    placeholder="sk-..."
+                  />
                   <p className="text-xs text-muted-foreground">
-                    Permite que o agente processe mensagens de áudio usando a Whisper API.
+                    Sua chave ficará armazenada de forma segura e será usada apenas para este agente.
                   </p>
                 </div>
-                <Switch 
-                  checked={formData.enableVoiceRecognition} 
-                  onCheckedChange={handleSwitchChange}
-                />
-              </div>
-              
-              {/* Knowledge Base Upload */}
-              <div className="space-y-2 border-t pt-4">
-                <Label className="text-base">Base de conhecimento</Label>
-                <div className="grid gap-2">
-                  <div className="flex flex-col gap-1">
+
+                {/* Voice Recognition Switch */}
+                <div className="flex items-center justify-between space-y-0 py-4 border-t">
+                  <div>
+                    <h4 className="font-medium text-sm">Habilitar reconhecimento de voz</h4>
                     <p className="text-xs text-muted-foreground">
-                      Opcional: Adicione uma base de conhecimento para seu agente (PDF, DOC, URL).
+                      Permite que o agente processe mensagens de áudio usando a Whisper API.
                     </p>
-                    
-                    <div className="flex gap-2">
-                      <Input
-                        id="knowledgeBase"
-                        name="knowledgeBase"
-                        value={formData.knowledgeBase}
-                        onChange={handleChange}
-                        placeholder="Insira URL ou selecione um arquivo"
-                      />
-                      
-                      <div className="relative">
-                        <Input 
-                          type="file" 
-                          id="file-upload" 
-                          className="absolute inset-0 opacity-0 cursor-pointer" 
-                          accept=".pdf,.doc,.docx,.txt" 
-                          onChange={handleFileChange}
-                        />
-                        <Button type="button" variant="outline" className="flex items-center h-full">
-                          <Upload size={18} className="mr-1" />
-                          Arquivo
-                        </Button>
-                      </div>
-                    </div>
-                    
-                    {knowledgeBaseFile && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Arquivo selecionado: {knowledgeBaseFile.name}
-                      </p>
-                    )}
                   </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end pt-4">
-                <Button type="button" onClick={nextTab}>
-                  Próximo
-                </Button>
-              </div>
-            </TabsContent>
-
-            <TabsContent value="customer" className="space-y-4">
-              {!editing && (
-                <div className="flex items-center space-x-2 mb-4">
-                  <Checkbox 
-                    id="isNewCustomer" 
-                    checked={!isNewCustomer} 
-                    onCheckedChange={(checked) => setIsNewCustomer(!checked)}
+                  <Switch 
+                    checked={formData.enableVoiceRecognition} 
+                    onCheckedChange={handleSwitchChange}
                   />
-                  <Label htmlFor="isNewCustomer">Vincular a um cliente existente</Label>
                 </div>
-              )}
-
-              {!isNewCustomer ? (
-                <div className="space-y-2">
-                  <Label htmlFor="customerId">Selecione um cliente</Label>
-                  <select 
-                    id="customerId"
-                    className="w-full p-2 border rounded-md"
-                    value={selectedCustomerId}
-                    onChange={handleCustomerSelect}
-                  >
-                    <option value="">Selecione um cliente</option>
-                    {existingCustomers.map(customer => (
-                      <option key={customer.id} value={customer.id}>
-                        {customer.businessName}
-                      </option>
-                    ))}
-                  </select>
+                
+                {/* Knowledge Base Upload */}
+                <div className="space-y-2 border-t pt-4">
+                  <Label className="text-base">Base de conhecimento</Label>
+                  <div className="grid gap-2">
+                    <div className="flex flex-col gap-1">
+                      <p className="text-xs text-muted-foreground">
+                        Opcional: Adicione uma base de conhecimento para seu agente (PDF, DOC, URL).
+                      </p>
+                      
+                      <div className="flex gap-2">
+                        <Input
+                          id="knowledgeBase"
+                          name="knowledgeBase"
+                          value={formData.knowledgeBase}
+                          onChange={handleChange}
+                          placeholder="Insira URL ou selecione um arquivo"
+                        />
+                        
+                        <div className="relative">
+                          <Input 
+                            type="file" 
+                            id="file-upload" 
+                            className="absolute inset-0 opacity-0 cursor-pointer" 
+                            accept=".pdf,.doc,.docx,.txt" 
+                            onChange={handleFileChange}
+                          />
+                          <Button type="button" variant="outline" className="flex items-center h-full">
+                            <Upload size={18} className="mr-1" />
+                            Arquivo
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      {knowledgeBaseFile && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                          Arquivo selecionado: {knowledgeBaseFile.name}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <Label htmlFor="businessName">Nome da Empresa</Label>
-                    <Input
-                      id="businessName"
-                      name="businessName"
-                      value={customerData.businessName}
-                      onChange={handleCustomerChange}
-                      placeholder="Nome da empresa cliente"
-                      required={isNewCustomer}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="customerName">Nome do Responsável</Label>
-                    <Input
-                      id="name"
-                      name="name"
-                      value={customerData.name}
-                      onChange={handleCustomerChange}
-                      placeholder="Nome da pessoa responsável"
-                      required={isNewCustomer}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="document">CNPJ/CPF</Label>
-                    <Input
-                      id="document"
-                      name="document"
-                      value={customerData.document}
-                      onChange={handleCustomerChange}
-                      placeholder="Documento do cliente (CNPJ ou CPF)"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="customerEmail">E-mail</Label>
-                    <Input
-                      id="email"
-                      name="email"
-                      type="email"
-                      value={customerData.email}
-                      onChange={handleCustomerChange}
-                      placeholder="Email para acesso ao painel"
-                      required={isNewCustomer}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="contactPhone">WhatsApp para contato</Label>
-                    <Input
-                      id="contactPhone"
-                      name="contactPhone"
-                      value={customerData.contactPhone}
-                      onChange={handleCustomerChange}
-                      placeholder="Número para contato do responsável"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Este é apenas para contato com o responsável, não é o número que será vinculado ao agente.
-                    </p>
-                  </div>
-                </>
-              )}
 
-              <DialogFooter className="flex justify-between pt-4">
-                <Button type="button" variant="outline" onClick={prevTab}>
-                  Voltar
-                </Button>
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={onClose}>
-                    Cancelar
-                  </Button>
-                  <Button type="submit">
-                    {editing ? "Salvar Alterações" : "Criar Agente"}
+                <div className="flex justify-end pt-4">
+                  <Button type="button" onClick={nextTab}>
+                    Próximo
                   </Button>
                 </div>
-              </DialogFooter>
-            </TabsContent>
-          </form>
-        </Tabs>
+              </TabsContent>
+
+              <TabsContent value="customer" className="space-y-4">
+                {!editing && (
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Checkbox 
+                      id="isNewCustomer" 
+                      checked={!isNewCustomer} 
+                      onCheckedChange={(checked) => setIsNewCustomer(!checked)}
+                    />
+                    <Label htmlFor="isNewCustomer">Vincular a um cliente existente</Label>
+                  </div>
+                )}
+
+                {!isNewCustomer ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="customerId">Selecione um cliente</Label>
+                    <select 
+                      id="customerId"
+                      className="w-full p-2 border rounded-md"
+                      value={selectedCustomerId}
+                      onChange={handleCustomerSelect}
+                    >
+                      <option value="">Selecione um cliente</option>
+                      {existingCustomers.map(customer => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.businessName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="businessName">Nome da Empresa</Label>
+                      <Input
+                        id="businessName"
+                        name="businessName"
+                        value={customerData.businessName}
+                        onChange={handleCustomerChange}
+                        placeholder="Nome da empresa cliente"
+                        required={isNewCustomer}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customerName">Nome do Responsável</Label>
+                      <Input
+                        id="name"
+                        name="name"
+                        value={customerData.name}
+                        onChange={handleCustomerChange}
+                        placeholder="Nome da pessoa responsável"
+                        required={isNewCustomer}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="document">CNPJ/CPF</Label>
+                      <Input
+                        id="document"
+                        name="document"
+                        value={customerData.document}
+                        onChange={handleCustomerChange}
+                        placeholder="Documento do cliente (CNPJ ou CPF)"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="customerEmail">E-mail</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        value={customerData.email}
+                        onChange={handleCustomerChange}
+                        placeholder="Email para acesso ao painel"
+                        required={isNewCustomer}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="contactPhone">WhatsApp para contato</Label>
+                      <Input
+                        id="contactPhone"
+                        name="contactPhone"
+                        value={customerData.contactPhone}
+                        onChange={handleCustomerChange}
+                        placeholder="Número para contato do responsável"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Este é apenas para contato com o responsável, não é o número que será vinculado ao agente.
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                <DialogFooter className="flex justify-between pt-4">
+                  <Button type="button" variant="outline" onClick={prevTab}>
+                    Voltar
+                  </Button>
+                  <div className="flex gap-2">
+                    <Button type="button" variant="outline" onClick={onClose}>
+                      Cancelar
+                    </Button>
+                    <Button type="submit">
+                      {editing ? "Salvar Alterações" : "Criar Agente"}
+                    </Button>
+                  </div>
+                </DialogFooter>
+              </TabsContent>
+            </form>
+          </Tabs>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
