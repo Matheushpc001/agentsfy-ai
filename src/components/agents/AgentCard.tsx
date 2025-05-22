@@ -11,9 +11,16 @@ interface AgentCardProps {
   onView: (agent: Agent) => void;
   onEdit: (agent: Agent) => void;
   onConnect: (agent: Agent) => void;
+  onTest: (agent: Agent) => void;
 }
 
-export default function AgentCard({ agent, onView, onEdit, onConnect }: AgentCardProps) {
+export default function AgentCard({ 
+  agent, 
+  onView, 
+  onEdit, 
+  onConnect, 
+  onTest 
+}: AgentCardProps) {
   return (
     <Card className="overflow-hidden border border-gray-200 dark:border-gray-800">
       <CardHeader className="bg-gray-50 dark:bg-gray-800/50 p-4 flex flex-row items-center justify-between">
@@ -38,6 +45,16 @@ export default function AgentCard({ agent, onView, onEdit, onConnect }: AgentCar
       </CardHeader>
 
       <CardContent className="p-4 space-y-4">
+        {/* Cliente vinculado */}
+        <div className="text-sm border-b pb-2 mb-2">
+          <span className="text-muted-foreground">Cliente: </span>
+          <span className="font-medium">
+            {agent.customerId && agent.customerId.startsWith('customer') ? 
+              `Cliente ${agent.customerId.replace('customer', '')}` : 
+              agent.customerId}
+          </span>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div className="flex items-center">
             <MessageCircle className="mr-2 h-4 w-4 text-muted-foreground" />
@@ -81,15 +98,21 @@ export default function AgentCard({ agent, onView, onEdit, onConnect }: AgentCar
             <BarChart3 className="mr-1 h-3.5 w-3.5" />
             Estatísticas
           </Button>
+          <Button variant="outline" size="sm" onClick={() => onTest(agent)} className="flex-1">
+            <MessageCircle className="mr-1 h-3.5 w-3.5" />
+            Testar
+          </Button>
           <Button variant="outline" size="sm" onClick={() => onEdit(agent)} className="flex-1">
             Editar
           </Button>
-          {!agent.whatsappConnected && (
-            <Button variant="default" size="sm" onClick={() => onConnect(agent)} className="flex-1">
-              Conectar
-            </Button>
-          )}
         </div>
+        
+        {!agent.whatsappConnected && (
+          <Button variant="default" size="sm" onClick={() => onConnect(agent)} className="w-full mt-2">
+            <QrCode className="mr-1 h-3.5 w-3.5" />
+            Conectar WhatsApp
+          </Button>
+        )}
       </CardContent>
     </Card>
   );

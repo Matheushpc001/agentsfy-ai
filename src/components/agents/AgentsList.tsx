@@ -4,6 +4,8 @@ import { Bot, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import AgentCard from "@/components/agents/AgentCard";
 import { Agent } from "@/types";
+import AgentTestDialog from "@/components/agents/AgentTestDialog";
+import { Dialog } from "@/components/ui/dialog";
 
 interface AgentsListProps {
   agents: Agent[];
@@ -19,9 +21,14 @@ export default function AgentsList({
   onConnectAgent 
 }: AgentsListProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [testingAgent, setTestingAgent] = useState<Agent | null>(null);
   
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value.toLowerCase());
+  };
+
+  const handleTestAgent = (agent: Agent) => {
+    setTestingAgent(agent);
   };
 
   const filteredAgents = agents.filter(agent => 
@@ -51,6 +58,7 @@ export default function AgentsList({
               onView={onViewAgent}
               onEdit={onEditAgent}
               onConnect={onConnectAgent}
+              onTest={handleTestAgent}
             />
           ))}
         </div>
@@ -67,6 +75,15 @@ export default function AgentsList({
             </button>
           )}
         </div>
+      )}
+      
+      {/* Dialog for testing agent */}
+      {testingAgent && (
+        <AgentTestDialog 
+          agent={testingAgent}
+          isOpen={!!testingAgent}
+          onClose={() => setTestingAgent(null)}
+        />
       )}
     </div>
   );

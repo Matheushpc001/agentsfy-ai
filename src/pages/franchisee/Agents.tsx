@@ -1,9 +1,8 @@
-
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { PlusCircle } from "lucide-react";
-import { Agent, Customer, CustomerPortalAccess } from "@/types";
+import { Agent, Customer, CustomerPortalAccess, Message } from "@/types";
 import { toast } from "sonner";
 import { getPlanById } from "@/constants/plans";
 import AgentsList from "@/components/agents/AgentsList";
@@ -123,7 +122,20 @@ export default function Agents() {
 
   const handleConnectAgent = (agent: Agent) => {
     setCurrentAgent(agent);
+    // Find associated customer
+    const customer = MOCK_CUSTOMERS.find(c => c.id === agent.customerId);
+    if (customer) {
+      setCurrentCustomer(customer);
+    }
     setIsWhatsAppModalOpen(true);
+    
+    // Show notification
+    toast.info(
+      <div className="flex flex-col gap-1">
+        <p className="font-medium">Conectar WhatsApp</p>
+        <p className="text-sm">Agente {agent.name} precisa ser conectado ao WhatsApp</p>
+      </div>
+    );
   };
 
   const handleCreateAgentClick = () => {
