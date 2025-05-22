@@ -54,6 +54,8 @@ export interface Agent {
   phoneNumber?: string;
   responseTime: number;
   demoUrl?: string;
+  enableVoiceRecognition?: boolean;
+  knowledgeBase?: string;
 }
 
 export interface Plan {

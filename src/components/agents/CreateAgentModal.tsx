@@ -9,6 +9,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Agent, Customer } from "@/types";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Upload } from "lucide-react";
 
 interface CreateAgentModalProps {
   open: boolean;
@@ -28,6 +30,8 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
       sector: "",
       prompt: "",
       openAiKey: "",
+      enableVoiceRecognition: false,
+      knowledgeBase: "",
     }
   );
   
@@ -38,6 +42,8 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
     document: "",
     contactPhone: "",
   });
+
+  const [knowledgeBaseFile, setKnowledgeBaseFile] = useState<File | null>(null);
 
   // Reset form when modal opens/closes or editing changes
   useEffect(() => {
@@ -55,6 +61,8 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
           sector: "",
           prompt: "",
           openAiKey: "",
+          enableVoiceRecognition: false,
+          knowledgeBase: "",
         });
         setCustomerData({
           businessName: "",
@@ -66,6 +74,7 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
         setIsNewCustomer(true);
         setSelectedCustomerId("");
       }
+      setKnowledgeBaseFile(null);
     }
   }, [open, editing]);
 
@@ -87,6 +96,26 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
 
   const handleCustomerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setSelectedCustomerId(e.target.value);
+  };
+
+  const handleSwitchChange = (checked: boolean) => {
+    setFormData((prev) => ({
+      ...prev,
+      enableVoiceRecognition: checked,
+    }));
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      setKnowledgeBaseFile(file);
+      
+      // Store the file name or URL in formData
+      setFormData((prev) => ({
+        ...prev,
+        knowledgeBase: file.name,
+      }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -226,6 +255,62 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
                 <p className="text-xs text-muted-foreground">
                   Sua chave ficará armazenada de forma segura e será usada apenas para este agente.
                 </p>
+              </div>
+
+              {/* Voice Recognition Switch */}
+              <div className="flex items-center justify-between space-y-0 py-4 border-t">
+                <div>
+                  <h4 className="font-medium text-sm">Habilitar reconhecimento de voz</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Permite que o agente processe mensagens de áudio usando a Whisper API.
+                  </p>
+                </div>
+                <Switch 
+                  checked={formData.enableVoiceRecognition} 
+                  onCheckedChange={handleSwitchChange}
+                />
+              </div>
+              
+              {/* Knowledge Base Upload */}
+              <div className="space-y-2 border-t pt-4">
+                <Label className="text-base">Base de conhecimento</Label>
+                <div className="grid gap-2">
+                  <div className="flex flex-col gap-1">
+                    <p className="text-xs text-muted-foreground">
+                      Opcional: Adicione uma base de conhecimento para seu agente (PDF, DOC, URL).
+                    </p>
+                    
+                    <div className="flex gap-2">
+                      <Input
+                        id="knowledgeBase"
+                        name="knowledgeBase"
+                        value={formData.knowledgeBase}
+                        onChange={handleChange}
+                        placeholder="Insira URL ou selecione um arquivo"
+                      />
+                      
+                      <div className="relative">
+                        <Input 
+                          type="file" 
+                          id="file-upload" 
+                          className="absolute inset-0 opacity-0 cursor-pointer" 
+                          accept=".pdf,.doc,.docx,.txt" 
+                          onChange={handleFileChange}
+                        />
+                        <Button type="button" variant="outline" className="flex items-center h-full">
+                          <Upload size={18} className="mr-1" />
+                          Arquivo
+                        </Button>
+                      </div>
+                    </div>
+                    
+                    {knowledgeBaseFile && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Arquivo selecionado: {knowledgeBaseFile.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <div className="flex justify-end pt-4">
