@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Prompt } from "@/types/prompts";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface PromptModalProps {
   isOpen: boolean;
@@ -55,11 +56,18 @@ export default function PromptModal({
     }
   }, [isOpen, editing]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
       [name]: value,
+    }));
+  };
+
+  const handleSelectChange = (value: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      niche: value,
     }));
   };
 
@@ -111,20 +119,21 @@ export default function PromptModal({
           
           <div className="space-y-2">
             <Label htmlFor="niche">Nicho</Label>
-            <select
-              id="niche"
-              name="niche"
-              value={formData.niche}
-              onChange={handleChange}
-              className="w-full p-2 border rounded-md"
+            <Select 
+              value={formData.niche} 
+              onValueChange={handleSelectChange}
               disabled={editing?.isDefault}
             >
-              <option value="">Selecione um nicho</option>
-              {allNiches.map(niche => (
-                <option key={niche} value={niche}>{niche}</option>
-              ))}
-              <option value="custom">Outro (personalizado)</option>
-            </select>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um nicho" />
+              </SelectTrigger>
+              <SelectContent>
+                {allNiches.map(niche => (
+                  <SelectItem key={niche} value={niche}>{niche}</SelectItem>
+                ))}
+                <SelectItem value="custom">Outro (personalizado)</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
           {formData.niche === "custom" && (
