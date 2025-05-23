@@ -5,10 +5,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { MessageCircle, Zap, Clock, Bot } from "lucide-react";
 import { DashboardStatCard } from "@/components/ui/dashboard-stat-card";
-import { MessageVolumeChart } from "@/components/analytics/MessageVolumeChart";
-import { RevenueChart } from "@/components/analytics/RevenueChart";
-import { ChannelDistributionChart } from "@/components/analytics/ChannelDistributionChart";
-import { MarketDistributionChart } from "@/components/analytics/MarketDistributionChart";
+import { BillingChart } from "@/components/analytics/BillingChart";
 import { FranchiseeTable } from "@/components/analytics/FranchiseeTable";
 
 // Mock data for analytics
@@ -29,58 +26,30 @@ const MOCK_MONTHLY_REVENUE = [
   { month: "abr", value: 11980 }
 ];
 
-// Mock data for pie charts
-const MOCK_CHANNEL_DISTRIBUTION = [
-  { name: "WhatsApp", value: 67, color: "#25D366" },
-  { name: "Web Chat", value: 23, color: "#0099FF" },
-  { name: "Messenger", value: 10, color: "#006AFF" }
-];
-
-const MOCK_MARKET_DISTRIBUTION = [
-  { name: "Atendimento", value: 45, color: "#4264FB" },
-  { name: "Vendas", value: 35, color: "#00C48C" },
-  { name: "Suporte", value: 20, color: "#FFB946" }
-];
-
 const MOCK_FRANCHISEES = [
   {
     name: "João Silva",
     agents: 8,
-    messages: 12480,
-    responseTime: "2.3s",
-    tokens: "589k",
     revenue: "R$ 1.497,00"
   },
   {
     name: "Ana Souza",
     agents: 12,
-    messages: 18920,
-    responseTime: "1.9s",
-    tokens: "712k",
     revenue: "R$ 2.992,50"
   },
   {
     name: "Carlos Mendes",
     agents: 5,
-    messages: 8640,
-    responseTime: "2.1s",
-    tokens: "345k",
     revenue: "R$ 1.048,70"
   },
   {
     name: "Patricia Lima",
     agents: 15,
-    messages: 22340,
-    responseTime: "2.4s",
-    tokens: "892k",
     revenue: "R$ 3.745,20"
   },
   {
     name: "Roberto Alves",
     agents: 2,
-    messages: 1240,
-    responseTime: "2.8s",
-    tokens: "62k",
     revenue: "R$ 297,00"
   }
 ];
@@ -186,23 +155,8 @@ export default function Analytics() {
           />
         </div>
 
-        {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Message volume chart */}
-          <MessageVolumeChart data={MOCK_DAILY_MESSAGES} />
-
-          {/* Revenue chart */}
-          <RevenueChart data={MOCK_MONTHLY_REVENUE} />
-        </div>
-
-        {/* Distribution Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Channel Distribution */}
-          <ChannelDistributionChart data={MOCK_CHANNEL_DISTRIBUTION} />
-
-          {/* Market Distribution */}
-          <MarketDistributionChart data={MOCK_MARKET_DISTRIBUTION} />
-        </div>
+        {/* Billing Chart */}
+        <BillingChart userRole="admin" />
 
         {/* Usage by franchisees */}
         <FranchiseeTable franchisees={MOCK_FRANCHISEES} />

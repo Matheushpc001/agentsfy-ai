@@ -4,9 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 interface Franchisee {
   name: string;
   agents: number;
-  messages: number;
-  responseTime: string;
-  tokens: string;
   revenue: string;
 }
 
@@ -18,9 +15,9 @@ export function FranchiseeTable({ franchisees }: FranchiseeTableProps) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-medium">Uso por Franqueados</CardTitle>
+        <CardTitle className="text-lg font-medium">Dados por Franqueado</CardTitle>
         <CardDescription>
-          Detalhamento de atividade por franqueado
+          Informações básicas por franqueado
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -29,10 +26,7 @@ export function FranchiseeTable({ franchisees }: FranchiseeTableProps) {
             <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-800">
               <tr>
                 <th scope="col" className="px-6 py-3">Franqueado</th>
-                <th scope="col" className="px-6 py-3">Agentes</th>
-                <th scope="col" className="px-6 py-3">Mensagens</th>
-                <th scope="col" className="px-6 py-3">Tempo Médio</th>
-                <th scope="col" className="px-6 py-3">Tokens</th>
+                <th scope="col" className="px-6 py-3">Nº Agentes</th>
                 <th scope="col" className="px-6 py-3">Faturamento</th>
               </tr>
             </thead>
@@ -41,9 +35,6 @@ export function FranchiseeTable({ franchisees }: FranchiseeTableProps) {
                 <tr key={index} className="bg-white border-b dark:bg-gray-900 dark:border-gray-700">
                   <td className="px-6 py-4 font-medium">{franchisee.name}</td>
                   <td className="px-6 py-4">{franchisee.agents}</td>
-                  <td className="px-6 py-4">{franchisee.messages.toLocaleString()}</td>
-                  <td className="px-6 py-4">{franchisee.responseTime}</td>
-                  <td className="px-6 py-4">{franchisee.tokens}</td>
                   <td className="px-6 py-4">{franchisee.revenue}</td>
                 </tr>
               ))}
