@@ -1,10 +1,15 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { UserRole } from "@/types";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { CalendarIcon } from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 // Mock data for billing charts
 const MOCK_BILLING_DATA = {
@@ -87,6 +92,9 @@ interface BillingChartProps {
 
 export function BillingChart({ userRole }: BillingChartProps) {
   const [selectedPeriod, setSelectedPeriod] = useState<string>("30days");
+  const [customStartDate, setCustomStartDate] = useState<Date>();
+  const [customEndDate, setCustomEndDate] = useState<Date>();
+  const [isCustomPeriod, setIsCustomPeriod] = useState(false);
   const isMobile = useIsMobile();
   
   const isAdmin = userRole === "admin";
@@ -105,8 +113,14 @@ export function BillingChart({ userRole }: BillingChartProps) {
     { value: "7days", label: "Últimos 7 dias" },
     { value: "30days", label: "Último mês" },
     { value: "90days", label: "Últimos 3 meses" },
-    { value: "12months", label: "Último ano" }
+    { value: "12months", label: "Último ano" },
+    { value: "custom", label: "Período personalizado" }
   ];
+
+  const handlePeriodChange = (value: string) => {
+    setSelectedPeriod(value);
+    setIsCustomPeriod(value === "custom");
+  };
 
   return (
     <Card className="lg:col-span-2">
@@ -115,18 +129,72 @@ export function BillingChart({ userRole }: BillingChartProps) {
           <CardTitle className="text-lg font-medium">
             Gráfico de Faturamento
           </CardTitle>
-          <Select value={selectedPeriod} onValueChange={setSelectedPeriod}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Selecionar período" />
-            </SelectTrigger>
-            <SelectContent>
-              {periodOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Selecionar período" />
+              </SelectTrigger>
+              <SelectContent>
+                {periodOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            
+            {isCustomPeriod && (
+              <div className="flex gap-2">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] justify-start text-left font-normal",
+                        !customStartDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customStartDate ? format(customStartDate, "dd/MM/yyyy") : "Data início"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customStartDate}
+                      onSelect={setCustomStartDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-[140px] justify-start text-left font-normal",
+                        !customEndDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {customEndDate ? format(customEndDate, "dd/MM/yyyy") : "Data fim"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={customEndDate}
+                      onSelect={setCustomEndDate}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -138,8 +206,8 @@ export function BillingChart({ userRole }: BillingChartProps) {
             >
               <defs>
                 <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                  <stop offset="95%" stopColor="#10B981" stopOpacity={0.1}/>
+                  <stop offset="5%" stopColor="#0284c7" stopOpacity={0.8}/>
+                  <stop offset="95%" stopColor="#0284c7" stopOpacity={0.1}/>
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
@@ -170,7 +238,7 @@ export function BillingChart({ userRole }: BillingChartProps) {
               <Area 
                 type="monotone" 
                 dataKey="revenue" 
-                stroke="#10B981" 
+                stroke="#0284c7" 
                 strokeWidth={2}
                 fillOpacity={1} 
                 fill="url(#colorRevenue)" 
