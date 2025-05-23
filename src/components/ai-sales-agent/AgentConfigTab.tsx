@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,36 +7,32 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-
 interface AgentConfigTabProps {
   setActiveTab: (tab: string) => void;
 }
-
-export default function AgentConfigTab({ setActiveTab }: AgentConfigTabProps) {
+export default function AgentConfigTab({
+  setActiveTab
+}: AgentConfigTabProps) {
   const [isAIAgentEnabled, setIsAIAgentEnabled] = useState(false);
   const [apiKey, setApiKey] = useState("");
   const [agentName, setAgentName] = useState("");
   const [agentPrompt, setAgentPrompt] = useState("");
   const [useCalendar, setUseCalendar] = useState(false);
-
   const saveAgentSettings = () => {
     if (!apiKey.trim() && isAIAgentEnabled) {
       toast.error("Insira uma API Key válida para ativar o agente IA.");
       return;
     }
-    
     if (isAIAgentEnabled) {
       toast.success("Configurações do agente IA salvas com sucesso!");
     } else {
       toast.info("Agente IA desativado.");
     }
-    
+
     // Move to the campaign tab
     setActiveTab("campaign");
   };
-
-  return (
-    <Card>
+  return <Card>
       <CardHeader>
         <CardTitle>Configuração do Agente IA</CardTitle>
         <CardDescription>
@@ -52,23 +47,14 @@ export default function AgentConfigTab({ setActiveTab }: AgentConfigTabProps) {
               O agente responderá automaticamente às mensagens recebidas.
             </p>
           </div>
-          <Switch
-            checked={isAIAgentEnabled}
-            onCheckedChange={setIsAIAgentEnabled}
-          />
+          <Switch checked={isAIAgentEnabled} onCheckedChange={setIsAIAgentEnabled} className="bg-slate-300 hover:bg-slate-200" />
         </div>
         
         <div className={`space-y-4 ${isAIAgentEnabled ? "" : "opacity-60 pointer-events-none"}`}>
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="apiKey">API Key da OpenAI</Label>
-              <Input
-                id="apiKey"
-                type="password"
-                placeholder="sk-..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
+              <Input id="apiKey" type="password" placeholder="sk-..." value={apiKey} onChange={e => setApiKey(e.target.value)} />
               <p className="text-xs text-muted-foreground">
                 Necessário para o funcionamento do agente IA.
               </p>
@@ -76,24 +62,13 @@ export default function AgentConfigTab({ setActiveTab }: AgentConfigTabProps) {
             
             <div className="space-y-2">
               <Label htmlFor="agentName">Nome do Agente</Label>
-              <Input
-                id="agentName"
-                placeholder="Ex: Vendedor Virtual"
-                value={agentName}
-                onChange={(e) => setAgentName(e.target.value)}
-              />
+              <Input id="agentName" placeholder="Ex: Vendedor Virtual" value={agentName} onChange={e => setAgentName(e.target.value)} />
             </div>
           </div>
           
           <div className="space-y-2">
             <Label htmlFor="agentPrompt">Personalidade do Agente (Prompt)</Label>
-            <Textarea
-              id="agentPrompt"
-              placeholder="Ex: Você é um especialista em vendas de agentes inteligentes para empresas locais..."
-              rows={5}
-              value={agentPrompt}
-              onChange={(e) => setAgentPrompt(e.target.value)}
-            />
+            <Textarea id="agentPrompt" placeholder="Ex: Você é um especialista em vendas de agentes inteligentes para empresas locais..." rows={5} value={agentPrompt} onChange={e => setAgentPrompt(e.target.value)} />
             <p className="text-xs text-muted-foreground">
               Define como o agente se comportará ao responder mensagens.
             </p>
@@ -108,11 +83,7 @@ export default function AgentConfigTab({ setActiveTab }: AgentConfigTabProps) {
                 O agente poderá marcar reuniões na sua agenda.
               </p>
             </div>
-            <Switch
-              checked={useCalendar}
-              onCheckedChange={setUseCalendar}
-              disabled={!isAIAgentEnabled}
-            />
+            <Switch checked={useCalendar} onCheckedChange={setUseCalendar} disabled={!isAIAgentEnabled} />
           </div>
           
           <div className={`${useCalendar ? "" : "opacity-60 pointer-events-none"}`}>
@@ -156,6 +127,5 @@ export default function AgentConfigTab({ setActiveTab }: AgentConfigTabProps) {
           </Button>
         </div>
       </CardContent>
-    </Card>
-  );
+    </Card>;
 }
