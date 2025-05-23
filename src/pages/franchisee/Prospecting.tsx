@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -176,7 +177,7 @@ export default function Prospecting() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
               {/* Campo Cidade */}
               <div className="space-y-2">
                 <Label htmlFor="city" className="text-sm font-medium flex items-center gap-1">
@@ -227,26 +228,9 @@ export default function Prospecting() {
                   </SelectContent>
                 </Select>
               </div>
-
-              {/* Campo Quantidade */}
-              <div className="space-y-2">
-                <Label htmlFor="quantity" className="text-sm font-medium">Quantidade</Label>
-                <Select value={quantity.toString()} onValueChange={(value) => setQuantity(parseInt(value))}>
-                  <SelectTrigger id="quantity">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="bg-white dark:bg-gray-800">
-                    {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((num) => (
-                      <SelectItem key={num} value={num.toString()}>
-                        {num} empresas
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
 
-            {/* Campo Nicho Personalizado - aparece apenas quando "Personalizado" está selecionado */}
+            {/* Campo Nicho Personalizado - aparece entre nicho e quantidade */}
             {niche === "Personalizado" && (
               <div className="mb-4">
                 <Label htmlFor="customNiche" className="text-sm font-medium">
@@ -264,6 +248,25 @@ export default function Prospecting() {
                 </p>
               </div>
             )}
+
+            {/* Campo Quantidade */}
+            <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1 gap-4 mb-4">
+              <div className="space-y-2 max-w-xs">
+                <Label htmlFor="quantity" className="text-sm font-medium">Quantidade</Label>
+                <Select value={quantity.toString()} onValueChange={(value) => setQuantity(parseInt(value))}>
+                  <SelectTrigger id="quantity">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-gray-800">
+                    {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((num) => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num} empresas
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
             {/* Botão de busca */}
             <div className="flex justify-center">
@@ -300,14 +303,14 @@ export default function Prospecting() {
 
         {leads.length > 0 && (
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <div>
+            <CardHeader className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-4 sm:space-y-0">
+              <div className="text-center sm:text-left">
                 <CardTitle>Resultados da Busca</CardTitle>
                 <CardDescription>
                   {leads.length} empresas encontradas em {city} - {state}
                 </CardDescription>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex flex-col sm:flex-row items-center gap-4">
                 <div className="flex items-center gap-2">
                   <Checkbox 
                     id="select-all" 
@@ -325,6 +328,7 @@ export default function Prospecting() {
                   variant="outline" 
                   onClick={exportLeads}
                   disabled={selectedCount === 0}
+                  className="w-full sm:w-auto"
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Exportar ({selectedCount})
@@ -332,16 +336,57 @@ export default function Prospecting() {
               </div>
             </CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
+              {/* Mobile view - Cards */}
+              <div className="block md:hidden space-y-4">
+                {leads.map((lead) => (
+                  <div key={lead.id} className="border rounded-lg p-4 space-y-3">
+                    <div className="flex items-start gap-3">
+                      <Checkbox 
+                        checked={lead.selected} 
+                        onCheckedChange={() => toggleLeadSelection(lead.id)}
+                        id={`lead-mobile-${lead.id}`}
+                        className="mt-1"
+                      />
+                      <div className="flex-1 space-y-2">
+                        <label 
+                          htmlFor={`lead-mobile-${lead.id}`} 
+                          className="font-medium text-base cursor-pointer block"
+                        >
+                          {lead.name}
+                        </label>
+                        <div className="text-sm text-muted-foreground">
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className="font-medium">Nicho:</span> {lead.niche}
+                          </div>
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className="font-medium">Telefone:</span> {lead.phone}
+                          </div>
+                          <div className="flex items-center gap-1 mb-1">
+                            <span className="font-medium">Endereço:</span> {lead.address}
+                          </div>
+                          {lead.email && (
+                            <div className="flex items-center gap-1">
+                              <span className="font-medium">Email:</span> {lead.email}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Desktop view - Table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="border-b">
                       <th className="text-left py-3 px-4 w-10"></th>
                       <th className="text-left py-3 px-4">Nome</th>
                       <th className="text-left py-3 px-4">Nicho</th>
-                      <th className="text-left py-3 px-4 hidden md:table-cell">Endereço</th>
+                      <th className="text-left py-3 px-4">Endereço</th>
                       <th className="text-left py-3 px-4">Telefone</th>
-                      <th className="text-left py-3 px-4 hidden md:table-cell">Email</th>
+                      <th className="text-left py-3 px-4">Email</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -363,9 +408,9 @@ export default function Prospecting() {
                           </label>
                         </td>
                         <td className="py-3 px-4">{lead.niche}</td>
-                        <td className="py-3 px-4 hidden md:table-cell">{lead.address}</td>
+                        <td className="py-3 px-4">{lead.address}</td>
                         <td className="py-3 px-4">{lead.phone}</td>
-                        <td className="py-3 px-4 hidden md:table-cell">
+                        <td className="py-3 px-4">
                           {lead.email || "—"}
                         </td>
                       </tr>
