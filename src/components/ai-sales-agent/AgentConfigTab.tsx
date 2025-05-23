@@ -47,7 +47,7 @@ export default function AgentConfigTab({
               O agente responderá automaticamente às mensagens recebidas.
             </p>
           </div>
-          <Switch checked={isAIAgentEnabled} onCheckedChange={setIsAIAgentEnabled} className="bg-slate-300 hover:bg-slate-200" />
+          <Switch checked={isAIAgentEnabled} onCheckedChange={setIsAIAgentEnabled} className="bg-gray-900 hover:bg-gray-800" />
         </div>
         
         <div className={`space-y-4 ${isAIAgentEnabled ? "" : "opacity-60 pointer-events-none"}`}>
