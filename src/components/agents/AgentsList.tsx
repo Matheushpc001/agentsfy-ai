@@ -12,13 +12,15 @@ interface AgentsListProps {
   onViewAgent: (agent: Agent) => void;
   onEditAgent: (agent: Agent) => void;
   onConnectAgent: (agent: Agent) => void;
+  onTest: (agent: Agent) => void;
 }
 
 export default function AgentsList({ 
   agents, 
   onViewAgent, 
   onEditAgent, 
-  onConnectAgent 
+  onConnectAgent,
+  onTest 
 }: AgentsListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [testingAgent, setTestingAgent] = useState<Agent | null>(null);
@@ -58,7 +60,7 @@ export default function AgentsList({
               onView={onViewAgent}
               onEdit={onEditAgent}
               onConnect={onConnectAgent}
-              onTest={handleTestAgent}
+              onTest={onTest}
             />
           ))}
         </div>
