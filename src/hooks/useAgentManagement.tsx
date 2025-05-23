@@ -173,6 +173,7 @@ export default function useAgentManagement(
     setIsWhatsAppModalOpen,
     setIsPlanLimitModalOpen,
     setIsCustomerPortalModalOpen,
+    setCurrentAgent,
     handleViewAgent,
     handleEditAgent,
     handleConnectAgent,

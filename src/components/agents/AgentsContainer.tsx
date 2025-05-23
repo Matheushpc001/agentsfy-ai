@@ -39,6 +39,7 @@ export default function AgentsContainer({
     setIsWhatsAppModalOpen,
     setIsPlanLimitModalOpen,
     setIsCustomerPortalModalOpen,
+    setCurrentAgent,
     handleViewAgent,
     handleEditAgent,
     handleConnectAgent,
