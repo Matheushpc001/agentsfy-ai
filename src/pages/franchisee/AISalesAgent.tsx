@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +31,8 @@ export default function AISalesAgent() {
   const [agentName, setAgentName] = useState("");
   const [agentPrompt, setAgentPrompt] = useState("");
   const [useCalendar, setUseCalendar] = useState(false);
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   
   // Campaign state
   const [phoneNumbers, setPhoneNumbers] = useState("");
@@ -57,12 +58,22 @@ export default function AISalesAgent() {
   const disconnectWhatsApp = () => {
     // In a real implementation, this would disconnect from the WhatsApp API
     setIsWhatsAppConnected(false);
+    setQrCodeUrl(null);
     toast.info("WhatsApp desconectado.");
     
     // If there's an active campaign, stop it
     if (activeCampaign && activeCampaign.status === "running") {
       stopCampaign();
     }
+  };
+
+  const handleGenerateQrCode = () => {
+    setIsGeneratingQr(true);
+    // Simulate API call delay
+    setTimeout(() => {
+      setQrCodeUrl("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=whatsapp-connection-code-" + Date.now());
+      setIsGeneratingQr(false);
+    }, 1500);
   };
 
   const saveAgentSettings = () => {
@@ -276,9 +287,10 @@ export default function AISalesAgent() {
                   
                   <div className="flex items-center justify-center">
                     <WhatsAppQRCode 
-                      phoneNumber="+5511999999999"
                       onConnect={connectWhatsApp}
-                      isConnected={isWhatsAppConnected}
+                      onRefresh={handleGenerateQrCode}
+                      isGenerating={isGeneratingQr}
+                      qrCodeUrl={qrCodeUrl || undefined}
                     />
                   </div>
                 </div>
