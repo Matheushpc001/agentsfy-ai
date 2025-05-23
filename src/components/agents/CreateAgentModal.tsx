@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -13,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Bot, Upload } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface CreateAgentModalProps {
   open: boolean;
@@ -121,8 +121,8 @@ export default function CreateAgentModal({
     }));
   };
 
-  const handleCustomerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setSelectedCustomerId(e.target.value);
+  const handleCustomerSelect = (value: string) => {
+    setSelectedCustomerId(value);
   };
 
   const handleSwitchChange = (checked: boolean) => {
@@ -145,12 +145,11 @@ export default function CreateAgentModal({
     }
   };
 
-  const handlePromptSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const promptId = e.target.value;
-    setSelectedPromptId(promptId);
+  const handlePromptSelect = (value: string) => {
+    setSelectedPromptId(value);
     
-    if (promptId) {
-      const selectedPrompt = prompts.find(p => p.id === promptId);
+    if (value) {
+      const selectedPrompt = prompts.find(p => p.id === value);
       if (selectedPrompt) {
         setFormData((prev) => ({
           ...prev,
@@ -271,19 +270,18 @@ export default function CreateAgentModal({
                       Ver biblioteca de prompts
                     </Button>
                   </Label>
-                  <select
-                    id="promptSelector"
-                    className="w-full p-2 border rounded-md"
-                    value={selectedPromptId}
-                    onChange={handlePromptSelect}
-                  >
-                    <option value="">Selecione um prompt pré-definido</option>
-                    {prompts.map(prompt => (
-                      <option key={prompt.id} value={prompt.id}>
-                        {prompt.name} ({prompt.niche})
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={selectedPromptId} onValueChange={handlePromptSelect}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um prompt pré-definido" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {prompts.map(prompt => (
+                        <SelectItem key={prompt.id} value={prompt.id}>
+                          {prompt.name} ({prompt.niche})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 
                 <div className="space-y-2">
@@ -406,19 +404,18 @@ export default function CreateAgentModal({
                 {!isNewCustomer ? (
                   <div className="space-y-2">
                     <Label htmlFor="customerId">Selecione um cliente</Label>
-                    <select 
-                      id="customerId"
-                      className="w-full p-2 border rounded-md"
-                      value={selectedCustomerId}
-                      onChange={handleCustomerSelect}
-                    >
-                      <option value="">Selecione um cliente</option>
-                      {existingCustomers.map(customer => (
-                        <option key={customer.id} value={customer.id}>
-                          {customer.businessName}
-                        </option>
-                      ))}
-                    </select>
+                    <Select value={selectedCustomerId} onValueChange={handleCustomerSelect}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione um cliente" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {existingCustomers.map(customer => (
+                          <SelectItem key={customer.id} value={customer.id}>
+                            {customer.businessName}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
                 ) : (
                   <>
