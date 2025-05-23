@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -115,12 +114,12 @@ export default function Sidebar() {
     ],
   };
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     logout();
     navigate('/login', { replace: true });
-  };
+  }, [logout, navigate]);
 
-  const handleNavigate = async (href: string) => {
+  const handleNavigate = useCallback(async (href: string) => {
     // Don't navigate if we're already on this page or already navigating
     if (location.pathname === href || isNavigating) {
       return;
@@ -130,7 +129,7 @@ export default function Sidebar() {
       setIsNavigating(true);
       
       // Use replace: true to avoid building up history stack
-      navigate(href, { replace: true });
+      await navigate(href, { replace: true });
       
       // On mobile, close the sidebar after navigation
       if (isMobile) {
@@ -143,20 +142,20 @@ export default function Sidebar() {
       // Reset navigation state after a short delay
       setTimeout(() => {
         setIsNavigating(false);
-      }, 300);
+      }, 500); // Increased timeout to ensure state is reset after transitions
     }
-  };
+  }, [location.pathname, isNavigating, navigate, isMobile]);
 
-  const toggleSidebar = () => {
+  const toggleSidebar = useCallback(() => {
     setIsCollapsed(!isCollapsed);
-  };
+  }, [isCollapsed]);
 
   if (!user) return null;
 
   return (
     <aside
       className={cn(
-        "bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-full w-full",
+        "bg-card dark:bg-gray-900 border-r border-border dark:border-gray-800 h-full w-full z-20",
         !isMobile && (isCollapsed ? "w-16" : "w-64 fixed")
       )}
     >
@@ -199,7 +198,7 @@ export default function Sidebar() {
                     className={cn(
                       "w-full justify-start text-left",
                       isActive ? "bg-secondary text-secondary-foreground" : "dark:hover:bg-gray-700",
-                      isNavigating && "pointer-events-none opacity-70"
+                      isNavigating && "opacity-70 pointer-events-none"
                     )}
                     onClick={() => handleNavigate(item.href)}
                     disabled={isNavigating}
