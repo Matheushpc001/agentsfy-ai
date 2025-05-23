@@ -138,6 +138,7 @@ export default function Dashboard() {
   const [topAgents, setTopAgents] = useState<Agent[]>([]);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
   const isMobile = useIsMobile();
+
   useEffect(() => {
     if (user) {
       // Simulate API call to get analytics data
@@ -150,6 +151,33 @@ export default function Dashboard() {
       setTopAgents(MOCK_AGENTS.slice(0, 3));
     }
   }, [user]);
+
+  const handleRefreshResults = async () => {
+    setIsLoadingResults(true);
+    
+    // Simulate API call delay
+    setTimeout(() => {
+      if (user) {
+        // Simulate updated data with slight variations
+        const updatedAnalytics = { ...MOCK_ANALYTICS[user.role] };
+        
+        if (user.role === "admin") {
+          updatedAnalytics.monthlyRevenue = (updatedAnalytics.monthlyRevenue || 0) * (0.95 + Math.random() * 0.1);
+          updatedAnalytics.franchiseeCount = (updatedAnalytics.franchiseeCount || 0) + Math.floor(Math.random() * 2);
+          updatedAnalytics.customerCount = (updatedAnalytics.customerCount || 0) + Math.floor(Math.random() * 3);
+        } else if (user.role === "franchisee") {
+          updatedAnalytics.installationRevenue = (updatedAnalytics.installationRevenue || 0) * (0.9 + Math.random() * 0.2);
+          updatedAnalytics.monthlyRevenue = (updatedAnalytics.monthlyRevenue || 0) * (0.95 + Math.random() * 0.1);
+          updatedAnalytics.customerCount = (updatedAnalytics.customerCount || 0) + Math.floor(Math.random() * 2);
+          updatedAnalytics.activeCustomers = Math.min(updatedAnalytics.customerCount || 0, (updatedAnalytics.activeCustomers || 0) + Math.floor(Math.random() * 2));
+        }
+        
+        setAnalytics(updatedAnalytics);
+      }
+      setIsLoadingResults(false);
+    }, 2000);
+  };
+
   if (!user || !analytics) {
     return (
       <DashboardLayout title="Dashboard">
@@ -159,6 +187,7 @@ export default function Dashboard() {
       </DashboardLayout>
     );
   }
+
   const formatDateTime = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString("pt-BR", {
@@ -166,12 +195,14 @@ export default function Dashboard() {
       minute: "2-digit"
     });
   };
+
   // Formatter for currency values
   const currencyFormatter = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
     minimumFractionDigits: 2
   });
+
   return (
     <DashboardLayout title="Dashboard">
       <div className="space-y-6">
