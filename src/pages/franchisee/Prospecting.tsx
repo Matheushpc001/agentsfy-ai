@@ -156,7 +156,7 @@ export default function Prospecting() {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione um nicho" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-white dark:bg-gray-800">
                     {NICHES.map((nicheOption) => (
                       <SelectItem key={nicheOption} value={nicheOption}>
                         {nicheOption}
