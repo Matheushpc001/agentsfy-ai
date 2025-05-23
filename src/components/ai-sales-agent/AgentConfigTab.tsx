@@ -83,7 +83,7 @@ export default function AgentConfigTab({
                 O agente poderá marcar reuniões na sua agenda.
               </p>
             </div>
-            <Switch checked={useCalendar} onCheckedChange={setUseCalendar} disabled={!isAIAgentEnabled} className="bg-zinc-950 hover:bg-zinc-800" />
+            <Switch checked={useCalendar} onCheckedChange={setUseCalendar} disabled={!isAIAgentEnabled} className="bg-cyan-600 hover:bg-cyan-500" />
           </div>
           
           <div className={`${useCalendar ? "" : "opacity-60 pointer-events-none"}`}>
