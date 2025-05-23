@@ -14,6 +14,7 @@ import NotFound from "./pages/NotFound";
 // Admin pages
 import Franchisees from "./pages/admin/Franchisees";
 import Analytics from "./pages/admin/Analytics";
+import Lessons from "./pages/admin/Lessons";
 
 // Franchisee pages
 import Agents from "./pages/franchisee/Agents";
@@ -21,8 +22,9 @@ import Customers from "./pages/franchisee/Customers";
 import Schedule from "./pages/franchisee/Schedule";
 import Plans from "./pages/franchisee/Plans";
 import WhatsAppConnections from "./pages/franchisee/WhatsAppConnections";
-import Prospecting from "./pages/franchisee/Prospecting"; // New page
-import AISalesAgent from "./pages/franchisee/AISalesAgent"; // New page
+import Prospecting from "./pages/franchisee/Prospecting";
+import AISalesAgent from "./pages/franchisee/AISalesAgent";
+import FranchiseeLessons from "./pages/franchisee/Lessons";
 
 // Customer pages
 import CustomerDashboard from "./pages/customer/Dashboard";
@@ -68,6 +70,7 @@ const AppRoutes = () => {
       {/* Admin routes */}
       <Route path="/admin/franchisees" element={<ProtectedRoute element={<Franchisees />} allowedRoles={["admin"]} />} />
       <Route path="/admin/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={["admin"]} />} />
+      <Route path="/admin/lessons" element={<ProtectedRoute element={<Lessons />} allowedRoles={["admin"]} />} />
 
       {/* Franchisee routes */}
       <Route path="/franchisee/agents" element={<ProtectedRoute element={<Agents />} allowedRoles={["franchisee"]} />} />
@@ -77,6 +80,7 @@ const AppRoutes = () => {
       <Route path="/franchisee/whatsapp" element={<ProtectedRoute element={<WhatsAppConnections />} allowedRoles={["franchisee"]} />} />
       <Route path="/franchisee/prospecting" element={<ProtectedRoute element={<Prospecting />} allowedRoles={["franchisee"]} />} />
       <Route path="/franchisee/ai-sales-agent" element={<ProtectedRoute element={<AISalesAgent />} allowedRoles={["franchisee"]} />} />
+      <Route path="/franchisee/lessons" element={<ProtectedRoute element={<FranchiseeLessons />} allowedRoles={["franchisee"]} />} />
 
       {/* Customer routes */}
       <Route path="/customer/dashboard" element={<ProtectedRoute element={<CustomerDashboard />} allowedRoles={["customer"]} />} />

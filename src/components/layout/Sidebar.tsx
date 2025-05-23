@@ -15,7 +15,8 @@ import {
   LogOut,
   ChevronLeft,
   Search,
-  MessageSquareText
+  MessageSquareText,
+  BookOpen
 } from "lucide-react";
 import { UserRole, NavItem } from "@/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -49,6 +50,11 @@ export default function Sidebar() {
         icon: BarChart2, 
         href: "/admin/analytics" 
       },
+      { 
+        label: "Aulas", 
+        icon: BookOpen, 
+        href: "/admin/lessons" 
+      },
     ],
     franchisee: [
       { 
@@ -80,6 +86,11 @@ export default function Sidebar() {
         label: "Agenda", 
         icon: Calendar, 
         href: "/franchisee/schedule" 
+      },
+      { 
+        label: "Aulas", 
+        icon: BookOpen, 
+        href: "/franchisee/lessons" 
       },
     ],
     customer: [

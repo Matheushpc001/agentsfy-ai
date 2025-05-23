@@ -1,3 +1,4 @@
+
 import { ReactNode } from "react";
 
 export type UserRole = "admin" | "franchisee" | "customer";
@@ -185,4 +186,26 @@ export interface CustomerPortalAccess {
   username: string;
   password: string;
   customerId: string;
+}
+
+// New interfaces for video lessons
+export interface VideoLesson {
+  id: string;
+  title: string;
+  description: string;
+  youtubeUrl: string;
+  thumbnailUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  attachments: LessonAttachment[];
+}
+
+export interface LessonAttachment {
+  id: string;
+  lessonId: string;
+  name: string;
+  fileUrl: string;
+  fileType: string;
+  fileSize: number;
+  createdAt: string;
 }
