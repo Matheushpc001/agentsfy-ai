@@ -21,6 +21,8 @@ import Customers from "./pages/franchisee/Customers";
 import Schedule from "./pages/franchisee/Schedule";
 import Plans from "./pages/franchisee/Plans";
 import WhatsAppConnections from "./pages/franchisee/WhatsAppConnections";
+import Prospecting from "./pages/franchisee/Prospecting"; // New page
+import AISalesAgent from "./pages/franchisee/AISalesAgent"; // New page
 
 // Customer pages
 import CustomerDashboard from "./pages/customer/Dashboard";
@@ -73,6 +75,8 @@ const AppRoutes = () => {
       <Route path="/franchisee/schedule" element={<ProtectedRoute element={<Schedule />} allowedRoles={["franchisee"]} />} />
       <Route path="/franchisee/plans" element={<ProtectedRoute element={<Plans />} allowedRoles={["franchisee"]} />} />
       <Route path="/franchisee/whatsapp" element={<ProtectedRoute element={<WhatsAppConnections />} allowedRoles={["franchisee"]} />} />
+      <Route path="/franchisee/prospecting" element={<ProtectedRoute element={<Prospecting />} allowedRoles={["franchisee"]} />} />
+      <Route path="/franchisee/ai-sales-agent" element={<ProtectedRoute element={<AISalesAgent />} allowedRoles={["franchisee"]} />} />
 
       {/* Customer routes */}
       <Route path="/customer/dashboard" element={<ProtectedRoute element={<CustomerDashboard />} allowedRoles={["customer"]} />} />

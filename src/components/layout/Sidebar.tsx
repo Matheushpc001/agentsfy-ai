@@ -13,7 +13,9 @@ import {
   Store,
   Calendar,
   LogOut,
-  ChevronLeft
+  ChevronLeft,
+  Search,
+  MessageSquareText
 } from "lucide-react";
 import { UserRole, NavItem } from "@/types";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -63,6 +65,16 @@ export default function Sidebar() {
         label: "Clientes", 
         icon: Store, 
         href: "/franchisee/customers" 
+      },
+      { 
+        label: "Prospecção", 
+        icon: Search, 
+        href: "/franchisee/prospecting" 
+      },
+      { 
+        label: "Vendedor IA", 
+        icon: MessageSquareText, 
+        href: "/franchisee/ai-sales-agent" 
       },
       { 
         label: "Agenda", 
