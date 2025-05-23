@@ -74,7 +74,12 @@ export default function AgentHeader({
       </div>
       
       <div className="hidden xl:block ml-4">
-        <PlanInfoCard planName={planName} billingCycle={billingCycle} />
+        <PlanInfoCard 
+          planName={planName} 
+          billingCycle={billingCycle}
+          agentLimit={agentLimit}
+          totalAgents={totalAgents}
+        />
       </div>
     </div>
   );

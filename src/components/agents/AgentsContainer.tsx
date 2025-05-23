@@ -94,6 +94,9 @@ export default function AgentsContainer({
     }, 100);
   };
 
+  // Convert billing cycle from "annual" to "yearly" to match expected type
+  const billingCycle = currentPlan?.billingCycle === 'annual' ? 'yearly' : 'monthly';
+
   return (
     <div className="space-y-6">
       {/* Header with stats, action buttons and plan info */}
@@ -102,7 +105,7 @@ export default function AgentsContainer({
         agentLimit={agentLimit}
         connectedAgents={connectedAgents}
         planName={currentPlan?.name || 'Plano Básico'}
-        billingCycle={currentPlan?.billingCycle || 'monthly'}
+        billingCycle={billingCycle}
         onCreateClick={() => handleCreateAgentClick(agentLimit)}
         onManagePromptsClick={handleOpenPromptsLibrary}
       />
