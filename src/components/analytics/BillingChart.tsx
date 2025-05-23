@@ -227,7 +227,7 @@ export function BillingChart({
           <CardTitle className="font-medium text-lg text-center">
             Gráfico de Faturamento
           </CardTitle>
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 mx-[60px]">
             <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Selecionar período" />
