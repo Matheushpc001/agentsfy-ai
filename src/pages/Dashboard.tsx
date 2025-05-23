@@ -217,17 +217,22 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (user) {
+      console.log("Dashboard: Loading initial data for user:", user.role);
       // Initial data fetch
-      setAnalytics(MOCK_ANALYTICS[user.role]);
+      const userAnalytics = MOCK_ANALYTICS[user.role];
+      console.log("Dashboard: Setting analytics data:", userAnalytics);
+      setAnalytics(userAnalytics);
       setRecentMessages(MOCK_MESSAGES);
       setTopAgents(MOCK_AGENTS.slice(0, 3));
       
       if (user.role === "admin") {
+        console.log("Dashboard: Setting franchisees data for admin");
         setTopFranchisees(MOCK_TOP_FRANCHISEES);
       }
       
       // Set initial load to false after a short delay
       setTimeout(() => {
+        console.log("Dashboard: Initial load complete");
         setIsInitialLoad(false);
       }, 500);
     }
@@ -307,6 +312,7 @@ export default function Dashboard() {
 
   // Always render the layout, even when loading
   if (!user) {
+    console.log("Dashboard: No user found, showing loading");
     return (
       <DashboardLayout title="Dashboard">
         <div className="flex items-center justify-center h-64">
@@ -315,6 +321,8 @@ export default function Dashboard() {
       </DashboardLayout>
     );
   }
+
+  console.log("Dashboard: Rendering for user role:", user.role, "Initial load:", isInitialLoad, "Analytics:", !!analytics);
 
   const formatDateTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -325,13 +333,60 @@ export default function Dashboard() {
   };
 
   // Show skeleton layout instead of nothing when analytics are missing
-  if (isInitialLoad) {
+  if (isInitialLoad || !analytics) {
+    console.log("Dashboard: Showing skeleton layout");
     return (
       <DashboardLayout title="Dashboard">
         <div className="space-y-6">
           <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {renderStatCardSkeletons(4)}
           </section>
+          
+          {/* Admin specific skeleton sections */}
+          {user.role === "admin" && (
+            <>
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <Skeleton className="h-6 w-24" />
+                  <Skeleton className="h-8 w-20" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  {renderStatCardSkeletons(3)}
+                </div>
+              </section>
+              
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2 h-80 rounded-lg border bg-card">
+                  <Skeleton className="h-full w-full" />
+                </div>
+                <div className="lg:col-span-1 h-80 rounded-lg border bg-card">
+                  <Skeleton className="h-full w-full" />
+                </div>
+              </div>
+            </>
+          )}
+          
+          {/* Franchisee specific skeleton sections */}
+          {user.role === "franchisee" && (
+            <>
+              <section>
+                <div className="flex items-center justify-between mb-4">
+                  <Skeleton className="h-6 w-48" />
+                  <Skeleton className="h-8 w-20" />
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderStatCardSkeletons(2)}
+                </div>
+              </section>
+              
+              <section>
+                <Skeleton className="h-6 w-32 mb-4" />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {renderStatCardSkeletons(2)}
+                </div>
+              </section>
+            </>
+          )}
         </div>
       </DashboardLayout>
     );
@@ -343,6 +398,8 @@ export default function Dashboard() {
     currency: 'BRL',
     minimumFractionDigits: 2
   });
+
+  console.log("Dashboard: Rendering main content");
 
   return (
     <DashboardLayout title="Dashboard">
