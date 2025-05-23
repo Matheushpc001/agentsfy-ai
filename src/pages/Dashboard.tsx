@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -171,6 +172,38 @@ const MOCK_TOP_FRANCHISEES: TopFranchisee[] = [
   }
 ];
 
+// Function to generate random variations for mock data
+const generateRandomVariation = (baseValue: number, variationPercent: number = 0.1) => {
+  const variation = baseValue * variationPercent;
+  return baseValue + (Math.random() - 0.5) * 2 * variation;
+};
+
+// Function to generate updated weekly messages data
+const generateUpdatedWeeklyMessages = () => {
+  return MOCK_WEEKLY_MESSAGES.map(item => ({
+    ...item,
+    count: Math.max(100, Math.floor(generateRandomVariation(item.count, 0.15)))
+  }));
+};
+
+// Function to generate updated agents data
+const generateUpdatedAgents = () => {
+  return MOCK_AGENTS.map(agent => ({
+    ...agent,
+    messageCount: Math.max(50, Math.floor(generateRandomVariation(agent.messageCount, 0.2))),
+    responseTime: Math.max(1, parseFloat(generateRandomVariation(agent.responseTime, 0.15).toFixed(1)))
+  }));
+};
+
+// Function to generate updated franchisees data
+const generateUpdatedFranchisees = () => {
+  return MOCK_TOP_FRANCHISEES.map(franchisee => ({
+    ...franchisee,
+    revenue: Math.max(10000, generateRandomVariation(franchisee.revenue, 0.12)),
+    agentCount: Math.max(1, Math.floor(generateRandomVariation(franchisee.agentCount, 0.2)))
+  }));
+};
+
 export default function Dashboard() {
   const {
     user
@@ -179,6 +212,7 @@ export default function Dashboard() {
   const [recentMessages, setRecentMessages] = useState<Message[]>([]);
   const [topAgents, setTopAgents] = useState<Agent[]>([]);
   const [topFranchisees, setTopFranchisees] = useState<TopFranchisee[]>([]);
+  const [weeklyMessages, setWeeklyMessages] = useState(MOCK_WEEKLY_MESSAGES);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
   const isMobile = useIsMobile();
 
@@ -206,19 +240,41 @@ export default function Dashboard() {
     // Simulate API call delay
     setTimeout(() => {
       if (user) {
-        // Simulate updated data with slight variations
+        // Update analytics data with variations
         const updatedAnalytics = { ...MOCK_ANALYTICS[user.role] };
         
+        // Update main stats with variations
+        updatedAnalytics.messageCount = Math.max(1000, Math.floor(generateRandomVariation(updatedAnalytics.messageCount, 0.08)));
+        updatedAnalytics.activeAgents = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.activeAgents, 0.1)));
+        updatedAnalytics.responseTime = Math.max(1, parseFloat(generateRandomVariation(updatedAnalytics.responseTime, 0.15).toFixed(1)));
+        updatedAnalytics.tokensUsed = Math.max(10000, Math.floor(generateRandomVariation(updatedAnalytics.tokensUsed, 0.12)));
+        
         if (user.role === "admin") {
-          updatedAnalytics.monthlyRevenue = (updatedAnalytics.monthlyRevenue || 0) * (0.95 + Math.random() * 0.1);
-          updatedAnalytics.franchiseeCount = (updatedAnalytics.franchiseeCount || 0) + Math.floor(Math.random() * 2);
-          updatedAnalytics.customerCount = (updatedAnalytics.customerCount || 0) + Math.floor(Math.random() * 3);
+          updatedAnalytics.monthlyRevenue = Math.max(20000, generateRandomVariation(updatedAnalytics.monthlyRevenue || 0, 0.1));
+          updatedAnalytics.franchiseeCount = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.franchiseeCount || 0, 0.15)));
+          updatedAnalytics.customerCount = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.customerCount || 0, 0.12)));
+          
+          // Update franchisees data
+          setTopFranchisees(generateUpdatedFranchisees());
         } else if (user.role === "franchisee") {
-          updatedAnalytics.installationRevenue = (updatedAnalytics.installationRevenue || 0) * (0.9 + Math.random() * 0.2);
-          updatedAnalytics.monthlyRevenue = (updatedAnalytics.monthlyRevenue || 0) * (0.95 + Math.random() * 0.1);
-          updatedAnalytics.customerCount = (updatedAnalytics.customerCount || 0) + Math.floor(Math.random() * 2);
-          updatedAnalytics.activeCustomers = Math.min(updatedAnalytics.customerCount || 0, (updatedAnalytics.activeCustomers || 0) + Math.floor(Math.random() * 2));
+          updatedAnalytics.installationRevenue = Math.max(1000, generateRandomVariation(updatedAnalytics.installationRevenue || 0, 0.15));
+          updatedAnalytics.monthlyRevenue = Math.max(2000, generateRandomVariation(updatedAnalytics.monthlyRevenue || 0, 0.1));
+          updatedAnalytics.customerCount = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.customerCount || 0, 0.2)));
+          updatedAnalytics.activeCustomers = Math.min(updatedAnalytics.customerCount || 0, Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.activeCustomers || 0, 0.15))));
+          
+          // Update agents data
+          setTopAgents(generateUpdatedAgents().slice(0, 3));
         }
+        
+        // Update weekly messages chart data
+        setWeeklyMessages(generateUpdatedWeeklyMessages());
+        
+        // Update recent messages with new timestamps
+        const updatedMessages = MOCK_MESSAGES.map(msg => ({
+          ...msg,
+          timestamp: new Date(Date.now() - Math.random() * 60 * 60000).toISOString()
+        }));
+        setRecentMessages(updatedMessages);
         
         setAnalytics(updatedAnalytics);
       }
@@ -443,7 +499,7 @@ export default function Dashboard() {
                 <div className="h-[300px] overflow-hidden">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart
-                      data={MOCK_WEEKLY_MESSAGES}
+                      data={weeklyMessages}
                       margin={{ top: 20, right: 20, left: isMobile ? 0 : 20, bottom: 20 }}
                     >
                       <defs>
@@ -563,7 +619,7 @@ export default function Dashboard() {
                     
                     <div className="mt-2 h-24">
                       <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={MOCK_WEEKLY_MESSAGES}>
+                        <LineChart data={weeklyMessages}>
                           <Line 
                             type="monotone" 
                             dataKey="count" 
