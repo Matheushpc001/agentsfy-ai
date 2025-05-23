@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -329,9 +328,15 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {isLoadingResults ? (
                 <>
-                  <Skeleton className="h-32" />
-                  <Skeleton className="h-32" />
-                  <Skeleton className="h-32" />
+                  <div className="h-32 rounded-lg border bg-card">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                  <div className="h-32 rounded-lg border bg-card">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                  <div className="h-32 rounded-lg border bg-card">
+                    <Skeleton className="h-full w-full" />
+                  </div>
                 </>
               ) : (
                 <>
@@ -384,8 +389,12 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {isLoadingResults ? (
                   <>
-                    <Skeleton className="h-32" />
-                    <Skeleton className="h-32" />
+                    <div className="h-32 rounded-lg border bg-card">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                    <div className="h-32 rounded-lg border bg-card">
+                      <Skeleton className="h-full w-full" />
+                    </div>
                   </>
                 ) : (
                   <>
@@ -418,8 +427,12 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {isLoadingResults ? (
                   <>
-                    <Skeleton className="h-32" />
-                    <Skeleton className="h-32" />
+                    <div className="h-32 rounded-lg border bg-card">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                    <div className="h-32 rounded-lg border bg-card">
+                      <Skeleton className="h-full w-full" />
+                    </div>
                   </>
                 ) : (
                   <>
@@ -445,10 +458,18 @@ export default function Dashboard() {
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {isLoadingResults ? (
             <>
-              <Skeleton className="h-32" />
-              <Skeleton className="h-32" />
-              <Skeleton className="h-32" />
-              <Skeleton className="h-32" />
+              <div className="h-32 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
+              <div className="h-32 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
+              <div className="h-32 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
+              <div className="h-32 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
             </>
           ) : (
             <>
@@ -496,7 +517,9 @@ export default function Dashboard() {
           {/* Billing Chart - only show for admin and franchisee */}
           {(user.role === "admin" || user.role === "franchisee") && (
             isLoadingResults ? (
-              <Skeleton className="lg:col-span-2 h-80" />
+              <div className="lg:col-span-2 h-80 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
             ) : (
               <BillingChart userRole={user.role} />
             )
@@ -512,7 +535,9 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 {isLoadingResults ? (
-                  <Skeleton className="h-[300px]" />
+                  <div className="h-[300px]">
+                    <Skeleton className="h-full w-full" />
+                  </div>
                 ) : (
                   <div className="h-[300px] overflow-hidden">
                     <ResponsiveContainer width="100%" height="100%">
@@ -570,7 +595,9 @@ export default function Dashboard() {
           {/* Stats/Charts - Replaced with TopFranchiseesCard for admin */}
           {user.role === "admin" ? (
             isLoadingResults ? (
-              <Skeleton className="lg:col-span-1 h-80" />
+              <div className="lg:col-span-1 h-80 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
             ) : (
               <TopFranchiseesCard franchisees={topFranchisees} className="lg:col-span-1" />
             )
