@@ -1,26 +1,21 @@
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Bot } from "lucide-react";
-
 interface Franchisee {
   name: string;
   agents: number;
   revenue: string;
 }
-
 interface FranchiseeTableProps {
   franchisees: Franchisee[];
 }
-
-export function FranchiseeTable({ franchisees }: FranchiseeTableProps) {
-  return (
-    <Card>
+export function FranchiseeTable({
+  franchisees
+}: FranchiseeTableProps) {
+  return <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-medium">Dados por Franqueado</CardTitle>
-        <CardDescription>
-          Informações básicas por franqueado
-        </CardDescription>
+        <CardTitle className="text-lg font-medium text-center">Dados dos Franqueados</CardTitle>
+        <CardDescription className="text-center">Faturamento por franqueado:</CardDescription>
       </CardHeader>
       <CardContent>
         {/* Desktop Table */}
@@ -34,24 +29,18 @@ export function FranchiseeTable({ franchisees }: FranchiseeTableProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {franchisees.map((franchisee, index) => (
-                <TableRow key={index}>
+              {franchisees.map((franchisee, index) => <TableRow key={index}>
                   <TableCell className="font-medium">{franchisee.name}</TableCell>
                   <TableCell className="text-center">{franchisee.agents}</TableCell>
                   <TableCell className="text-right font-medium">{franchisee.revenue}</TableCell>
-                </TableRow>
-              ))}
+                </TableRow>)}
             </TableBody>
           </Table>
         </div>
 
         {/* Mobile Cards */}
         <div className="md:hidden space-y-3">
-          {franchisees.map((franchisee, index) => (
-            <div 
-              key={index} 
-              className="flex items-center p-4 rounded-lg border bg-gray-50 dark:bg-gray-800"
-            >
+          {franchisees.map((franchisee, index) => <div key={index} className="flex items-center p-4 rounded-lg border bg-gray-50 dark:bg-gray-800">
               <div className="mr-3 h-10 w-10 rounded-full bg-sky-600/10 flex items-center justify-center">
                 <Bot size={20} className="text-sky-600" />
               </div>
@@ -66,10 +55,8 @@ export function FranchiseeTable({ franchisees }: FranchiseeTableProps) {
                   </span>
                 </div>
               </div>
-            </div>
-          ))}
+            </div>)}
         </div>
       </CardContent>
-    </Card>
-  );
+    </Card>;
 }
