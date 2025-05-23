@@ -1,23 +1,16 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, Download } from "lucide-react";
+import { Label } from "@/components/ui/label";
+import { Search, Download, MapPin, Building } from "lucide-react";
 import { toast } from "sonner";
-
-interface Lead {
-  id: string;
-  name: string;
-  niche: string;
-  address: string;
-  phone: string;
-  email: string | null;
-  selected: boolean;
-}
+import { Lead, BRAZILIAN_STATES, CITY_TO_STATE_MAP } from "@/types/prospecting";
+import ProspectingService from "@/services/prospectingService";
 
 // Mock niches
 const NICHES = [
@@ -33,46 +26,68 @@ const NICHES = [
   "Outros"
 ];
 
-// Mock leads function to simulate API call
-const fetchLeadsByNicheAndCity = async (niche: string, city: string): Promise<Lead[]> => {
-  // In a real implementation, this would call an API
-  console.log(`Fetching leads for niche: ${niche} in city: ${city}`);
-  
-  // Simulate network delay
-  await new Promise(resolve => setTimeout(resolve, 1500));
-  
-  // Return mock data
-  return Array.from({ length: 10 }, (_, i) => ({
-    id: `lead-${i}-${Date.now()}`,
-    name: `${niche} ${i+1} em ${city}`,
-    niche,
-    address: `Rua Principal, ${i*123}, ${city}`,
-    phone: `+5511${Math.floor(90000000 + Math.random() * 9999999)}`,
-    email: Math.random() > 0.3 ? `contato${i}@empresa${i}.com` : null,
-    selected: false
-  }));
-};
-
 export default function Prospecting() {
   const [city, setCity] = useState("");
+  const [state, setState] = useState("");
   const [niche, setNiche] = useState("");
+  const [quantity, setQuantity] = useState(10);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Mock franchisee ID - In real app, this would come from auth context
+  const franchiseeId = "franchisee-123";
+
+  // Detectar estado automaticamente quando a cidade for digitada
+  useEffect(() => {
+    if (city.trim() && !state) {
+      const cityLower = city.toLowerCase().trim();
+      const detectedState = CITY_TO_STATE_MAP[cityLower];
+      if (detectedState) {
+        setState(detectedState);
+        console.log(`Estado detectado automaticamente: ${detectedState} para cidade: ${city}`);
+      }
+    }
+  }, [city, state]);
+
   const handleSearch = async () => {
-    if (!city.trim() || !niche) {
-      toast.error("Preencha a cidade e o nicho para continuar.");
+    if (!city.trim()) {
+      toast.error("Digite o nome da cidade para continuar.");
+      return;
+    }
+    
+    if (!niche) {
+      toast.error("Selecione um nicho para continuar.");
+      return;
+    }
+
+    if (!state) {
+      toast.error("Selecione um estado ou digite uma cidade conhecida para detecção automática.");
       return;
     }
     
     setIsLoading(true);
     try {
-      const fetchedLeads = await fetchLeadsByNicheAndCity(niche, city);
+      const fetchedLeads = await ProspectingService.fetchUniqueLeads(
+        franchiseeId,
+        niche,
+        city.trim(),
+        state,
+        quantity
+      );
+      
       setLeads(fetchedLeads);
-      toast.success(`${fetchedLeads.length} empresas encontradas!`);
+      toast.success(`${fetchedLeads.length} empresas encontradas! (${quantity} solicitadas)`);
+      
+      if (fetchedLeads.length < quantity) {
+        toast.warning(`Apenas ${fetchedLeads.length} empresas disponíveis para este nicho nesta cidade.`);
+      }
     } catch (error) {
       console.error("Error fetching leads:", error);
-      toast.error("Erro ao buscar empresas. Tente novamente.");
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("Erro ao buscar empresas. Tente novamente.");
+      }
     } finally {
       setIsLoading(false);
     }
@@ -135,25 +150,56 @@ export default function Prospecting() {
       <div className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Buscar Empresas Locais</CardTitle>
+            <CardTitle className="flex items-center gap-2">
+              <Search className="h-5 w-5" />
+              Buscar Empresas Locais
+            </CardTitle>
             <CardDescription>
-              Encontre empresas locais por cidade e nicho para prospecção automatizada.
+              Encontre empresas locais por cidade, estado e nicho para prospecção automatizada. 
+              O sistema evita duplicatas automaticamente.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-col md:flex-row gap-4">
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-1 block">Cidade</label>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+              {/* Campo Cidade */}
+              <div className="space-y-2">
+                <Label htmlFor="city" className="text-sm font-medium flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  Cidade
+                </Label>
                 <Input 
-                  placeholder="Digite o nome da cidade" 
+                  id="city"
+                  placeholder="Ex: São Paulo" 
                   value={city} 
                   onChange={(e) => setCity(e.target.value)}
                 />
               </div>
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-1 block">Nicho de negócio</label>
+
+              {/* Campo Estado */}
+              <div className="space-y-2">
+                <Label htmlFor="state" className="text-sm font-medium flex items-center gap-1">
+                  <Building className="h-4 w-4" />
+                  Estado (UF)
+                </Label>
+                <Select value={state} onValueChange={setState}>
+                  <SelectTrigger id="state">
+                    <SelectValue placeholder="Selecione o estado" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-gray-800">
+                    {BRAZILIAN_STATES.map((stateOption) => (
+                      <SelectItem key={stateOption.code} value={stateOption.code}>
+                        {stateOption.code} - {stateOption.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Campo Nicho */}
+              <div className="space-y-2">
+                <Label htmlFor="niche" className="text-sm font-medium">Nicho de negócio</Label>
                 <Select value={niche} onValueChange={setNiche}>
-                  <SelectTrigger>
+                  <SelectTrigger id="niche">
                     <SelectValue placeholder="Selecione um nicho" />
                   </SelectTrigger>
                   <SelectContent className="bg-white dark:bg-gray-800">
@@ -165,22 +211,55 @@ export default function Prospecting() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="flex items-end">
-                <Button onClick={handleSearch} disabled={isLoading}>
-                  {isLoading ? (
-                    <>
-                      <div className="animate-spin mr-2 h-4 w-4 border-2 border-b-transparent border-white rounded-full" />
-                      Buscando...
-                    </>
-                  ) : (
-                    <>
-                      <Search className="mr-2 h-4 w-4" /> 
-                      Buscar empresas
-                    </>
-                  )}
-                </Button>
+
+              {/* Campo Quantidade */}
+              <div className="space-y-2">
+                <Label htmlFor="quantity" className="text-sm font-medium">Quantidade</Label>
+                <Select value={quantity.toString()} onValueChange={(value) => setQuantity(parseInt(value))}>
+                  <SelectTrigger id="quantity">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white dark:bg-gray-800">
+                    {Array.from({ length: 10 }, (_, i) => (i + 1) * 5).map((num) => (
+                      <SelectItem key={num} value={num.toString()}>
+                        {num} empresas
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
+
+            {/* Botão de busca */}
+            <div className="flex justify-center">
+              <Button 
+                onClick={handleSearch} 
+                disabled={isLoading}
+                size="lg"
+                className="w-full md:w-auto"
+              >
+                {isLoading ? (
+                  <>
+                    <div className="animate-spin mr-2 h-4 w-4 border-2 border-b-transparent border-white rounded-full" />
+                    Buscando {quantity} empresas...
+                  </>
+                ) : (
+                  <>
+                    <Search className="mr-2 h-4 w-4" /> 
+                    Buscar {quantity} empresas
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Informação sobre detecção automática de estado */}
+            {city && state && CITY_TO_STATE_MAP[city.toLowerCase().trim()] === state && (
+              <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  ✅ Estado detectado automaticamente: <strong>{state}</strong> para a cidade <strong>{city}</strong>
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -190,7 +269,7 @@ export default function Prospecting() {
               <div>
                 <CardTitle>Resultados da Busca</CardTitle>
                 <CardDescription>
-                  {leads.length} empresas encontradas
+                  {leads.length} empresas encontradas em {city} - {state}
                 </CardDescription>
               </div>
               <div className="flex items-center gap-4">
