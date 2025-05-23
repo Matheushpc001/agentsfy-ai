@@ -3,12 +3,14 @@ import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageCircle, Bot, Clock, Zap, Users, CircleDollarSign, BarChart3, BriefcaseBusiness, Building2, UserCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { MessageCircle, Bot, Clock, Zap, Users, CircleDollarSign, BarChart3, BriefcaseBusiness, Building2, UserCheck, RefreshCw } from "lucide-react";
 import { Analytics, Agent, Message, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Mock data for demonstration
 const MOCK_ANALYTICS: Record<UserRole, Analytics> = {
@@ -134,6 +136,7 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [recentMessages, setRecentMessages] = useState<Message[]>([]);
   const [topAgents, setTopAgents] = useState<Agent[]>([]);
+  const [isLoadingResults, setIsLoadingResults] = useState(false);
   const isMobile = useIsMobile();
   useEffect(() => {
     if (user) {
@@ -148,11 +151,13 @@ export default function Dashboard() {
     }
   }, [user]);
   if (!user || !analytics) {
-    return <DashboardLayout title="Dashboard">
+    return (
+      <DashboardLayout title="Dashboard">
         <div className="flex items-center justify-center h-64">
           <div className="animate-pulse text-primary">Carregando...</div>
         </div>
-      </DashboardLayout>;
+      </DashboardLayout>
+    );
   }
   const formatDateTime = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -167,52 +172,139 @@ export default function Dashboard() {
     currency: 'BRL',
     minimumFractionDigits: 2
   });
-  return <DashboardLayout title="Dashboard">
+  return (
+    <DashboardLayout title="Dashboard">
       <div className="space-y-6">
         {/* Admin Results Section */}
-        {user.role === "admin" && <section>
-            <h2 className="text-xl font-semibold mb-4">Resultados</h2>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <StatCard title="Faturamento Mensal" value={`R$ ${analytics.monthlyRevenue?.toLocaleString('pt-BR', {
-            minimumFractionDigits: 2
-          })}`} icon={<CircleDollarSign size={20} />} trend={{
-            value: 12,
-            positive: true
-          }} />
-              
-              <StatCard title="Franqueados" value={analytics.franchiseeCount?.toString() || "0"} icon={<Building2 size={20} />} />
-              
-              <StatCard title="Clientes" value={analytics.customerCount?.toString() || "0"} icon={<Users size={20} />} />
+        {user.role === "admin" && (
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Resultados</h2>
+              <Button 
+                onClick={handleRefreshResults}
+                disabled={isLoadingResults}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
+                Atualizar
+              </Button>
             </div>
-          </section>}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {isLoadingResults ? (
+                <>
+                  <Skeleton className="h-32" />
+                  <Skeleton className="h-32" />
+                  <Skeleton className="h-32" />
+                </>
+              ) : (
+                <>
+                  <StatCard
+                    title="Faturamento Mensal"
+                    value={`R$ ${analytics.monthlyRevenue?.toLocaleString('pt-BR', {
+                      minimumFractionDigits: 2
+                    })}`}
+                    icon={<CircleDollarSign size={20} />}
+                    trend={{
+                      value: 12,
+                      positive: true
+                    }}
+                  />
+                  
+                  <StatCard
+                    title="Franqueados"
+                    value={analytics.franchiseeCount?.toString() || "0"}
+                    icon={<Building2 size={20} />}
+                  />
+                  
+                  <StatCard
+                    title="Clientes"
+                    value={analytics.customerCount?.toString() || "0"}
+                    icon={<Users size={20} />}
+                  />
+                </>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Franchisee Results Section */}
-        {user.role === "franchisee" && <>
+        {user.role === "franchisee" && (
+          <>
             <section>
-              <h2 className="text-xl font-semibold mb-4">Resultado com agentes</h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-semibold">Resultado com agentes</h2>
+                <Button 
+                  onClick={handleRefreshResults}
+                  disabled={isLoadingResults}
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                >
+                  <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
+                  Atualizar
+                </Button>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <StatCard title="Instalação" value={`R$ ${analytics.installationRevenue?.toLocaleString('pt-BR', {
-              minimumFractionDigits: 2
-            })}`} icon={<Bot size={20} />} />
-                
-                <StatCard title="Faturamento Mensal" value={`R$ ${analytics.monthlyRevenue?.toLocaleString('pt-BR', {
-              minimumFractionDigits: 2
-            })}`} icon={<CircleDollarSign size={20} />} trend={{
-              value: 8,
-              positive: true
-            }} />
+                {isLoadingResults ? (
+                  <>
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                  </>
+                ) : (
+                  <>
+                    <StatCard
+                      title="Instalação"
+                      value={`R$ ${analytics.installationRevenue?.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2
+                      })}`}
+                      icon={<Bot size={20} />}
+                    />
+                    
+                    <StatCard
+                      title="Faturamento Mensal"
+                      value={`R$ ${analytics.monthlyRevenue?.toLocaleString('pt-BR', {
+                        minimumFractionDigits: 2
+                      })}`}
+                      icon={<CircleDollarSign size={20} />}
+                      trend={{
+                        value: 8,
+                        positive: true
+                      }}
+                    />
+                  </>
+                )}
               </div>
             </section>
             
             <section>
               <h2 className="text-xl font-semibold mb-4">Total Clientes</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <StatCard title="Nº de Clientes" value={analytics.customerCount?.toString() || "0"} icon={<Users size={20} />} />
-                
-                <StatCard title="Status" value={`${analytics.activeCustomers} ativos`} icon={<UserCheck size={20} />} />
+                {isLoadingResults ? (
+                  <>
+                    <Skeleton className="h-32" />
+                    <Skeleton className="h-32" />
+                  </>
+                ) : (
+                  <>
+                    <StatCard
+                      title="Nº de Clientes"
+                      value={analytics.customerCount?.toString() || "0"}
+                      icon={<Users size={20} />}
+                    />
+                    
+                    <StatCard
+                      title="Status"
+                      value={`${analytics.activeCustomers} ativos`}
+                      icon={<UserCheck size={20} />}
+                    />
+                  </>
+                )}
               </div>
             </section>
-          </>}
+          </>
+        )}
         
         {/* Stats Section */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -421,5 +513,6 @@ export default function Dashboard() {
           </Card>
         </div>
       </div>
-    </DashboardLayout>;
+    </DashboardLayout>
+  );
 }
