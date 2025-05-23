@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,13 +22,14 @@ const NICHES = [
   "Barbearias",
   "Lojas de Roupas",
   "Academias",
-  "Outros"
+  "Personalizado"
 ];
 
 export default function Prospecting() {
   const [city, setCity] = useState("");
   const [state, setState] = useState("");
   const [niche, setNiche] = useState("");
+  const [customNiche, setCustomNiche] = useState("");
   const [quantity, setQuantity] = useState(10);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -49,6 +49,13 @@ export default function Prospecting() {
     }
   }, [city, state]);
 
+  // Reset custom niche when changing from "Personalizado" to another option
+  useEffect(() => {
+    if (niche !== "Personalizado") {
+      setCustomNiche("");
+    }
+  }, [niche]);
+
   const handleSearch = async () => {
     if (!city.trim()) {
       toast.error("Digite o nome da cidade para continuar.");
@@ -60,16 +67,24 @@ export default function Prospecting() {
       return;
     }
 
+    if (niche === "Personalizado" && !customNiche.trim()) {
+      toast.error("Digite o nicho personalizado para continuar.");
+      return;
+    }
+
     if (!state) {
       toast.error("Selecione um estado ou digite uma cidade conhecida para detecção automática.");
       return;
     }
     
+    // Use custom niche if "Personalizado" is selected, otherwise use the selected niche
+    const searchNiche = niche === "Personalizado" ? customNiche.trim() : niche;
+    
     setIsLoading(true);
     try {
       const fetchedLeads = await ProspectingService.fetchUniqueLeads(
         franchiseeId,
-        niche,
+        searchNiche,
         city.trim(),
         state,
         quantity
@@ -131,7 +146,8 @@ export default function Prospecting() {
     // Create download link
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `leads_${city}_${niche.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
+    const searchNiche = niche === "Personalizado" ? customNiche.trim() : niche;
+    link.setAttribute('download', `leads_${city}_${searchNiche.replace(/\s/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     
     // Trigger download and cleanup
@@ -156,7 +172,7 @@ export default function Prospecting() {
             </CardTitle>
             <CardDescription>
               Encontre empresas locais por cidade, estado e nicho para prospecção automatizada. 
-              O sistema evita duplicatas automaticamente.
+              O sistema evita duplicatas automaticamente e busca no Google Meus Negócios.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -229,6 +245,25 @@ export default function Prospecting() {
                 </Select>
               </div>
             </div>
+
+            {/* Campo Nicho Personalizado - aparece apenas quando "Personalizado" está selecionado */}
+            {niche === "Personalizado" && (
+              <div className="mb-4">
+                <Label htmlFor="customNiche" className="text-sm font-medium">
+                  Digite o nicho personalizado
+                </Label>
+                <Input 
+                  id="customNiche"
+                  placeholder="Ex: Clínicas de Fisioterapia, Lojas de Móveis, etc." 
+                  value={customNiche} 
+                  onChange={(e) => setCustomNiche(e.target.value)}
+                  className="mt-2"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Este nicho será usado para buscar empresas no Google Meus Negócios
+                </p>
+              </div>
+            )}
 
             {/* Botão de busca */}
             <div className="flex justify-center">
