@@ -13,46 +13,67 @@ export default function AISalesAgent() {
 
   return (
     <DashboardLayout title="Vendedor IA">
-      <div className="space-y-6">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="connection">
-              <Smartphone className="mr-2 h-4 w-4" />
-              Conexão WhatsApp
-            </TabsTrigger>
-            <TabsTrigger 
-              value="agent" 
-              disabled={!isWhatsAppConnected}
-            >
-              <Bot className="mr-2 h-4 w-4" />
-              Agente IA
-            </TabsTrigger>
-            <TabsTrigger 
-              value="campaign" 
-              disabled={!isWhatsAppConnected}
-            >
-              <MessageSquare className="mr-2 h-4 w-4" />
-              Campanha
-            </TabsTrigger>
-          </TabsList>
+      <div className="space-y-4 md:space-y-6 px-2 md:px-0">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+          <div className="flex justify-center mb-4 md:mb-6">
+            <TabsList className="grid w-full max-w-md grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-0 h-auto sm:h-10 p-1">
+              <TabsTrigger 
+                value="connection"
+                className="flex items-center justify-center gap-2 py-2 px-3 text-xs sm:text-sm whitespace-nowrap"
+              >
+                <Smartphone className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Conexão WhatsApp</span>
+                <span className="sm:hidden">WhatsApp</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="agent" 
+                disabled={!isWhatsAppConnected}
+                className="flex items-center justify-center gap-2 py-2 px-3 text-xs sm:text-sm whitespace-nowrap"
+              >
+                <Bot className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span className="hidden sm:inline">Agente IA</span>
+                <span className="sm:hidden">Agente</span>
+              </TabsTrigger>
+              <TabsTrigger 
+                value="campaign" 
+                disabled={!isWhatsAppConnected}
+                className="flex items-center justify-center gap-2 py-2 px-3 text-xs sm:text-sm whitespace-nowrap"
+              >
+                <MessageSquare className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                <span>Campanha</span>
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* WhatsApp Connection Tab */}
-          <TabsContent value="connection">
-            <WhatsAppConnectionTab 
-              isWhatsAppConnected={isWhatsAppConnected}
-              setIsWhatsAppConnected={setIsWhatsAppConnected}
-              setActiveTab={setActiveTab}
-            />
+          <TabsContent value="connection" className="mt-4 md:mt-6">
+            <div className="flex justify-center">
+              <div className="w-full max-w-4xl">
+                <WhatsAppConnectionTab 
+                  isWhatsAppConnected={isWhatsAppConnected}
+                  setIsWhatsAppConnected={setIsWhatsAppConnected}
+                  setActiveTab={setActiveTab}
+                />
+              </div>
+            </div>
           </TabsContent>
 
           {/* AI Agent Tab */}
-          <TabsContent value="agent">
-            <AgentConfigTab setActiveTab={setActiveTab} />
+          <TabsContent value="agent" className="mt-4 md:mt-6">
+            <div className="flex justify-center">
+              <div className="w-full max-w-4xl">
+                <AgentConfigTab setActiveTab={setActiveTab} />
+              </div>
+            </div>
           </TabsContent>
 
           {/* Campaign Tab */}
-          <TabsContent value="campaign">
-            <CampaignTab />
+          <TabsContent value="campaign" className="mt-4 md:mt-6">
+            <div className="flex justify-center">
+              <div className="w-full max-w-4xl">
+                <CampaignTab />
+              </div>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
