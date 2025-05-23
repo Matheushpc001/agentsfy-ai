@@ -223,11 +223,11 @@ export function BillingChart({
   };
   return <Card className="lg:col-span-2">
       <CardHeader className="pb-3">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="flex flex-col items-center gap-4">
           <CardTitle className="font-medium text-lg text-center">
             Gráfico de Faturamento
           </CardTitle>
-          <div className="flex flex-col sm:flex-row gap-2 mx-[60px]">
+          <div className="flex flex-col sm:flex-row gap-2 items-center justify-center">
             <Select value={selectedPeriod} onValueChange={handlePeriodChange}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Selecionar período" />
