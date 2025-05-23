@@ -1,10 +1,11 @@
+
 import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Bot, Clock, Zap, Users, CircleDollarSign, BarChart3, RefreshCw } from "lucide-react";
+import { MessageCircle, Bot, Clock, Zap, Users, CircleDollarSign, BarChart3, RefreshCw, UserCheck } from "lucide-react";
 import { Analytics, Agent, Message, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
