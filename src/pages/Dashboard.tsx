@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -234,10 +235,12 @@ export default function Dashboard() {
   }, [user]);
 
   const handleRefreshResults = async () => {
-    setIsLoadingResults(true);
-    
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
+      setIsLoadingResults(true);
+      
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       if (user) {
         // Update analytics data with variations
         const updatedAnalytics = { ...MOCK_ANALYTICS[user.role] };
@@ -277,11 +280,15 @@ export default function Dashboard() {
         
         setAnalytics(updatedAnalytics);
       }
+    } catch (error) {
+      console.error("Error refreshing data:", error);
+    } finally {
       setIsLoadingResults(false);
-    }, 2000);
+    }
   };
 
-  if (!user || !analytics) {
+  // Always render the layout, even when loading
+  if (!user) {
     return (
       <DashboardLayout title="Dashboard">
         <div className="flex items-center justify-center h-64">
@@ -298,6 +305,23 @@ export default function Dashboard() {
       minute: "2-digit"
     });
   };
+
+  // Show skeleton layout instead of nothing when analytics are missing
+  if (!analytics) {
+    return (
+      <DashboardLayout title="Dashboard">
+        <div className="space-y-6">
+          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array(4).fill(0).map((_, i) => (
+              <div key={i} className="h-32 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
+            ))}
+          </section>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   // Formatter for currency values
   const currencyFormatter = new Intl.NumberFormat('pt-BR', {

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,17 +20,15 @@ import {
 } from "lucide-react";
 import { UserRole, NavItem } from "@/types";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
-  };
+  const location = useLocation();
 
   // Menu de navegação para cada tipo de usuário
   const NAV_ITEMS: { [key in UserRole]: NavItem[] } = {
@@ -119,16 +117,38 @@ export default function Sidebar() {
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
-  const handleNavigate = (href: string) => {
-    navigate(href);
-    // On mobile, close the sidebar after navigation
-    if (isMobile) {
-      // This will close the sheet via the parent component
-      document.body.click(); // Trigger a body click to close the Sheet component
+  const handleNavigate = async (href: string) => {
+    // Don't navigate if we're already on this page or already navigating
+    if (location.pathname === href || isNavigating) {
+      return;
     }
+    
+    try {
+      setIsNavigating(true);
+      
+      // Use replace: true to avoid building up history stack
+      navigate(href, { replace: true });
+      
+      // On mobile, close the sidebar after navigation
+      if (isMobile) {
+        // This will close the sheet via the parent component
+        document.body.dispatchEvent(new Event('click', { bubbles: true }));
+      }
+    } catch (error) {
+      console.error("Navigation error:", error);
+    } finally {
+      // Reset navigation state after a short delay
+      setTimeout(() => {
+        setIsNavigating(false);
+      }, 300);
+    }
+  };
+
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
   };
 
   if (!user) return null;
@@ -170,12 +190,19 @@ export default function Sidebar() {
             <div className="space-y-1 px-3">
               {NAV_ITEMS[user.role].map((item) => {
                 const Icon = item.icon;
+                const isActive = location.pathname === item.href;
+                
                 return (
                   <Button
                     key={item.label}
-                    variant="ghost"
-                    className="w-full justify-start text-left dark:hover:bg-gray-700"
+                    variant={isActive ? "secondary" : "ghost"}
+                    className={cn(
+                      "w-full justify-start text-left",
+                      isActive ? "bg-secondary text-secondary-foreground" : "dark:hover:bg-gray-700",
+                      isNavigating && "pointer-events-none opacity-70"
+                    )}
                     onClick={() => handleNavigate(item.href)}
+                    disabled={isNavigating}
                   >
                     <Icon className="mr-2 h-4 w-4" size={18} />
                     {(!isCollapsed || isMobile) && item.label}
@@ -189,6 +216,7 @@ export default function Sidebar() {
               variant="ghost"
               className="w-full justify-start dark:hover:bg-gray-700"
               onClick={handleLogout}
+              disabled={isNavigating}
             >
               <LogOut className="mr-2 h-4 w-4" />
               {(!isCollapsed || isMobile) && "Sair"}
