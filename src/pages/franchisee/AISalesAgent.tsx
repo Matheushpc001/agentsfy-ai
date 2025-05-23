@@ -36,9 +36,7 @@ export default function AISalesAgent() {
         <div className="container mx-auto px-4 py-6 md:py-8 lg:py-12 max-w-7xl">
           {/* Header Section */}
           <div className="text-center mb-8 md:mb-12">
-            <div className="inline-flex items-center justify-center w-16 h-16 md:w-20 md:h-20 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mb-4 md:mb-6">
-              <Zap className="h-8 w-8 md:h-10 md:w-10 text-white" />
-            </div>
+            
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2 md:mb-4">
               Vendedor IA Inteligente
             </h1>
