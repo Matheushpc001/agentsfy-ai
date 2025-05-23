@@ -1,5 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Bot } from "lucide-react";
 
 interface Franchisee {
   name: string;
@@ -21,25 +23,51 @@ export function FranchiseeTable({ franchisees }: FranchiseeTableProps) {
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="relative overflow-x-auto">
-          <table className="w-full text-sm text-left">
-            <thead className="text-xs uppercase bg-gray-50 dark:bg-gray-800">
-              <tr>
-                <th scope="col" className="px-6 py-3">Franqueado</th>
-                <th scope="col" className="px-6 py-3">Nº Agentes</th>
-                <th scope="col" className="px-6 py-3">Faturamento</th>
-              </tr>
-            </thead>
-            <tbody>
+        {/* Desktop Table */}
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Franqueado</TableHead>
+                <TableHead className="text-center">Nº Agentes</TableHead>
+                <TableHead className="text-right">Faturamento</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {franchisees.map((franchisee, index) => (
-                <tr key={index} className="bg-white border-b dark:bg-gray-900 dark:border-gray-700">
-                  <td className="px-6 py-4 font-medium">{franchisee.name}</td>
-                  <td className="px-6 py-4">{franchisee.agents}</td>
-                  <td className="px-6 py-4">{franchisee.revenue}</td>
-                </tr>
+                <TableRow key={index}>
+                  <TableCell className="font-medium">{franchisee.name}</TableCell>
+                  <TableCell className="text-center">{franchisee.agents}</TableCell>
+                  <TableCell className="text-right font-medium">{franchisee.revenue}</TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile Cards */}
+        <div className="md:hidden space-y-3">
+          {franchisees.map((franchisee, index) => (
+            <div 
+              key={index} 
+              className="flex items-center p-4 rounded-lg border bg-gray-50 dark:bg-gray-800"
+            >
+              <div className="mr-3 h-10 w-10 rounded-full bg-sky-600/10 flex items-center justify-center">
+                <Bot size={20} className="text-sky-600" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{franchisee.name}</p>
+                <div className="flex items-center justify-between mt-1">
+                  <span className="text-xs text-muted-foreground">
+                    {franchisee.agents} agentes
+                  </span>
+                  <span className="text-sm font-medium text-green-600">
+                    {franchisee.revenue}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </CardContent>
     </Card>
