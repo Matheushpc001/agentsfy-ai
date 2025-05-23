@@ -9,9 +9,10 @@ import { Analytics, Agent, Message, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BillingChart } from "@/components/analytics/BillingChart";
+import { TopFranchiseesCard, TopFranchisee } from "@/components/analytics/TopFranchiseesCard";
 
 // Mock data for demonstration
 const MOCK_ANALYTICS: Record<UserRole, Analytics> = {
@@ -130,6 +131,46 @@ const MOCK_AGENTS: Agent[] = [{
   responseTime: 1.8,
   demoUrl: "https://demo.whatsapp.com/agent2"
 }];
+
+// Mock data for top franchisees
+const MOCK_TOP_FRANCHISEES: TopFranchisee[] = [
+  {
+    id: "franchisee1",
+    name: "João Silva",
+    revenue: 45600.75,
+    agentCount: 12,
+    isActive: true
+  },
+  {
+    id: "franchisee2",
+    name: "Márcia Oliveira",
+    revenue: 38750.30,
+    agentCount: 9,
+    isActive: true
+  },
+  {
+    id: "franchisee3",
+    name: "Roberto Santos",
+    revenue: 32340.20,
+    agentCount: 8,
+    isActive: true
+  },
+  {
+    id: "franchisee4",
+    name: "Ana Costa",
+    revenue: 28970.35,
+    agentCount: 6,
+    isActive: false
+  },
+  {
+    id: "franchisee5",
+    name: "Carlos Ferreira",
+    revenue: 25600.75,
+    agentCount: 5,
+    isActive: true
+  }
+];
+
 export default function Dashboard() {
   const {
     user
@@ -137,6 +178,7 @@ export default function Dashboard() {
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [recentMessages, setRecentMessages] = useState<Message[]>([]);
   const [topAgents, setTopAgents] = useState<Agent[]>([]);
+  const [topFranchisees, setTopFranchisees] = useState<TopFranchisee[]>([]);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
   const isMobile = useIsMobile();
 
@@ -150,6 +192,11 @@ export default function Dashboard() {
 
       // Set top agents
       setTopAgents(MOCK_AGENTS.slice(0, 3));
+      
+      // Set top franchisees (only for admin)
+      if (user.role === "admin") {
+        setTopFranchisees(MOCK_TOP_FRANCHISEES);
+      }
     }
   }, [user]);
 
@@ -445,68 +492,21 @@ export default function Dashboard() {
             </Card>
           )}
           
-          {/* Stats/Charts */}
-          <Card className="h-fit">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-medium">
-                {user.role === "admin" ? "Desempenho" : user.role === "franchisee" ? "Principais Agentes" : "Análise de Uso"}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <AspectRatio ratio={isMobile ? 16 / 12 : 16 / 9} className="overflow-hidden">
-                {/* Admin */}
-                {user.role === "admin" && <div className="space-y-4 h-full">
-                    <div className="flex justify-between items-center pb-2 border-b border-border/50">
-                      <span className="text-sm">Agentes</span>
-                      <span className="text-sm font-medium">{analytics.totalAgents}</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-border/50">
-                      <span className="text-sm">Taxa de Resposta</span>
-                      <span className="text-sm font-medium">98.5%</span>
-                    </div>
-                    <div className="flex justify-between items-center pb-2 border-b border-border/50">
-                      <span className="text-sm">Satisfação</span>
-                      <span className="text-sm font-medium">4.8/5</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm">Conversões</span>
-                      <span className="text-sm font-medium">16%</span>
-                    </div>
-                    
-                    <div className="mt-4 h-24">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={MOCK_CHANNEL_DISTRIBUTION}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={20}
-                            outerRadius={40}
-                            paddingAngle={2}
-                            dataKey="value"
-                          >
-                            {MOCK_CHANNEL_DISTRIBUTION.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={entry.color} />
-                            ))}
-                          </Pie>
-                          <Tooltip
-                            contentStyle={{ 
-                              backgroundColor: 'rgba(15, 23, 42, 0.9)', 
-                              border: '1px solid rgba(255,255,255,0.2)',
-                              borderRadius: '8px'
-                            }}
-                            itemStyle={{ color: '#fff' }}
-                            formatter={(value) => [`${value}%`, 'Porcentagem']}
-                            labelFormatter={(name) => `${name}`}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>}
-                
-                {/* Franchisee */}
-                {user.role === "franchisee" && <div className="space-y-3 h-full">
-                    {topAgents.map(agent => <div key={agent.id} className="flex items-center p-2 rounded-lg border bg-gray-50 dark:bg-gray-800">
+          {/* Stats/Charts - Replaced with TopFranchiseesCard for admin */}
+          {user.role === "admin" ? (
+            <TopFranchiseesCard franchisees={topFranchisees} className="lg:col-span-1" />
+          ) : user.role === "franchisee" ? (
+            <Card className="h-fit">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-medium">
+                  Principais Agentes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AspectRatio ratio={isMobile ? 16 / 12 : 16 / 9} className="overflow-hidden">
+                  <div className="space-y-3 h-full">
+                    {topAgents.map(agent => (
+                      <div key={agent.id} className="flex items-center p-2 rounded-lg border bg-gray-50 dark:bg-gray-800">
                         <div className="mr-3 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
                           <Bot size={20} className="text-primary" />
                         </div>
@@ -515,16 +515,29 @@ export default function Dashboard() {
                           <p className="text-xs text-muted-foreground">{agent.messageCount} mensagens</p>
                         </div>
                         <div className={cn("h-2.5 w-2.5 rounded-full", agent.isActive ? "bg-green-500" : "bg-gray-300")}></div>
-                      </div>)}
+                      </div>
+                    ))}
 
-                    {topAgents.length === 0 && <div className="text-center py-8 text-muted-foreground h-full flex flex-col items-center justify-center">
+                    {topAgents.length === 0 && (
+                      <div className="text-center py-8 text-muted-foreground h-full flex flex-col items-center justify-center">
                         <Bot className="h-12 w-12 text-muted-foreground/50 mb-2" />
                         <p>Nenhum agente cadastrado</p>
-                      </div>}
-                  </div>}
-                
-                {/* Customer */}
-                {user.role === "customer" && <div className="space-y-4 h-full">
+                      </div>
+                    )}
+                  </div>
+                </AspectRatio>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="h-fit">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-medium">
+                  Análise de Uso
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <AspectRatio ratio={isMobile ? 16 / 12 : 16 / 9} className="overflow-hidden">
+                  <div className="space-y-4 h-full">
                     <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-sm">Conversas Hoje</span>
                       <span className="text-sm font-medium">24</span>
@@ -571,10 +584,11 @@ export default function Dashboard() {
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
-                  </div>}
-              </AspectRatio>
-            </CardContent>
-          </Card>
+                  </div>
+                </AspectRatio>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </DashboardLayout>
