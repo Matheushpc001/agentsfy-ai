@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -6,11 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Agent, Customer } from "@/types";
+import { Prompt } from "@/types/prompts";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
-import { Upload } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Bot, Upload } from "lucide-react";
 
 interface CreateAgentModalProps {
   open: boolean;
@@ -18,9 +20,21 @@ interface CreateAgentModalProps {
   onSubmit: (agent: Partial<Agent>, customer?: Partial<Customer>, isNewCustomer?: boolean) => void;
   editing?: Agent;
   existingCustomers?: Customer[];
+  prompts?: Prompt[];
+  selectedPrompt?: Prompt | null;
+  onOpenPromptsLibrary?: () => void;
 }
 
-export default function CreateAgentModal({ open, onClose, onSubmit, editing, existingCustomers = [] }: CreateAgentModalProps) {
+export default function CreateAgentModal({ 
+  open, 
+  onClose, 
+  onSubmit, 
+  editing, 
+  existingCustomers = [],
+  prompts = [],
+  selectedPrompt = null,
+  onOpenPromptsLibrary
+}: CreateAgentModalProps) {
   const [activeTab, setActiveTab] = useState<string>("agent");
   const [isNewCustomer, setIsNewCustomer] = useState(true);
   const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
@@ -44,6 +58,7 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
   });
 
   const [knowledgeBaseFile, setKnowledgeBaseFile] = useState<File | null>(null);
+  const [selectedPromptId, setSelectedPromptId] = useState<string>("");
 
   // Reset form when modal opens/closes or editing changes
   useEffect(() => {
@@ -75,8 +90,20 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
         setSelectedCustomerId("");
       }
       setKnowledgeBaseFile(null);
+      setSelectedPromptId("");
     }
   }, [open, editing]);
+
+  // Update the prompt field when a prompt is selected from the library
+  useEffect(() => {
+    if (selectedPrompt) {
+      setFormData(prev => ({
+        ...prev,
+        prompt: selectedPrompt.text
+      }));
+      setSelectedPromptId(selectedPrompt.id);
+    }
+  }, [selectedPrompt]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -115,6 +142,21 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
         ...prev,
         knowledgeBase: file.name,
       }));
+    }
+  };
+
+  const handlePromptSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const promptId = e.target.value;
+    setSelectedPromptId(promptId);
+    
+    if (promptId) {
+      const selectedPrompt = prompts.find(p => p.id === promptId);
+      if (selectedPrompt) {
+        setFormData((prev) => ({
+          ...prev,
+          prompt: selectedPrompt.text
+        }));
+      }
     }
   };
 
@@ -214,6 +256,34 @@ export default function CreateAgentModal({ open, onClose, onSubmit, editing, exi
                     onChange={handleChange}
                     placeholder="Ex: Atendimento ao Cliente"
                   />
+                </div>
+                
+                {/* Prompt Selection */}
+                <div className="space-y-2">
+                  <Label htmlFor="promptSelector" className="flex justify-between">
+                    <span>Selecionar Prompt</span>
+                    <Button 
+                      type="button" 
+                      variant="link" 
+                      className="h-auto p-0 text-xs"
+                      onClick={onOpenPromptsLibrary}
+                    >
+                      Ver biblioteca de prompts
+                    </Button>
+                  </Label>
+                  <select
+                    id="promptSelector"
+                    className="w-full p-2 border rounded-md"
+                    value={selectedPromptId}
+                    onChange={handlePromptSelect}
+                  >
+                    <option value="">Selecione um prompt pré-definido</option>
+                    {prompts.map(prompt => (
+                      <option key={prompt.id} value={prompt.id}>
+                        {prompt.name} ({prompt.niche})
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 
                 <div className="space-y-2">
