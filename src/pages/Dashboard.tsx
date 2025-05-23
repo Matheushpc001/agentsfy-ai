@@ -11,6 +11,7 @@ import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { AreaChart, Area, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BillingChart } from "@/components/analytics/BillingChart";
 
 // Mock data for demonstration
 const MOCK_ANALYTICS: Record<UserRole, Analytics> = {
@@ -339,81 +340,110 @@ export default function Dashboard() {
         
         {/* Stats Section */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard title="Total de Mensagens" value={analytics.messageCount.toLocaleString()} description="Últimos 30 dias" icon={<MessageCircle size={20} />} trend={{
-          value: 12,
-          positive: true
-        }} />
+          <StatCard 
+            title="Total de Mensagens" 
+            value={analytics.messageCount.toLocaleString()} 
+            description="Últimos 30 dias" 
+            icon={<MessageCircle size={20} />} 
+            trend={{
+              value: 12,
+              positive: true
+            }} 
+          />
           
-          <StatCard title="Agentes Ativos" value={`${analytics.activeAgents}/${analytics.totalAgents}`} description="Agentes conectados" icon={<Bot size={20} />} />
+          <StatCard 
+            title="Agentes Ativos" 
+            value={`${analytics.activeAgents}/${analytics.totalAgents}`} 
+            description="Agentes conectados" 
+            icon={<Bot size={20} />} 
+          />
           
-          <StatCard title="Tempo de Resposta" value={`${analytics.responseTime}s`} description="Média" icon={<Clock size={20} />} trend={{
-          value: 5,
-          positive: true
-        }} />
+          <StatCard 
+            title="Tempo de Resposta" 
+            value={`${analytics.responseTime}s`} 
+            description="Média" 
+            icon={<Clock size={20} />} 
+            trend={{
+              value: 5,
+              positive: true
+            }} 
+          />
           
-          <StatCard title="Tokens Usados" value={analytics.tokensUsed.toLocaleString()} description="Últimos 30 dias" icon={<Zap size={20} />} />
+          <StatCard 
+            title="Tokens Usados" 
+            value={analytics.tokensUsed.toLocaleString()} 
+            description="Últimos 30 dias" 
+            icon={<Zap size={20} />} 
+          />
         </section>
         
         {/* Main Content Section */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Recent Messages */}
-          <Card className="lg:col-span-2">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-medium">
-                Mensagens Recentes
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[300px] overflow-hidden">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart
-                    data={MOCK_WEEKLY_MESSAGES}
-                    margin={{ top: 20, right: 20, left: isMobile ? 0 : 20, bottom: 20 }}
-                  >
-                    <defs>
-                      <linearGradient id="colorMessages" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.8}/>
-                        <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0.1}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                    <XAxis 
-                      dataKey="day" 
-                      tick={{ fontSize: 12 }} 
-                      tickLine={false} 
-                      axisLine={{ stroke: 'rgba(255,255,255,0.2)' }}
-                    />
-                    <YAxis 
-                      width={isMobile ? 30 : 40}
-                      tickFormatter={(value) => value.toString()}
-                      tick={{ fontSize: 12 }}
-                      tickLine={false}
-                      axisLine={{ stroke: 'rgba(255,255,255,0.2)' }}
-                    />
-                    <Tooltip
-                      contentStyle={{ 
-                        backgroundColor: 'rgba(15, 23, 42, 0.9)', 
-                        border: '1px solid rgba(255,255,255,0.2)',
-                        borderRadius: '8px',
-                        boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
-                      }}
-                      itemStyle={{ color: '#fff' }}
-                      formatter={(value) => [`${value} mensagens`, 'Quantidade']}
-                      labelFormatter={(label) => `${label}`}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="count" 
-                      stroke="#0EA5E9" 
-                      strokeWidth={2}
-                      fillOpacity={1} 
-                      fill="url(#colorMessages)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Billing Chart - only show for admin and franchisee */}
+          {(user.role === "admin" || user.role === "franchisee") && (
+            <BillingChart userRole={user.role} />
+          )}
+          
+          {/* Customer still gets the original messages chart */}
+          {user.role === "customer" && (
+            <Card className="lg:col-span-2">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg font-medium">
+                  Mensagens Recentes
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="h-[300px] overflow-hidden">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart
+                      data={MOCK_WEEKLY_MESSAGES}
+                      margin={{ top: 20, right: 20, left: isMobile ? 0 : 20, bottom: 20 }}
+                    >
+                      <defs>
+                        <linearGradient id="colorMessages" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.8}/>
+                          <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0.1}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                      <XAxis 
+                        dataKey="day" 
+                        tick={{ fontSize: 12 }} 
+                        tickLine={false} 
+                        axisLine={{ stroke: 'rgba(255,255,255,0.2)' }}
+                      />
+                      <YAxis 
+                        width={isMobile ? 30 : 40}
+                        tickFormatter={(value) => value.toString()}
+                        tick={{ fontSize: 12 }}
+                        tickLine={false}
+                        axisLine={{ stroke: 'rgba(255,255,255,0.2)' }}
+                      />
+                      <Tooltip
+                        contentStyle={{ 
+                          backgroundColor: 'rgba(15, 23, 42, 0.9)', 
+                          border: '1px solid rgba(255,255,255,0.2)',
+                          borderRadius: '8px',
+                          boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)'
+                        }}
+                        itemStyle={{ color: '#fff' }}
+                        formatter={(value) => [`${value} mensagens`, 'Quantidade']}
+                        labelFormatter={(label) => `${label}`}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="count" 
+                        stroke="#0EA5E9" 
+                        strokeWidth={2}
+                        fillOpacity={1} 
+                        fill="url(#colorMessages)" 
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          )}
           
           {/* Stats/Charts */}
           <Card className="h-fit">
@@ -424,6 +454,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <AspectRatio ratio={isMobile ? 16 / 12 : 16 / 9} className="overflow-hidden">
+                {/* Admin */}
                 {user.role === "admin" && <div className="space-y-4 h-full">
                     <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-sm">Agentes</span>
@@ -473,6 +504,7 @@ export default function Dashboard() {
                     </div>
                   </div>}
                 
+                {/* Franchisee */}
                 {user.role === "franchisee" && <div className="space-y-3 h-full">
                     {topAgents.map(agent => <div key={agent.id} className="flex items-center p-2 rounded-lg border bg-gray-50 dark:bg-gray-800">
                         <div className="mr-3 h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
@@ -491,6 +523,7 @@ export default function Dashboard() {
                       </div>}
                   </div>}
                 
+                {/* Customer */}
                 {user.role === "customer" && <div className="space-y-4 h-full">
                     <div className="flex justify-between items-center pb-2 border-b border-border/50">
                       <span className="text-sm">Conversas Hoje</span>
