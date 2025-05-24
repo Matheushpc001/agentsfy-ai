@@ -16,7 +16,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {!isMobile && <Sidebar />}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <Header title={title} />
         <ScrollArea className="flex-1">
           <div className="p-4 md:p-6">
