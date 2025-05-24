@@ -27,13 +27,8 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "bg-background h-full transition-all duration-300 ease-in-out border-r border-border",
-        isMobile
-          ? "w-64 relative border-none"
-          : cn(
-              "relative flex-shrink-0",
-              isCollapsed ? "w-16" : "w-64"
-            )
+        "bg-background h-full transition-all duration-300 ease-in-out border-r border-border flex-shrink-0",
+        isCollapsed && !isMobile ? "w-16" : "w-64"
       )}
     >
       <ScrollArea className="py-4 h-full">

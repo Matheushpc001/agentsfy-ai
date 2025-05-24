@@ -4,7 +4,6 @@ import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
 
 interface DashboardLayoutProps {
   children: ReactNode;
@@ -17,10 +16,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {!isMobile && <Sidebar />}
-      <div className={cn(
-        "flex flex-col overflow-hidden",
-        isMobile ? "flex-1 w-full" : "flex-1 min-w-0"
-      )}>
+      <main className={isMobile ? "flex-1 w-full" : "flex-1 min-w-0 flex flex-col"}>
         <Header title={title} />
         <ScrollArea className="flex-1">
           <div className="p-4 md:p-6">
@@ -29,7 +25,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
             </div>
           </div>
         </ScrollArea>
-      </div>
+      </main>
     </div>
   );
 }
