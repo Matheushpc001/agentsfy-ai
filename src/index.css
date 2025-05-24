@@ -83,14 +83,6 @@
     --sidebar-border: 217 33% 25%;
     --sidebar-ring: 210 100% 50%;
   }
-
-  /* Força as classes light para garantir que funcione corretamente */
-  .light {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-  }
 }
 
 @layer base {
@@ -98,33 +90,13 @@
     @apply border-border;
   }
 
-  html {
-    @apply bg-background text-foreground;
-    color-scheme: light;
-  }
-
-  html.dark {
-    color-scheme: dark;
-  }
-
-  html.light {
-    color-scheme: light;
-  }
-
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    min-height: 100vh;
-    min-height: 100dvh; /* For mobile browsers */
-  }
-
-  /* Força o background em todos os elementos principais */
-  #root {
-    @apply bg-background text-foreground min-h-screen;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight text-foreground;
+    @apply font-semibold tracking-tight;
   }
 
   h1 {
@@ -150,7 +122,7 @@
   }
   
   .stat-card {
-    @apply bg-card dark:bg-card rounded-xl shadow-md p-6 border border-border;
+    @apply bg-white dark:bg-gray-800 rounded-xl shadow-md p-6 border border-gray-100 dark:border-gray-700;
   }
 
   .dashboard-section {
@@ -177,41 +149,16 @@
     @apply p-2 rounded-full;
   }
   
+  /* Estilos para o tema escuro */
+  .dark .glass-card {
+    @apply bg-black/20 backdrop-blur-lg border border-white/10;
+  }
+  
   .glass-card {
-    @apply bg-card/80 backdrop-blur-md border border-border;
+    @apply bg-white/80 backdrop-blur-md border border-gray-200 dark:bg-black/20 dark:border-white/10;
   }
   
   .text-gradient-blue {
     @apply bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent;
   }
-
-  /* Melhoria específica para mobile */
-  @media (max-width: 768px) {
-    body {
-      -webkit-text-size-adjust: 100%;
-      -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
-    }
-    
-    .dashboard-section {
-      @apply space-y-4;
-    }
-  }
-}
-
-/* Mobile specific fixes */
-@media (max-width: 768px) {
-  .recharts-tooltip-wrapper {
-    z-index: 1000;
-  }
-  
-  /* Força o background correto em mobile */
-  html, body, #root {
-    background-color: hsl(var(--background)) !important;
-    color: hsl(var(--foreground)) !important;
-  }
-}
-
-.recharts-tooltip-wrapper {
-  z-index: 1000;
 }

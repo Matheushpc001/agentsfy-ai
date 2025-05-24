@@ -17,50 +17,31 @@ export function ThemeToggle() {
   useEffect(() => {
     if (!mounted) return;
     
-    // Apply theme immediately without checking system preference
+    // Check for system preference on first mount
+    if (!theme) {
+      const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      setTheme(systemPrefersDark ? "dark" : "light");
+      return;
+    }
+    
+    // Apply theme
     applyTheme(theme);
   }, [theme, mounted]);
   
   const applyTheme = (newTheme: "light" | "dark") => {
-    // Ensure we're working with the actual document
-    if (typeof document === 'undefined') return;
-    
-    // Force remove both classes first
-    document.documentElement.classList.remove("dark", "light");
-    
-    // Add the appropriate class
-    document.documentElement.classList.add(newTheme);
-    
-    // Also set the color-scheme meta tag for better mobile support
-    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute('content', newTheme === 'dark' ? '#0f172a' : '#ffffff');
+    if (newTheme === "dark") {
+      document.documentElement.classList.add("dark");
     } else {
-      const meta = document.createElement('meta');
-      meta.name = 'theme-color';
-      meta.content = newTheme === 'dark' ? '#0f172a' : '#ffffff';
-      document.getElementsByTagName('head')[0].appendChild(meta);
+      document.documentElement.classList.remove("dark");
     }
   };
   
   const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
-    setTheme(newTheme);
+    setTheme(theme === "light" ? "dark" : "light");
   };
   
   // Avoid hydration mismatch by only rendering after mount
-  if (!mounted) {
-    return (
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled
-        aria-label="Loading theme toggle"
-      >
-        <div className="h-5 w-5" />
-      </Button>
-    );
-  }
+  if (!mounted) return null;
   
   return (
     <Button
@@ -68,12 +49,11 @@ export function ThemeToggle() {
       size="icon"
       onClick={toggleTheme}
       aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-      className="relative"
     >
       {theme === "light" ? (
-        <Moon className="h-5 w-5 transition-all" />
+        <Moon className="h-5 w-5" />
       ) : (
-        <Sun className="h-5 w-5 transition-all" />
+        <Sun className="h-5 w-5" />
       )}
     </Button>
   );

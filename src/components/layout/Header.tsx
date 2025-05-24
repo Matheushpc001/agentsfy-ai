@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Sidebar from "./Sidebar";
-import { useState, useCallback, useEffect } from "react";
+import { useState } from "react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface HeaderProps {
@@ -17,13 +17,6 @@ export default function Header({ title }: HeaderProps) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
-  // Close sidebar when switching from mobile to desktop
-  useEffect(() => {
-    if (!isMobile && isMenuOpen) {
-      setIsMenuOpen(false);
-    }
-  }, [isMobile, isMenuOpen]);
   
   // Get greeting based on time of day
   const getGreeting = () => {
@@ -46,15 +39,9 @@ export default function Header({ title }: HeaderProps) {
     }
   };
 
-  const handleSheetOpenChange = useCallback((open: boolean) => {
-    console.log("Header: Sheet open change:", open);
+  const handleSheetOpenChange = (open: boolean) => {
     setIsMenuOpen(open);
-  }, []);
-
-  const handleMobileClose = useCallback(() => {
-    console.log("Header: Mobile close triggered");
-    setIsMenuOpen(false);
-  }, []);
+  };
 
   return (
     <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -62,25 +49,13 @@ export default function Header({ title }: HeaderProps) {
         {isMobile && (
           <Sheet open={isMenuOpen} onOpenChange={handleSheetOpenChange}>
             <SheetTrigger asChild>
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                className="mr-3"
-              >
+              <Button variant="ghost" size="icon" className="mr-3">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent 
-              side="left" 
-              className="p-0 w-[80vw] max-w-[280px] z-50"
-              onInteractOutside={(e) => {
-                // Prevent closing when clicking inside the sidebar
-                e.preventDefault();
-              }}
-              onEscapeKeyDown={handleMobileClose}
-            >
-              <Sidebar onMobileClose={handleMobileClose} />
+            <SheetContent side="left" className="p-0 w-[80vw] max-w-[280px]" onClick={(e) => e.stopPropagation()}>
+              <Sidebar />
             </SheetContent>
           </Sheet>
         )}

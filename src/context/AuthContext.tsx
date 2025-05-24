@@ -20,8 +20,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
+        setUser(JSON.parse(storedUser));
       } catch (error) {
         console.error("Error parsing user from localStorage:", error);
         localStorage.removeItem("user");
@@ -31,9 +30,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const login = async (email: string, password: string) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      
       // Simulate API call delay
       await new Promise(resolve => setTimeout(resolve, 800));
       

@@ -1,5 +1,5 @@
 
-import { useState, useCallback, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -20,18 +20,17 @@ import {
 } from "lucide-react";
 import { UserRole, NavItem } from "@/types";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-interface SidebarProps {
-  onMobileClose?: () => void;
-}
-
-export default function Sidebar({ onMobileClose }: SidebarProps) {
+export default function Sidebar() {
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
-  const location = useLocation();
+
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
+  };
 
   // Menu de navegação para cada tipo de usuário
   const NAV_ITEMS: { [key in UserRole]: NavItem[] } = {
@@ -118,65 +117,28 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
     ],
   };
 
-  const handleLogout = useCallback(() => {
-    try {
-      console.log("Sidebar: Logout initiated");
-      logout();
-      navigate('/login', { replace: true });
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
-  }, [logout, navigate]);
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
 
-  const handleNavigate = useCallback((href: string, event?: React.MouseEvent) => {
-    // Prevent default behavior
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
+  const handleNavigate = (href: string) => {
+    navigate(href);
+    // On mobile, close the sidebar after navigation
+    if (isMobile) {
+      // This will close the sheet via the parent component
+      document.body.click(); // Trigger a body click to close the Sheet component
     }
-    
-    console.log("Sidebar: Navigate to:", href, "Current:", location.pathname);
-    
-    // Don't navigate if we're already on this page
-    if (location.pathname === href) {
-      console.log("Sidebar: Already on this page, closing mobile sidebar");
-      if (isMobile && onMobileClose) {
-        onMobileClose();
-      }
-      return;
-    }
-    
-    try {
-      navigate(href);
-      console.log("Sidebar: Navigation successful");
-      
-      // On mobile, close the sidebar after navigation with delay
-      if (isMobile && onMobileClose) {
-        console.log("Sidebar: Closing mobile sidebar after navigation");
-        setTimeout(() => {
-          onMobileClose();
-        }, 200);
-      }
-    } catch (error) {
-      console.error("Navigation error:", error);
-    }
-  }, [location.pathname, navigate, isMobile, onMobileClose]);
-
-  const toggleSidebar = useCallback(() => {
-    if (!isMobile) {
-      setIsCollapsed(!isCollapsed);
-    }
-  }, [isCollapsed, isMobile]);
+  };
 
   if (!user) return null;
 
   return (
     <aside
       className={cn(
-        "bg-card dark:bg-gray-900 border-r border-border dark:border-gray-800 h-full w-full z-20",
+        "bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-full w-full",
         !isMobile && (isCollapsed ? "w-16" : "w-64 fixed")
       )}
-      onClick={(e) => e.stopPropagation()}
     >
       <ScrollArea className="py-4 h-full">
         <div className="space-y-4 flex flex-col justify-between h-full">
@@ -208,18 +170,12 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
             <div className="space-y-1 px-3">
               {NAV_ITEMS[user.role].map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.href;
-                
                 return (
                   <Button
                     key={item.label}
-                    variant={isActive ? "secondary" : "ghost"}
-                    className={cn(
-                      "w-full justify-start text-left",
-                      isActive ? "bg-secondary text-secondary-foreground" : "dark:hover:bg-gray-700"
-                    )}
-                    onClick={(e) => handleNavigate(item.href, e)}
-                    type="button"
+                    variant="ghost"
+                    className="w-full justify-start text-left dark:hover:bg-gray-700"
+                    onClick={() => handleNavigate(item.href)}
                   >
                     <Icon className="mr-2 h-4 w-4" size={18} />
                     {(!isCollapsed || isMobile) && item.label}
@@ -233,7 +189,6 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
               variant="ghost"
               className="w-full justify-start dark:hover:bg-gray-700"
               onClick={handleLogout}
-              type="button"
             >
               <LogOut className="mr-2 h-4 w-4" />
               {(!isCollapsed || isMobile) && "Sair"}

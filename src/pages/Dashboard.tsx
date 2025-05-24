@@ -1,15 +1,15 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Bot, Clock, Zap, Users, CircleDollarSign, BarChart3, RefreshCw, UserCheck } from "lucide-react";
+import { MessageCircle, Bot, Clock, Zap, Users, CircleDollarSign, BarChart3, BriefcaseBusiness, Building2, UserCheck, RefreshCw } from "lucide-react";
 import { Analytics, Agent, Message, UserRole } from "@/types";
 import { cn } from "@/lib/utils";
 import { AspectRatio } from "@/components/ui/aspect-ratio";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { AreaChart, Area, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { AreaChart, Area, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BillingChart } from "@/components/analytics/BillingChart";
 import { TopFranchiseesCard, TopFranchisee } from "@/components/analytics/TopFranchiseesCard";
@@ -204,67 +204,42 @@ const generateUpdatedFranchisees = () => {
 };
 
 export default function Dashboard() {
-  const { user } = useAuth();
+  const {
+    user
+  } = useAuth();
   const [analytics, setAnalytics] = useState<Analytics | null>(null);
   const [recentMessages, setRecentMessages] = useState<Message[]>([]);
   const [topAgents, setTopAgents] = useState<Agent[]>([]);
   const [topFranchisees, setTopFranchisees] = useState<TopFranchisee[]>([]);
   const [weeklyMessages, setWeeklyMessages] = useState(MOCK_WEEKLY_MESSAGES);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const isMobile = useIsMobile();
 
   useEffect(() => {
     if (user) {
-      console.log("Dashboard: Loading initial data for user:", user.role);
-      // Initial data fetch
-      const userAnalytics = MOCK_ANALYTICS[user.role];
-      console.log("Dashboard: Setting analytics data:", userAnalytics);
-      setAnalytics(userAnalytics);
+      // Simulate API call to get analytics data
+      setAnalytics(MOCK_ANALYTICS[user.role]);
+
+      // Set recent messages
       setRecentMessages(MOCK_MESSAGES);
+
+      // Set top agents
       setTopAgents(MOCK_AGENTS.slice(0, 3));
       
+      // Set top franchisees (only for admin)
       if (user.role === "admin") {
-        console.log("Dashboard: Setting franchisees data for admin");
         setTopFranchisees(MOCK_TOP_FRANCHISEES);
       }
-      
-      // Set initial load to false after a short delay
-      setTimeout(() => {
-        console.log("Dashboard: Initial load complete");
-        setIsInitialLoad(false);
-      }, 800);
     }
   }, [user]);
 
-  const handleRefreshResults = useCallback(async (e?: React.MouseEvent) => {
-    // Enhanced event handling for mobile
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-      e.nativeEvent?.stopImmediatePropagation();
-      
-      // Additional mobile-specific event handling
-      if (isMobile) {
-        const target = e.target as HTMLElement;
-        target.blur(); // Remove focus to prevent keyboard issues
-      }
-    }
+  const handleRefreshResults = async () => {
+    setIsLoadingResults(true);
     
-    if (isLoadingResults) {
-      console.log("Dashboard: Refresh already in progress, ignoring");
-      return;
-    }
-    
-    try {
-      console.log("Dashboard: Starting refresh results");
-      setIsLoadingResults(true);
-      
-      // Simulate API call delay
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
+    // Simulate API call delay
+    setTimeout(() => {
       if (user) {
-        // Create a copy of analytics to work with
+        // Update analytics data with variations
         const updatedAnalytics = { ...MOCK_ANALYTICS[user.role] };
         
         // Update main stats with variations
@@ -298,38 +273,15 @@ export default function Dashboard() {
           ...msg,
           timestamp: new Date(Date.now() - Math.random() * 60 * 60000).toISOString()
         }));
-        
-        // Update state with all new data
         setRecentMessages(updatedMessages);
+        
         setAnalytics(updatedAnalytics);
       }
-    } catch (error) {
-      console.error("Error refreshing data:", error);
-    } finally {
-      setTimeout(() => {
-        console.log("Dashboard: Setting loading to false");
-        setIsLoadingResults(false);
-      }, 200);
-    }
-  }, [isLoadingResults, user, isMobile]);
-
-  // Rendering the skeleton cards for the loading state
-  const renderStatCardSkeletons = (count: number) => {
-    return Array(count).fill(0).map((_, i) => (
-      <div key={i} className="bg-card border rounded-lg p-6 flex flex-col space-y-3">
-        <div className="flex justify-between items-start">
-          <Skeleton className="h-6 w-24" />
-          <Skeleton className="h-8 w-8 rounded-md" />
-        </div>
-        <Skeleton className="h-8 w-32" />
-        <Skeleton className="h-4 w-20" />
-      </div>
-    ));
+      setIsLoadingResults(false);
+    }, 2000);
   };
 
-  // Always render the layout, even when loading
-  if (!user) {
-    console.log("Dashboard: No user found, showing loading");
+  if (!user || !analytics) {
     return (
       <DashboardLayout title="Dashboard">
         <div className="flex items-center justify-center h-64">
@@ -339,8 +291,6 @@ export default function Dashboard() {
     );
   }
 
-  console.log("Dashboard: Rendering for user role:", user.role, "Initial load:", isInitialLoad, "Analytics:", !!analytics);
-
   const formatDateTime = (timestamp: string) => {
     const date = new Date(timestamp);
     return date.toLocaleDateString("pt-BR", {
@@ -349,74 +299,12 @@ export default function Dashboard() {
     });
   };
 
-  // Show skeleton layout instead of nothing when analytics are missing
-  if (isInitialLoad || !analytics) {
-    console.log("Dashboard: Showing skeleton layout");
-    return (
-      <DashboardLayout title="Dashboard">
-        <div className="space-y-6">
-          <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {renderStatCardSkeletons(4)}
-          </section>
-          
-          {/* Admin specific skeleton sections */}
-          {user.role === "admin" && (
-            <>
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <Skeleton className="h-6 w-24" />
-                  <Skeleton className="h-8 w-20" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  {renderStatCardSkeletons(3)}
-                </div>
-              </section>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 h-80 rounded-lg border bg-card">
-                  <Skeleton className="h-full w-full" />
-                </div>
-                <div className="lg:col-span-1 h-80 rounded-lg border bg-card">
-                  <Skeleton className="h-full w-full" />
-                </div>
-              </div>
-            </>
-          )}
-          
-          {/* Franchisee specific skeleton sections */}
-          {user.role === "franchisee" && (
-            <>
-              <section>
-                <div className="flex items-center justify-between mb-4">
-                  <Skeleton className="h-6 w-48" />
-                  <Skeleton className="h-8 w-20" />
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderStatCardSkeletons(2)}
-                </div>
-              </section>
-              
-              <section>
-                <Skeleton className="h-6 w-32 mb-4" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {renderStatCardSkeletons(2)}
-                </div>
-              </section>
-            </>
-          )}
-        </div>
-      </DashboardLayout>
-    );
-  }
-
   // Formatter for currency values
   const currencyFormatter = new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL',
     minimumFractionDigits: 2
   });
-
-  console.log("Dashboard: Rendering main content");
 
   return (
     <DashboardLayout title="Dashboard">
@@ -432,7 +320,6 @@ export default function Dashboard() {
                 variant="outline"
                 size="sm"
                 className="gap-2"
-                type="button"
               >
                 <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
                 Atualizar
@@ -440,12 +327,22 @@ export default function Dashboard() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {isLoadingResults ? (
-                <>{renderStatCardSkeletons(3)}</>
+                <>
+                  <div className="h-32 rounded-lg border bg-card">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                  <div className="h-32 rounded-lg border bg-card">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                  <div className="h-32 rounded-lg border bg-card">
+                    <Skeleton className="h-full w-full" />
+                  </div>
+                </>
               ) : (
                 <>
                   <StatCard
                     title="Faturamento Mensal"
-                    value={`R$ ${analytics?.monthlyRevenue?.toLocaleString('pt-BR', {
+                    value={`R$ ${analytics.monthlyRevenue?.toLocaleString('pt-BR', {
                       minimumFractionDigits: 2
                     })}`}
                     icon={<CircleDollarSign size={20} />}
@@ -457,13 +354,13 @@ export default function Dashboard() {
                   
                   <StatCard
                     title="Franqueados"
-                    value={analytics?.franchiseeCount?.toString() || "0"}
-                    icon={<Users size={20} />}
+                    value={analytics.franchiseeCount?.toString() || "0"}
+                    icon={<Building2 size={20} />}
                   />
                   
                   <StatCard
                     title="Clientes"
-                    value={analytics?.customerCount?.toString() || "0"}
+                    value={analytics.customerCount?.toString() || "0"}
                     icon={<Users size={20} />}
                   />
                 </>
@@ -484,7 +381,6 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   className="gap-2"
-                  type="button"
                 >
                   <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
                   Atualizar
@@ -492,7 +388,14 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {isLoadingResults ? (
-                  <>{renderStatCardSkeletons(2)}</>
+                  <>
+                    <div className="h-32 rounded-lg border bg-card">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                    <div className="h-32 rounded-lg border bg-card">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                  </>
                 ) : (
                   <>
                     <StatCard
@@ -523,7 +426,14 @@ export default function Dashboard() {
               <h2 className="text-xl font-semibold mb-4">Total Clientes</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {isLoadingResults ? (
-                  <>{renderStatCardSkeletons(2)}</>
+                  <>
+                    <div className="h-32 rounded-lg border bg-card">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                    <div className="h-32 rounded-lg border bg-card">
+                      <Skeleton className="h-full w-full" />
+                    </div>
+                  </>
                 ) : (
                   <>
                     <StatCard
@@ -547,12 +457,25 @@ export default function Dashboard() {
         {/* Stats Section */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {isLoadingResults ? (
-            <>{renderStatCardSkeletons(4)}</>
+            <>
+              <div className="h-32 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
+              <div className="h-32 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
+              <div className="h-32 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
+              <div className="h-32 rounded-lg border bg-card">
+                <Skeleton className="h-full w-full" />
+              </div>
+            </>
           ) : (
             <>
               <StatCard 
                 title="Total de Mensagens" 
-                value={analytics?.messageCount.toLocaleString() || "0"} 
+                value={analytics.messageCount.toLocaleString()} 
                 description="Últimos 30 dias" 
                 icon={<MessageCircle size={20} />} 
                 trend={{
@@ -563,14 +486,14 @@ export default function Dashboard() {
               
               <StatCard 
                 title="Agentes Ativos" 
-                value={`${analytics?.activeAgents || 0}/${analytics?.totalAgents || 0}`} 
+                value={`${analytics.activeAgents}/${analytics.totalAgents}`} 
                 description="Agentes conectados" 
                 icon={<Bot size={20} />} 
               />
               
               <StatCard 
                 title="Tempo de Resposta" 
-                value={`${analytics?.responseTime || 0}s`} 
+                value={`${analytics.responseTime}s`} 
                 description="Média" 
                 icon={<Clock size={20} />} 
                 trend={{
@@ -581,7 +504,7 @@ export default function Dashboard() {
               
               <StatCard 
                 title="Tokens Usados" 
-                value={analytics?.tokensUsed?.toLocaleString() || "0"} 
+                value={analytics.tokensUsed.toLocaleString()} 
                 description="Últimos 30 dias" 
                 icon={<Zap size={20} />} 
               />

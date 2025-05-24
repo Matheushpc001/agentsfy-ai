@@ -1,11 +1,10 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
-import { useEffect } from "react";
-import ErrorBoundary from "@/components/common/ErrorBoundary";
 
 // Import pages
 import Login from "./pages/Login";
@@ -32,24 +31,7 @@ import CustomerDashboard from "./pages/customer/Dashboard";
 import AIAgentConfig from "./pages/customer/AIAgentConfig";
 import CustomerSchedule from "./pages/customer/Schedule";
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: (failureCount, error: any) => {
-        // Don't retry on 4xx errors
-        if (error?.status >= 400 && error?.status < 500) {
-          return false;
-        }
-        // Retry up to 3 times for other errors
-        return failureCount < 3;
-      },
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-    },
-    mutations: {
-      retry: false, // Don't retry mutations by default
-    },
-  },
-});
+const queryClient = new QueryClient();
 
 // Protected route component
 interface ProtectedRouteProps {
@@ -114,65 +96,18 @@ const AppRoutes = () => {
   );
 };
 
-// Improved theme initialization component
-const ThemeInitializer = () => {
-  useEffect(() => {
-    // Ensure proper theme initialization on app load
-    const initializeTheme = () => {
-      // Check if there's a saved theme
-      let savedTheme = 'light'; // default
-      
-      try {
-        const themeFromStorage = localStorage.getItem('theme');
-        if (themeFromStorage) {
-          savedTheme = JSON.parse(themeFromStorage);
-        }
-      } catch (error) {
-        console.warn('Error reading theme from localStorage:', error);
-      }
-      
-      // Apply theme immediately to prevent flash
-      document.documentElement.classList.remove('dark', 'light');
-      document.documentElement.classList.add(savedTheme);
-      
-      // Set color scheme
-      document.documentElement.style.colorScheme = savedTheme;
-    };
-
-    // Run immediately
-    initializeTheme();
-    
-    // Also run on storage events (when theme changes in another tab)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'theme') {
-        initializeTheme();
-      }
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
-
-  return null;
-};
-
 const App = () => (
-  <ErrorBoundary>
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-        <ThemeInitializer />
-        <TooltipProvider>
-          <div className="min-h-screen w-full bg-background text-foreground">
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </div>
-        </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
-  </ErrorBoundary>
+  <QueryClientProvider client={queryClient}>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
+  </QueryClientProvider>
 );
 
 export default App;
