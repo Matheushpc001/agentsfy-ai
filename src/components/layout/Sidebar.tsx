@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -115,11 +116,15 @@ export default function Sidebar() {
   };
 
   const handleLogout = useCallback(() => {
-    logout();
-    navigate('/login', { replace: true });
+    try {
+      logout();
+      navigate('/login', { replace: true });
+    } catch (error) {
+      console.error("Logout error:", error);
+    }
   }, [logout, navigate]);
 
-  const handleNavigate = useCallback(async (href: string) => {
+  const handleNavigate = useCallback((href: string) => {
     // Don't navigate if we're already on this page or already navigating
     if (location.pathname === href || isNavigating) {
       return;
@@ -127,14 +132,13 @@ export default function Sidebar() {
     
     try {
       setIsNavigating(true);
-      
-      // Use replace: true to avoid building up history stack
-      await navigate(href, { replace: true });
+      navigate(href);
       
       // On mobile, close the sidebar after navigation
       if (isMobile) {
         // This will close the sheet via the parent component
-        document.body.dispatchEvent(new Event('click', { bubbles: true }));
+        const event = new Event('click', { bubbles: true });
+        document.body.dispatchEvent(event);
       }
     } catch (error) {
       console.error("Navigation error:", error);
@@ -142,7 +146,7 @@ export default function Sidebar() {
       // Reset navigation state after a short delay
       setTimeout(() => {
         setIsNavigating(false);
-      }, 500); // Increased timeout to ensure state is reset after transitions
+      }, 300);
     }
   }, [location.pathname, isNavigating, navigate, isMobile]);
 
