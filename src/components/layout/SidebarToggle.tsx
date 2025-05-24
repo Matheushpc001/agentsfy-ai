@@ -16,13 +16,9 @@ export function SidebarToggle({ isCollapsed, onToggle, isMobile }: SidebarToggle
       variant="ghost" 
       size="icon" 
       onClick={onToggle} 
-      className={`flex-shrink-0 transition-all duration-300 ease-in-out hover:bg-gray-200 dark:hover:bg-gray-700 ${
-        isCollapsed ? 'ml-auto' : ''
-      }`}
+      className="flex-shrink-0 transition-all duration-300 ease-in-out hover:bg-gray-200 dark:hover:bg-gray-700"
     >
-      <ChevronLeft className={`h-5 w-5 transition-transform duration-300 ease-in-out ${
-        isCollapsed ? 'rotate-180' : ''
-      }`} />
+      <ChevronLeft className={`h-5 w-5 transition-all duration-300 ease-in-out ${isCollapsed ? 'rotate-180' : ''}`} />
       <span className="sr-only">Toggle sidebar</span>
     </Button>
   );

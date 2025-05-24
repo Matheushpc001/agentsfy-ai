@@ -27,44 +27,32 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "bg-sidebar border-r border-sidebar-border h-full transition-all duration-300 ease-in-out",
-        isMobile
-          ? "w-64 relative"
-          : cn(
-              "fixed top-0 left-0 z-40",
-              isCollapsed ? "w-16" : "w-64"
-            )
+        "bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-full w-full transition-all duration-300 ease-in-out",
+        !isMobile && (isCollapsed ? "w-16" : "w-64 fixed")
       )}
     >
-      <ScrollArea className="py-4 h-full bg-sidebar">
+      <ScrollArea className="py-4 h-full">
         <div className="space-y-4 flex flex-col justify-between h-full">
           <div className="space-y-4">
-            <div
-              className={cn(
-                "flex items-center px-3",
-                isCollapsed && !isMobile ? "justify-center" : "justify-between"
-              )}
-            >
-              {(!isCollapsed || isMobile) && (
-                <SidebarUserInfo isCollapsed={isCollapsed} isMobile={isMobile} />
-              )}
-              <SidebarToggle
-                isCollapsed={isCollapsed}
-                onToggle={toggleSidebar}
-                isMobile={isMobile}
+            <div className="flex items-center justify-between px-3">
+              <SidebarUserInfo isCollapsed={isCollapsed} isMobile={isMobile} />
+              <SidebarToggle 
+                isCollapsed={isCollapsed} 
+                onToggle={toggleSidebar} 
+                isMobile={isMobile} 
               />
             </div>
-            <SidebarNav
-              userRole={user.role}
-              isCollapsed={isCollapsed}
-              isMobile={isMobile}
-              onNavigate={onNavigate}
+            <SidebarNav 
+              userRole={user.role} 
+              isCollapsed={isCollapsed} 
+              isMobile={isMobile} 
+              onNavigate={onNavigate} 
             />
           </div>
-          <SidebarLogout
-            isCollapsed={isCollapsed}
-            isMobile={isMobile}
-            onNavigate={onNavigate}
+          <SidebarLogout 
+            isCollapsed={isCollapsed} 
+            isMobile={isMobile} 
+            onNavigate={onNavigate} 
           />
         </div>
       </ScrollArea>
