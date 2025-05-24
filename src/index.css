@@ -114,6 +114,15 @@
   h4 {
     @apply text-lg lg:text-xl;
   }
+
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
 }
 
 @layer components {

@@ -125,11 +125,13 @@ export function SidebarNav({ userRole, isCollapsed, isMobile, onNavigate }: Side
           <Button
             key={item.label}
             variant="ghost"
-            className="w-full justify-start text-left dark:hover:bg-gray-700"
+            className="w-full justify-start text-left dark:hover:bg-gray-700 transition-all duration-200 hover:bg-gray-200"
             onClick={() => handleNavigate(item.href)}
           >
-            <Icon className="mr-2 h-4 w-4" size={18} />
-            {(!isCollapsed || isMobile) && item.label}
+            <Icon className="h-4 w-4 flex-shrink-0" size={18} />
+            <span className={`ml-2 transition-all duration-300 ease-in-out ${isCollapsed && !isMobile ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+              {item.label}
+            </span>
           </Button>
         );
       })}

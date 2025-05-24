@@ -14,6 +14,20 @@ interface DashboardStatsProps {
 }
 
 export function DashboardStats({ userRole, analytics, isLoadingResults, onRefresh }: DashboardStatsProps) {
+  const SkeletonCard = () => (
+    <div className="p-6 rounded-xl border bg-card space-y-4">
+      <div className="flex items-center justify-between">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-5 w-5 rounded-full" />
+      </div>
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-32" />
+        <Skeleton className="h-3 w-16" />
+      </div>
+      <Skeleton className="h-4 w-12" />
+    </div>
+  );
+
   return (
     <div className="space-y-6">
       {/* Admin Results Section */}
@@ -35,9 +49,9 @@ export function DashboardStats({ userRole, analytics, isLoadingResults, onRefres
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {isLoadingResults ? (
               <>
-                <Skeleton className="h-32 rounded-lg" />
-                <Skeleton className="h-32 rounded-lg" />
-                <Skeleton className="h-32 rounded-lg" />
+                <SkeletonCard />
+                <SkeletonCard />
+                <SkeletonCard />
               </>
             ) : (
               <>
@@ -90,8 +104,8 @@ export function DashboardStats({ userRole, analytics, isLoadingResults, onRefres
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {isLoadingResults ? (
                 <>
-                  <Skeleton className="h-32 rounded-lg" />
-                  <Skeleton className="h-32 rounded-lg" />
+                  <SkeletonCard />
+                  <SkeletonCard />
                 </>
               ) : (
                 <>
@@ -124,8 +138,8 @@ export function DashboardStats({ userRole, analytics, isLoadingResults, onRefres
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {isLoadingResults ? (
                 <>
-                  <Skeleton className="h-32 rounded-lg" />
-                  <Skeleton className="h-32 rounded-lg" />
+                  <SkeletonCard />
+                  <SkeletonCard />
                 </>
               ) : (
                 <>

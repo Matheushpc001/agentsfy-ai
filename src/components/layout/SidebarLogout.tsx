@@ -25,11 +25,13 @@ export function SidebarLogout({ isCollapsed, isMobile, onNavigate }: SidebarLogo
     <div className="px-3 py-2 mt-auto">
       <Button
         variant="ghost"
-        className="w-full justify-start dark:hover:bg-gray-700"
+        className="w-full justify-start dark:hover:bg-gray-700 transition-all duration-200 hover:bg-gray-200"
         onClick={handleLogout}
       >
-        <LogOut className="mr-2 h-4 w-4" />
-        {(!isCollapsed || isMobile) && "Sair"}
+        <LogOut className="h-4 w-4 flex-shrink-0" />
+        <span className={`ml-2 transition-all duration-300 ease-in-out ${isCollapsed && !isMobile ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+          Sair
+        </span>
       </Button>
     </div>
   );

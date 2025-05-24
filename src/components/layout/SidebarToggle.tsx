@@ -12,8 +12,13 @@ export function SidebarToggle({ isCollapsed, onToggle, isMobile }: SidebarToggle
   if (isMobile) return null;
 
   return (
-    <Button variant="ghost" size="icon" onClick={onToggle} className="flex-shrink-0">
-      <ChevronLeft className={`h-5 w-5 transition-transform ${isCollapsed ? 'rotate-180' : ''}`} />
+    <Button 
+      variant="ghost" 
+      size="icon" 
+      onClick={onToggle} 
+      className="flex-shrink-0 transition-all duration-300 ease-in-out hover:bg-gray-200 dark:hover:bg-gray-700"
+    >
+      <ChevronLeft className={`h-5 w-5 transition-all duration-300 ease-in-out ${isCollapsed ? 'rotate-180' : ''}`} />
       <span className="sr-only">Toggle sidebar</span>
     </Button>
   );
