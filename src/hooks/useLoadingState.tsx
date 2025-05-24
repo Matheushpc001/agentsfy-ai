@@ -23,10 +23,10 @@ export function useLoadingState(initialState: LoadingState = {}) {
     return Object.values(loadingStates).some(state => state);
   }, [loadingStates]);
 
-  const withLoading = useCallback(async <T>(
+  const withLoading = useCallback(async function<T>(
     key: string,
     asyncFn: () => Promise<T>
-  ): Promise<T> => {
+  ): Promise<T> {
     setLoading(key, true);
     try {
       const result = await asyncFn();

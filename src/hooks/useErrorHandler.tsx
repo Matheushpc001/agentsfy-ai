@@ -9,6 +9,11 @@ interface ErrorOptions {
   actionLabel?: string;
 }
 
+interface AsyncErrorOptions extends ErrorOptions {
+  onSuccess?: (result: any) => void;
+  loadingMessage?: string;
+}
+
 export function useErrorHandler() {
   const handleError = useCallback((error: Error | string, options?: ErrorOptions) => {
     console.error('Error caught by useErrorHandler:', error);
@@ -24,13 +29,10 @@ export function useErrorHandler() {
     });
   }, []);
 
-  const handleAsyncError = useCallback(async <T>(
+  const handleAsyncError = useCallback(async function<T>(
     asyncFn: () => Promise<T>,
-    options?: ErrorOptions & { 
-      onSuccess?: (result: T) => void;
-      loadingMessage?: string;
-    }
-  ): Promise<T | null> => {
+    options?: AsyncErrorOptions
+  ): Promise<T | null> {
     try {
       if (options?.loadingMessage) {
         toast.loading(options.loadingMessage);
