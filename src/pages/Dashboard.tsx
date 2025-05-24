@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -237,7 +238,13 @@ export default function Dashboard() {
     }
   }, [user]);
 
-  const handleRefreshResults = useCallback(async () => {
+  const handleRefreshResults = useCallback(async (e?: React.MouseEvent) => {
+    // Prevent event bubbling to avoid sidebar issues on mobile
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    
     if (isLoadingResults) return; // Prevent multiple simultaneous refreshes
     
     try {
@@ -414,6 +421,7 @@ export default function Dashboard() {
                 variant="outline"
                 size="sm"
                 className="gap-2"
+                type="button"
               >
                 <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
                 Atualizar
@@ -467,6 +475,7 @@ export default function Dashboard() {
                   variant="outline"
                   size="sm"
                   className="gap-2"
+                  type="button"
                 >
                   <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
                   Atualizar

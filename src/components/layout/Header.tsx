@@ -1,4 +1,3 @@
-
 import { Bell, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,7 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Sidebar from "./Sidebar";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface HeaderProps {
@@ -39,13 +38,13 @@ export default function Header({ title }: HeaderProps) {
     }
   };
 
-  const handleSheetOpenChange = (open: boolean) => {
+  const handleSheetOpenChange = useCallback((open: boolean) => {
     setIsMenuOpen(open);
-  };
+  }, []);
 
-  const handleMobileClose = () => {
+  const handleMobileClose = useCallback(() => {
     setIsMenuOpen(false);
-  };
+  }, []);
 
   return (
     <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -58,7 +57,11 @@ export default function Header({ title }: HeaderProps) {
                 <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-[80vw] max-w-[280px]">
+            <SheetContent 
+              side="left" 
+              className="p-0 w-[80vw] max-w-[280px]"
+              onPointerDownOutside={(e) => e.preventDefault()}
+            >
               <Sidebar onMobileClose={handleMobileClose} />
             </SheetContent>
           </Sheet>
