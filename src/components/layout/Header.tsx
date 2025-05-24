@@ -1,3 +1,4 @@
+
 import { Bell, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,7 +68,7 @@ export default function Header({ title }: HeaderProps) {
                 console.log("Header: Sheet interact outside");
                 e.preventDefault();
               }} 
-              className="p-0 w-full max-w-none bg-background"
+              className="p-0 w-[80vw] max-w-[280px] bg-background"
             >
               <div onClick={e => e.stopPropagation()}>
                 <Sidebar onNavigate={() => setIsMenuOpen(false)} />
