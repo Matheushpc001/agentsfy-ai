@@ -43,7 +43,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
       {!isMobile && <Sidebar />}
       <div 
         className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
-          !isMobile ? `ml-[${sidebarWidth}px]` : 'ml-0'
+          !isMobile ? '' : 'ml-0'
         }`}
         style={{
           marginLeft: !isMobile ? `${sidebarWidth}px` : '0px'
