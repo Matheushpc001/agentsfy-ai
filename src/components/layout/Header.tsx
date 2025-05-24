@@ -57,14 +57,7 @@ export default function Header({
                 <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" onInteractOutside={e => {
-          console.log("Header: Sheet interact outside");
-          e.preventDefault();
-        }} className="p-0 w-[80vw] max-w-[280px] bg-gray-900">
-              <div onClick={e => e.stopPropagation()}>
-                <Sidebar onNavigate={() => setIsMenuOpen(false)} />
-              </div>
-            </SheetContent>
+            
           </Sheet>}
         <div>
           <h1 className="text-lg font-semibold">{title}</h1>
