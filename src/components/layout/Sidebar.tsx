@@ -27,15 +27,20 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-full w-full transition-all duration-300 ease-in-out",
-        !isMobile && (isCollapsed ? "w-16" : "w-64 fixed")
+        "bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-full transition-all duration-300 ease-in-out fixed top-0 left-0 z-40",
+        isMobile ? "w-64" : (isCollapsed ? "w-16" : "w-64")
       )}
     >
       <ScrollArea className="py-4 h-full">
         <div className="space-y-4 flex flex-col justify-between h-full">
           <div className="space-y-4">
-            <div className="flex items-center justify-between px-3">
-              <SidebarUserInfo isCollapsed={isCollapsed} isMobile={isMobile} />
+            <div className={cn(
+              "flex items-center px-3",
+              isCollapsed && !isMobile ? "justify-center" : "justify-between"
+            )}>
+              {(!isCollapsed || isMobile) && (
+                <SidebarUserInfo isCollapsed={isCollapsed} isMobile={isMobile} />
+              )}
               <SidebarToggle 
                 isCollapsed={isCollapsed} 
                 onToggle={toggleSidebar} 
