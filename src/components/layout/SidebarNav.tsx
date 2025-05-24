@@ -125,7 +125,7 @@ export function SidebarNav({ userRole, isCollapsed, isMobile, onNavigate }: Side
           <Button
             key={item.label}
             variant="ghost"
-            className="w-full justify-start text-left text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+            className="w-full justify-start text-left text-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200"
             onClick={() => handleNavigate(item.href)}
           >
             <Icon className="h-4 w-4 flex-shrink-0" size={18} />

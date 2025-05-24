@@ -25,7 +25,7 @@ export function SidebarLogout({ isCollapsed, isMobile, onNavigate }: SidebarLogo
     <div className="px-3 py-2 mt-auto">
       <Button
         variant="ghost"
-        className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all duration-200"
+        className="w-full justify-start text-foreground hover:bg-accent hover:text-accent-foreground transition-all duration-200"
         onClick={handleLogout}
       >
         <LogOut className="h-4 w-4 flex-shrink-0" />
