@@ -1,3 +1,4 @@
+
 import { Bell, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -5,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Sidebar from "./Sidebar";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface HeaderProps {
@@ -16,6 +17,13 @@ export default function Header({ title }: HeaderProps) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  
+  // Close sidebar when switching from mobile to desktop
+  useEffect(() => {
+    if (!isMobile && isMenuOpen) {
+      setIsMenuOpen(false);
+    }
+  }, [isMobile, isMenuOpen]);
   
   // Get greeting based on time of day
   const getGreeting = () => {
@@ -43,8 +51,10 @@ export default function Header({ title }: HeaderProps) {
   }, []);
 
   const handleMobileClose = useCallback(() => {
-    setIsMenuOpen(false);
-  }, []);
+    if (isMobile) {
+      setIsMenuOpen(false);
+    }
+  }, [isMobile]);
 
   return (
     <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -60,7 +70,11 @@ export default function Header({ title }: HeaderProps) {
             <SheetContent 
               side="left" 
               className="p-0 w-[80vw] max-w-[280px]"
-              onPointerDownOutside={(e) => e.preventDefault()}
+              onPointerDownOutside={(e) => {
+                e.preventDefault();
+                setIsMenuOpen(false);
+              }}
+              onEscapeKeyDown={() => setIsMenuOpen(false)}
             >
               <Sidebar onMobileClose={handleMobileClose} />
             </SheetContent>

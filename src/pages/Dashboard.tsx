@@ -239,13 +239,14 @@ export default function Dashboard() {
   }, [user]);
 
   const handleRefreshResults = useCallback(async (e?: React.MouseEvent) => {
-    // Prevent event bubbling to avoid sidebar issues on mobile
+    // Prevent any event bubbling or interference
     if (e) {
       e.preventDefault();
       e.stopPropagation();
+      e.nativeEvent?.stopImmediatePropagation();
     }
     
-    if (isLoadingResults) return; // Prevent multiple simultaneous refreshes
+    if (isLoadingResults) return;
     
     try {
       setIsLoadingResults(true);
@@ -298,7 +299,7 @@ export default function Dashboard() {
     } finally {
       setTimeout(() => {
         setIsLoadingResults(false);
-      }, 200); // Small delay after data is ready before removing loading state
+      }, 200);
     }
   }, [isLoadingResults, user]);
 
@@ -422,6 +423,8 @@ export default function Dashboard() {
                 size="sm"
                 className="gap-2"
                 type="button"
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
               >
                 <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
                 Atualizar
@@ -476,6 +479,8 @@ export default function Dashboard() {
                   size="sm"
                   className="gap-2"
                   type="button"
+                  onTouchStart={(e) => e.stopPropagation()}
+                  onTouchEnd={(e) => e.stopPropagation()}
                 >
                   <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
                   Atualizar

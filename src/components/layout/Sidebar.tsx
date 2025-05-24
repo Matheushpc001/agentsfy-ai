@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -127,21 +127,30 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
     }
   }, [logout, navigate]);
 
-  const handleNavigate = useCallback((href: string) => {
+  const handleNavigate = useCallback((href: string, event?: React.MouseEvent) => {
+    // Prevent default behavior
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    
     // Don't navigate if we're already on this page
     if (location.pathname === href) {
+      if (isMobile && onMobileClose) {
+        onMobileClose();
+      }
       return;
     }
     
     try {
       navigate(href);
       
-      // On mobile, call the close function if provided
+      // On mobile, close the sidebar after navigation
       if (isMobile && onMobileClose) {
-        // Use timeout to ensure navigation happens first
+        // Small delay to ensure navigation happens first
         setTimeout(() => {
           onMobileClose();
-        }, 100);
+        }, 50);
       }
     } catch (error) {
       console.error("Navigation error:", error);
@@ -149,8 +158,10 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
   }, [location.pathname, navigate, isMobile, onMobileClose]);
 
   const toggleSidebar = useCallback(() => {
-    setIsCollapsed(!isCollapsed);
-  }, [isCollapsed]);
+    if (!isMobile) {
+      setIsCollapsed(!isCollapsed);
+    }
+  }, [isCollapsed, isMobile]);
 
   if (!user) return null;
 
@@ -201,7 +212,8 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
                       "w-full justify-start text-left",
                       isActive ? "bg-secondary text-secondary-foreground" : "dark:hover:bg-gray-700"
                     )}
-                    onClick={() => handleNavigate(item.href)}
+                    onClick={(e) => handleNavigate(item.href, e)}
+                    type="button"
                   >
                     <Icon className="mr-2 h-4 w-4" size={18} />
                     {(!isCollapsed || isMobile) && item.label}
@@ -215,6 +227,7 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
               variant="ghost"
               className="w-full justify-start dark:hover:bg-gray-700"
               onClick={handleLogout}
+              type="button"
             >
               <LogOut className="mr-2 h-4 w-4" />
               {(!isCollapsed || isMobile) && "Sair"}

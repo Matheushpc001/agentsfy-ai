@@ -8,19 +8,16 @@ export function useIsMobile() {
 
   React.useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
+      const mobile = window.innerWidth < MOBILE_BREAKPOINT
+      setIsMobile(mobile)
     }
     
     // Check immediately
     checkMobile()
     
-    // Set up listener with better error handling
+    // Set up listener
     const handleResize = () => {
-      try {
-        checkMobile()
-      } catch (error) {
-        console.error("Error in mobile check:", error)
-      }
+      checkMobile()
     }
     
     window.addEventListener("resize", handleResize)
