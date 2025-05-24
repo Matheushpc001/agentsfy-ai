@@ -25,7 +25,6 @@ import { useNavigate, useLocation } from "react-router-dom";
 export default function Sidebar() {
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [isNavigating, setIsNavigating] = useState(false);
   const isMobile = useIsMobile();
   const navigate = useNavigate();
   const location = useLocation();
@@ -125,30 +124,20 @@ export default function Sidebar() {
   }, [logout, navigate]);
 
   const handleNavigate = useCallback((href: string) => {
-    // Don't navigate if we're already on this page or already navigating
-    if (location.pathname === href || isNavigating) {
+    // Don't navigate if we're already on this page
+    if (location.pathname === href) {
       return;
     }
     
-    try {
-      setIsNavigating(true);
-      navigate(href);
-      
-      // On mobile, close the sidebar after navigation
-      if (isMobile) {
-        // This will close the sheet via the parent component
-        const event = new Event('click', { bubbles: true });
-        document.body.dispatchEvent(event);
-      }
-    } catch (error) {
-      console.error("Navigation error:", error);
-    } finally {
-      // Reset navigation state after a short delay
-      setTimeout(() => {
-        setIsNavigating(false);
-      }, 300);
+    navigate(href);
+    
+    // On mobile, close the sidebar after navigation
+    if (isMobile) {
+      // This will close the sheet via the parent component
+      const event = new Event('click', { bubbles: true });
+      document.body.dispatchEvent(event);
     }
-  }, [location.pathname, isNavigating, navigate, isMobile]);
+  }, [location.pathname, navigate, isMobile]);
 
   const toggleSidebar = useCallback(() => {
     setIsCollapsed(!isCollapsed);
@@ -201,11 +190,9 @@ export default function Sidebar() {
                     variant={isActive ? "secondary" : "ghost"}
                     className={cn(
                       "w-full justify-start text-left",
-                      isActive ? "bg-secondary text-secondary-foreground" : "dark:hover:bg-gray-700",
-                      isNavigating && "opacity-70 pointer-events-none"
+                      isActive ? "bg-secondary text-secondary-foreground" : "dark:hover:bg-gray-700"
                     )}
                     onClick={() => handleNavigate(item.href)}
-                    disabled={isNavigating}
                   >
                     <Icon className="mr-2 h-4 w-4" size={18} />
                     {(!isCollapsed || isMobile) && item.label}
@@ -219,7 +206,6 @@ export default function Sidebar() {
               variant="ghost"
               className="w-full justify-start dark:hover:bg-gray-700"
               onClick={handleLogout}
-              disabled={isNavigating}
             >
               <LogOut className="mr-2 h-4 w-4" />
               {(!isCollapsed || isMobile) && "Sair"}
