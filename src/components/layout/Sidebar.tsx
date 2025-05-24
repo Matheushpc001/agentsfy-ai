@@ -31,7 +31,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
         isMobile
           ? "w-64 relative border-none"
           : cn(
-              "relative",
+              "relative flex-shrink-0",
               isCollapsed ? "w-16" : "w-64"
             )
       )}
