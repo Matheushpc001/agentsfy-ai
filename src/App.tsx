@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { useEffect } from "react";
 
 // Import pages
 import Login from "./pages/Login";
@@ -96,15 +97,47 @@ const AppRoutes = () => {
   );
 };
 
+// Theme initialization component
+const ThemeInitializer = () => {
+  useEffect(() => {
+    // Ensure proper theme initialization on app load
+    const initializeTheme = () => {
+      // Check if there's a saved theme
+      const savedTheme = localStorage.getItem('theme');
+      
+      if (savedTheme) {
+        const theme = JSON.parse(savedTheme);
+        document.documentElement.classList.remove('dark', 'light');
+        if (theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.add('light');
+        }
+      } else {
+        // Default to light theme if no preference is saved
+        document.documentElement.classList.remove('dark');
+        document.documentElement.classList.add('light');
+      }
+    };
+
+    initializeTheme();
+  }, []);
+
+  return null;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <AuthProvider>
+      <ThemeInitializer />
       <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <AppRoutes />
-        </BrowserRouter>
+        <div className="min-h-screen bg-background text-foreground">
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <AppRoutes />
+          </BrowserRouter>
+        </div>
       </TooltipProvider>
     </AuthProvider>
   </QueryClientProvider>

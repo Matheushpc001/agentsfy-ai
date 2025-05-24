@@ -17,31 +17,66 @@ export function ThemeToggle() {
   useEffect(() => {
     if (!mounted) return;
     
-    // Check for system preference on first mount
+    // Remove any existing theme classes first
+    document.documentElement.classList.remove("dark", "light");
+    
+    // Check for system preference on first mount if no theme is set
     if (!theme) {
       const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      setTheme(systemPrefersDark ? "dark" : "light");
+      const newTheme = systemPrefersDark ? "dark" : "light";
+      setTheme(newTheme);
+      applyTheme(newTheme);
       return;
     }
     
     // Apply theme
     applyTheme(theme);
-  }, [theme, mounted]);
+  }, [theme, mounted, setTheme]);
   
   const applyTheme = (newTheme: "light" | "dark") => {
+    // Ensure we're working with the actual document
+    if (typeof document === 'undefined') return;
+    
+    // Force remove both classes first
+    document.documentElement.classList.remove("dark", "light");
+    
+    // Add the appropriate class
     if (newTheme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
-      document.documentElement.classList.remove("dark");
+      document.documentElement.classList.add("light");
+    }
+    
+    // Also set the color-scheme meta tag for better mobile support
+    const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+    if (metaThemeColor) {
+      metaThemeColor.setAttribute('content', newTheme === 'dark' ? '#0f172a' : '#ffffff');
+    } else {
+      const meta = document.createElement('meta');
+      meta.name = 'theme-color';
+      meta.content = newTheme === 'dark' ? '#0f172a' : '#ffffff';
+      document.getElementsByTagName('head')[0].appendChild(meta);
     }
   };
   
   const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
+    const newTheme = theme === "light" ? "dark" : "light";
+    setTheme(newTheme);
   };
   
   // Avoid hydration mismatch by only rendering after mount
-  if (!mounted) return null;
+  if (!mounted) {
+    return (
+      <Button
+        variant="ghost"
+        size="icon"
+        disabled
+        aria-label="Loading theme toggle"
+      >
+        <div className="h-5 w-5" />
+      </Button>
+    );
+  }
   
   return (
     <Button
@@ -49,11 +84,12 @@ export function ThemeToggle() {
       size="icon"
       onClick={toggleTheme}
       aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+      className="relative"
     >
       {theme === "light" ? (
-        <Moon className="h-5 w-5" />
+        <Moon className="h-5 w-5 transition-all" />
       ) : (
-        <Sun className="h-5 w-5" />
+        <Sun className="h-5 w-5 transition-all" />
       )}
     </Button>
   );
