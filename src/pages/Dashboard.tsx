@@ -233,7 +233,7 @@ export default function Dashboard() {
       setTimeout(() => {
         console.log("Dashboard: Initial load complete");
         setIsInitialLoad(false);
-      }, 500);
+      }, 800);
     }
   }, [user]);
 
@@ -433,20 +433,6 @@ export default function Dashboard() {
                 size="sm"
                 className="gap-2"
                 type="button"
-                style={{ 
-                  touchAction: 'manipulation',
-                  WebkitTouchCallout: 'none',
-                  WebkitUserSelect: 'none',
-                  userSelect: 'none'
-                }}
-                onTouchStart={(e) => {
-                  e.stopPropagation();
-                  console.log("Dashboard: Touch start on refresh button");
-                }}
-                onTouchEnd={(e) => {
-                  e.stopPropagation();
-                  console.log("Dashboard: Touch end on refresh button");
-                }}
               >
                 <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
                 Atualizar
@@ -454,9 +440,7 @@ export default function Dashboard() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {isLoadingResults ? (
-                <>
-                  {renderStatCardSkeletons(3)}
-                </>
+                <>{renderStatCardSkeletons(3)}</>
               ) : (
                 <>
                   <StatCard
@@ -501,20 +485,6 @@ export default function Dashboard() {
                   size="sm"
                   className="gap-2"
                   type="button"
-                  style={{ 
-                    touchAction: 'manipulation',
-                    WebkitTouchCallout: 'none',
-                    WebkitUserSelect: 'none',
-                    userSelect: 'none'
-                  }}
-                  onTouchStart={(e) => {
-                    e.stopPropagation();
-                    console.log("Dashboard: Touch start on refresh button");
-                  }}
-                  onTouchEnd={(e) => {
-                    e.stopPropagation();
-                    console.log("Dashboard: Touch end on refresh button");
-                  }}
                 >
                   <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
                   Atualizar
@@ -522,14 +492,7 @@ export default function Dashboard() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {isLoadingResults ? (
-                  <>
-                    <div className="h-32 rounded-lg border bg-card">
-                      <Skeleton className="h-full w-full" />
-                    </div>
-                    <div className="h-32 rounded-lg border bg-card">
-                      <Skeleton className="h-full w-full" />
-                    </div>
-                  </>
+                  <>{renderStatCardSkeletons(2)}</>
                 ) : (
                   <>
                     <StatCard
@@ -560,14 +523,7 @@ export default function Dashboard() {
               <h2 className="text-xl font-semibold mb-4">Total Clientes</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {isLoadingResults ? (
-                  <>
-                    <div className="h-32 rounded-lg border bg-card">
-                      <Skeleton className="h-full w-full" />
-                    </div>
-                    <div className="h-32 rounded-lg border bg-card">
-                      <Skeleton className="h-full w-full" />
-                    </div>
-                  </>
+                  <>{renderStatCardSkeletons(2)}</>
                 ) : (
                   <>
                     <StatCard

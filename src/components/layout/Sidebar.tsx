@@ -150,13 +150,12 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
       navigate(href);
       console.log("Sidebar: Navigation successful");
       
-      // On mobile, close the sidebar after navigation
+      // On mobile, close the sidebar after navigation with delay
       if (isMobile && onMobileClose) {
         console.log("Sidebar: Closing mobile sidebar after navigation");
-        // Small delay to ensure navigation happens first
         setTimeout(() => {
           onMobileClose();
-        }, 100);
+        }, 200);
       }
     } catch (error) {
       console.error("Navigation error:", error);
@@ -169,20 +168,6 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
     }
   }, [isCollapsed, isMobile]);
 
-  // Auto-close sidebar on mobile when route changes
-  useEffect(() => {
-    console.log("Sidebar: Route changed to:", location.pathname, "Mobile:", isMobile);
-    if (isMobile && onMobileClose) {
-      // Close sidebar when route changes on mobile
-      const timeoutId = setTimeout(() => {
-        console.log("Sidebar: Auto-closing on route change");
-        onMobileClose();
-      }, 150);
-      
-      return () => clearTimeout(timeoutId);
-    }
-  }, [location.pathname, isMobile, onMobileClose]);
-
   if (!user) return null;
 
   return (
@@ -191,6 +176,7 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
         "bg-card dark:bg-gray-900 border-r border-border dark:border-gray-800 h-full w-full z-20",
         !isMobile && (isCollapsed ? "w-16" : "w-64 fixed")
       )}
+      onClick={(e) => e.stopPropagation()}
     >
       <ScrollArea className="py-4 h-full">
         <div className="space-y-4 flex flex-col justify-between h-full">
