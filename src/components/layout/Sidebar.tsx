@@ -22,7 +22,11 @@ import { UserRole, NavItem } from "@/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate, useLocation } from "react-router-dom";
 
-export default function Sidebar() {
+interface SidebarProps {
+  onMobileClose?: () => void;
+}
+
+export default function Sidebar({ onMobileClose }: SidebarProps) {
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
@@ -129,15 +133,20 @@ export default function Sidebar() {
       return;
     }
     
-    navigate(href);
-    
-    // On mobile, close the sidebar after navigation
-    if (isMobile) {
-      // This will close the sheet via the parent component
-      const event = new Event('click', { bubbles: true });
-      document.body.dispatchEvent(event);
+    try {
+      navigate(href);
+      
+      // On mobile, call the close function if provided
+      if (isMobile && onMobileClose) {
+        // Use timeout to ensure navigation happens first
+        setTimeout(() => {
+          onMobileClose();
+        }, 100);
+      }
+    } catch (error) {
+      console.error("Navigation error:", error);
     }
-  }, [location.pathname, navigate, isMobile]);
+  }, [location.pathname, navigate, isMobile, onMobileClose]);
 
   const toggleSidebar = useCallback(() => {
     setIsCollapsed(!isCollapsed);
