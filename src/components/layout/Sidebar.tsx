@@ -27,7 +27,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "bg-gray-100 dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 h-full transition-all duration-300 ease-in-out",
+        "bg-sidebar border-r border-sidebar-border h-full transition-all duration-300 ease-in-out",
         isMobile 
           ? "w-64 relative" 
           : cn(
