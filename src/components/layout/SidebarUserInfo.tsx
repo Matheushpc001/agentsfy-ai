@@ -15,7 +15,7 @@ export function SidebarUserInfo({ isCollapsed, isMobile }: SidebarUserInfoProps)
   return (
     <div className="px-3 py-2">
       <div className="flex items-center justify-between">
-        <h2 className={`mb-2 text-sm font-semibold tracking-tight transition-all duration-300 ease-in-out ${isCollapsed && !isMobile ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
+        <h2 className={`mb-2 text-sm font-semibold tracking-tight text-sidebar-foreground transition-all duration-300 ease-in-out ${isCollapsed && !isMobile ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
           Painel
         </h2>
       </div>
@@ -25,7 +25,7 @@ export function SidebarUserInfo({ isCollapsed, isMobile }: SidebarUserInfoProps)
           <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
         </Avatar>
         <div className={`transition-all duration-300 ease-in-out ${isCollapsed && !isMobile ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 whitespace-nowrap">
+          <p className="text-sm text-sidebar-foreground/70 mt-1 whitespace-nowrap">
             {user?.email}
           </p>
         </div>
