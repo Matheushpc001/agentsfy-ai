@@ -22,7 +22,11 @@ import { UserRole, NavItem } from "@/types";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useNavigate } from "react-router-dom";
 
-export default function Sidebar() {
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export default function Sidebar({ onNavigate }: SidebarProps) {
   const { user, logout } = useAuth();
   const [isCollapsed, setIsCollapsed] = useState(false);
   const isMobile = useIsMobile();
@@ -118,16 +122,17 @@ export default function Sidebar() {
   };
 
   const handleLogout = () => {
+    console.log("Sidebar: Logout clicked");
     logout();
     navigate('/login');
+    if (onNavigate) onNavigate();
   };
 
   const handleNavigate = (href: string) => {
+    console.log("Sidebar: Navigating to:", href);
     navigate(href);
-    // On mobile, close the sidebar after navigation
-    if (isMobile) {
-      // This will close the sheet via the parent component
-      document.body.click(); // Trigger a body click to close the Sheet component
+    if (onNavigate) {
+      onNavigate();
     }
   };
 

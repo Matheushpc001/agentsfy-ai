@@ -40,7 +40,15 @@ export default function Header({ title }: HeaderProps) {
   };
 
   const handleSheetOpenChange = (open: boolean) => {
+    console.log("Header: Sheet open change:", open);
     setIsMenuOpen(open);
+  };
+
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Header: Menu button clicked, current state:", isMenuOpen);
+    setIsMenuOpen(!isMenuOpen);
   };
 
   return (
@@ -49,13 +57,27 @@ export default function Header({ title }: HeaderProps) {
         {isMobile && (
           <Sheet open={isMenuOpen} onOpenChange={handleSheetOpenChange}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="mr-3">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="mr-3"
+                onClick={handleMenuClick}
+              >
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="p-0 w-[80vw] max-w-[280px]" onClick={(e) => e.stopPropagation()}>
-              <Sidebar />
+            <SheetContent 
+              side="left" 
+              className="p-0 w-[80vw] max-w-[280px]"
+              onInteractOutside={(e) => {
+                console.log("Header: Sheet interact outside");
+                e.preventDefault();
+              }}
+            >
+              <div onClick={(e) => e.stopPropagation()}>
+                <Sidebar onNavigate={() => setIsMenuOpen(false)} />
+              </div>
             </SheetContent>
           </Sheet>
         )}

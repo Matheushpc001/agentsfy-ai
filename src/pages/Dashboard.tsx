@@ -213,31 +213,39 @@ export default function Dashboard() {
   const [topFranchisees, setTopFranchisees] = useState<TopFranchisee[]>([]);
   const [weeklyMessages, setWeeklyMessages] = useState(MOCK_WEEKLY_MESSAGES);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const isMobile = useIsMobile();
 
   useEffect(() => {
     if (user) {
-      // Simulate API call to get analytics data
-      setAnalytics(MOCK_ANALYTICS[user.role]);
-
-      // Set recent messages
-      setRecentMessages(MOCK_MESSAGES);
-
-      // Set top agents
-      setTopAgents(MOCK_AGENTS.slice(0, 3));
+      console.log("Dashboard: Loading initial data for user:", user.role);
       
-      // Set top franchisees (only for admin)
-      if (user.role === "admin") {
-        setTopFranchisees(MOCK_TOP_FRANCHISEES);
-      }
+      // Simulate API call to get analytics data
+      setTimeout(() => {
+        setAnalytics(MOCK_ANALYTICS[user.role]);
+        setRecentMessages(MOCK_MESSAGES);
+        setTopAgents(MOCK_AGENTS.slice(0, 3));
+        
+        if (user.role === "admin") {
+          setTopFranchisees(MOCK_TOP_FRANCHISEES);
+        }
+        
+        setIsInitialLoading(false);
+        console.log("Dashboard: Initial load complete");
+      }, 100);
     }
   }, [user]);
 
   const handleRefreshResults = async () => {
+    if (isLoadingResults) return; // Prevent multiple simultaneous refreshes
+    
+    console.log("Dashboard: Starting refresh");
     setIsLoadingResults(true);
     
-    // Simulate API call delay
-    setTimeout(() => {
+    try {
+      // Simulate API call delay
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       if (user) {
         // Update analytics data with variations
         const updatedAnalytics = { ...MOCK_ANALYTICS[user.role] };
@@ -252,23 +260,17 @@ export default function Dashboard() {
           updatedAnalytics.monthlyRevenue = Math.max(20000, generateRandomVariation(updatedAnalytics.monthlyRevenue || 0, 0.1));
           updatedAnalytics.franchiseeCount = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.franchiseeCount || 0, 0.15)));
           updatedAnalytics.customerCount = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.customerCount || 0, 0.12)));
-          
-          // Update franchisees data
           setTopFranchisees(generateUpdatedFranchisees());
         } else if (user.role === "franchisee") {
           updatedAnalytics.installationRevenue = Math.max(1000, generateRandomVariation(updatedAnalytics.installationRevenue || 0, 0.15));
           updatedAnalytics.monthlyRevenue = Math.max(2000, generateRandomVariation(updatedAnalytics.monthlyRevenue || 0, 0.1));
           updatedAnalytics.customerCount = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.customerCount || 0, 0.2)));
           updatedAnalytics.activeCustomers = Math.min(updatedAnalytics.customerCount || 0, Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.activeCustomers || 0, 0.15))));
-          
-          // Update agents data
           setTopAgents(generateUpdatedAgents().slice(0, 3));
         }
         
-        // Update weekly messages chart data
         setWeeklyMessages(generateUpdatedWeeklyMessages());
         
-        // Update recent messages with new timestamps
         const updatedMessages = MOCK_MESSAGES.map(msg => ({
           ...msg,
           timestamp: new Date(Date.now() - Math.random() * 60 * 60000).toISOString()
@@ -276,16 +278,32 @@ export default function Dashboard() {
         setRecentMessages(updatedMessages);
         
         setAnalytics(updatedAnalytics);
+        console.log("Dashboard: Refresh complete");
       }
+    } catch (error) {
+      console.error("Dashboard: Refresh error:", error);
+    } finally {
       setIsLoadingResults(false);
-    }, 2000);
+    }
   };
 
-  if (!user || !analytics) {
+  // Show loading only during initial load
+  if (!user || isInitialLoading) {
     return (
       <DashboardLayout title="Dashboard">
         <div className="flex items-center justify-center h-64">
           <div className="animate-pulse text-primary">Carregando...</div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Ensure analytics is available before rendering
+  if (!analytics) {
+    return (
+      <DashboardLayout title="Dashboard">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-pulse text-primary">Carregando dados...</div>
         </div>
       </DashboardLayout>
     );
@@ -328,15 +346,9 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {isLoadingResults ? (
                 <>
-                  <div className="h-32 rounded-lg border bg-card">
-                    <Skeleton className="h-full w-full" />
-                  </div>
-                  <div className="h-32 rounded-lg border bg-card">
-                    <Skeleton className="h-full w-full" />
-                  </div>
-                  <div className="h-32 rounded-lg border bg-card">
-                    <Skeleton className="h-full w-full" />
-                  </div>
+                  <Skeleton className="h-32 rounded-lg" />
+                  <Skeleton className="h-32 rounded-lg" />
+                  <Skeleton className="h-32 rounded-lg" />
                 </>
               ) : (
                 <>
@@ -389,12 +401,8 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {isLoadingResults ? (
                   <>
-                    <div className="h-32 rounded-lg border bg-card">
-                      <Skeleton className="h-full w-full" />
-                    </div>
-                    <div className="h-32 rounded-lg border bg-card">
-                      <Skeleton className="h-full w-full" />
-                    </div>
+                    <Skeleton className="h-32 rounded-lg" />
+                    <Skeleton className="h-32 rounded-lg" />
                   </>
                 ) : (
                   <>
@@ -427,12 +435,8 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {isLoadingResults ? (
                   <>
-                    <div className="h-32 rounded-lg border bg-card">
-                      <Skeleton className="h-full w-full" />
-                    </div>
-                    <div className="h-32 rounded-lg border bg-card">
-                      <Skeleton className="h-full w-full" />
-                    </div>
+                    <Skeleton className="h-32 rounded-lg" />
+                    <Skeleton className="h-32 rounded-lg" />
                   </>
                 ) : (
                   <>
@@ -458,18 +462,10 @@ export default function Dashboard() {
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {isLoadingResults ? (
             <>
-              <div className="h-32 rounded-lg border bg-card">
-                <Skeleton className="h-full w-full" />
-              </div>
-              <div className="h-32 rounded-lg border bg-card">
-                <Skeleton className="h-full w-full" />
-              </div>
-              <div className="h-32 rounded-lg border bg-card">
-                <Skeleton className="h-full w-full" />
-              </div>
-              <div className="h-32 rounded-lg border bg-card">
-                <Skeleton className="h-full w-full" />
-              </div>
+              <Skeleton className="h-32 rounded-lg" />
+              <Skeleton className="h-32 rounded-lg" />
+              <Skeleton className="h-32 rounded-lg" />
+              <Skeleton className="h-32 rounded-lg" />
             </>
           ) : (
             <>
@@ -517,9 +513,7 @@ export default function Dashboard() {
           {/* Billing Chart - only show for admin and franchisee */}
           {(user.role === "admin" || user.role === "franchisee") && (
             isLoadingResults ? (
-              <div className="lg:col-span-2 h-80 rounded-lg border bg-card">
-                <Skeleton className="h-full w-full" />
-              </div>
+              <Skeleton className="lg:col-span-2 h-80 rounded-lg" />
             ) : (
               <BillingChart userRole={user.role} />
             )
@@ -535,9 +529,7 @@ export default function Dashboard() {
               </CardHeader>
               <CardContent>
                 {isLoadingResults ? (
-                  <div className="h-[300px]">
-                    <Skeleton className="h-full w-full" />
-                  </div>
+                  <Skeleton className="h-[300px] w-full" />
                 ) : (
                   <div className="h-[300px] overflow-hidden">
                     <ResponsiveContainer width="100%" height="100%">
@@ -595,9 +587,7 @@ export default function Dashboard() {
           {/* Stats/Charts - Replaced with TopFranchiseesCard for admin */}
           {user.role === "admin" ? (
             isLoadingResults ? (
-              <div className="lg:col-span-1 h-80 rounded-lg border bg-card">
-                <Skeleton className="h-full w-full" />
-              </div>
+              <Skeleton className="lg:col-span-1 h-80 rounded-lg" />
             ) : (
               <TopFranchiseesCard franchisees={topFranchisees} className="lg:col-span-1" />
             )
