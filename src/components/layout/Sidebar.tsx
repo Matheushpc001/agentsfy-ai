@@ -27,7 +27,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "bg-background h-full transition-all duration-300 ease-in-out flex-shrink-0",
+        "bg-background h-full transition-all duration-300 ease-in-out",
         isMobile
           ? "w-64 relative border-none"
           : cn(
@@ -41,7 +41,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           <div className="space-y-4">
             <div
               className={cn(
-                "flex items-center px-3 relative",
+                "flex items-center px-3",
                 isCollapsed && !isMobile ? "justify-center" : "justify-between"
               )}
             >
@@ -68,17 +68,6 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           />
         </div>
       </ScrollArea>
-      
-      {/* Spacer div para desktop - garante que o conteúdo principal não sobreponha */}
-      {!isMobile && (
-        <div 
-          className={cn(
-            "fixed top-0 left-0 h-full pointer-events-none transition-all duration-300 ease-in-out",
-            isCollapsed ? "w-16" : "w-64"
-          )}
-          style={{ marginLeft: isCollapsed ? "64px" : "256px" }}
-        />
-      )}
     </aside>
   );
 }
