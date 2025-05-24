@@ -1,3 +1,4 @@
+
 import { Bell, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,15 +8,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import Sidebar from "./Sidebar";
 import { useState } from "react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
+
 interface HeaderProps {
   title: string;
 }
-export default function Header({
-  title
-}: HeaderProps) {
-  const {
-    user
-  } = useAuth();
+
+export default function Header({ title }: HeaderProps) {
+  const { user } = useAuth();
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -26,6 +25,7 @@ export default function Header({
     if (hour < 18) return "Boa tarde";
     return "Boa noite";
   };
+
   const getRoleDisplay = () => {
     switch (user?.role) {
       case "admin":
@@ -38,34 +38,44 @@ export default function Header({
         return "";
     }
   };
+
   const handleSheetOpenChange = (open: boolean) => {
     console.log("Header: Sheet open change:", open);
     setIsMenuOpen(open);
   };
+
   const handleMenuClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     console.log("Header: Menu button clicked, current state:", isMenuOpen);
     setIsMenuOpen(!isMenuOpen);
   };
-  return <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+
+  return (
+    <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
       <div className="flex items-center">
-        {isMobile && <Sheet open={isMenuOpen} onOpenChange={handleSheetOpenChange}>
+        {isMobile && (
+          <Sheet open={isMenuOpen} onOpenChange={handleSheetOpenChange}>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon" className="mr-3" onClick={handleMenuClick}>
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" onInteractOutside={e => {
-          console.log("Header: Sheet interact outside");
-          e.preventDefault();
-        }} className="p-0 w-[80vw] max-w-[280px] bg-gray-900">
+            <SheetContent 
+              side="left" 
+              onInteractOutside={e => {
+                console.log("Header: Sheet interact outside");
+                e.preventDefault();
+              }} 
+              className="p-0 w-[80vw] max-w-[280px] bg-background"
+            >
               <div onClick={e => e.stopPropagation()}>
                 <Sidebar onNavigate={() => setIsMenuOpen(false)} />
               </div>
             </SheetContent>
-          </Sheet>}
+          </Sheet>
+        )}
         <div>
           <h1 className="text-lg font-semibold">{title}</h1>
           <p className="text-muted-foreground text-xs sm:text-sm">
@@ -89,5 +99,6 @@ export default function Header({
           </span>
         </Button>
       </div>
-    </header>;
+    </header>
+  );
 }
