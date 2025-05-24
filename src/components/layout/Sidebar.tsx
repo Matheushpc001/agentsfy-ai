@@ -41,7 +41,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
           <div className="space-y-4">
             <div
               className={cn(
-                "flex items-center px-3",
+                "flex items-center px-3 relative",
                 isCollapsed && !isMobile ? "justify-center" : "justify-between"
               )}
             >

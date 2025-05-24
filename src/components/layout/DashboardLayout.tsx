@@ -1,5 +1,5 @@
 
-import { ReactNode, useState, useEffect } from "react";
+import { ReactNode } from "react";
 import Sidebar from "./Sidebar";
 import Header from "./Header";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -12,43 +12,11 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ children, title }: DashboardLayoutProps) {
   const isMobile = useIsMobile();
-  const [sidebarWidth, setSidebarWidth] = useState(256); // 256px = w-64
-
-  useEffect(() => {
-    const handleSidebarToggle = () => {
-      const sidebar = document.querySelector('aside');
-      if (sidebar) {
-        const width = sidebar.offsetWidth;
-        setSidebarWidth(width);
-      }
-    };
-
-    // Initial check
-    handleSidebarToggle();
-
-    // Listen for sidebar width changes
-    const observer = new ResizeObserver(handleSidebarToggle);
-    const sidebar = document.querySelector('aside');
-    if (sidebar) {
-      observer.observe(sidebar);
-    }
-
-    return () => {
-      observer.disconnect();
-    };
-  }, []);
 
   return (
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {!isMobile && <Sidebar />}
-      <div 
-        className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
-          !isMobile ? '' : 'ml-0'
-        }`}
-        style={{
-          marginLeft: !isMobile ? `${sidebarWidth}px` : '0px'
-        }}
-      >
+      <div className="flex-1 flex flex-col overflow-hidden">
         <Header title={title} />
         <ScrollArea className="flex-1">
           <div className="p-4 md:p-6">
