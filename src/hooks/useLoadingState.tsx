@@ -11,7 +11,7 @@ export function useLoadingState(initialState: LoadingState = {}) {
   const setLoading = useCallback((key: string, isLoading: boolean) => {
     setLoadingStates(prev => ({
       ...prev,
-      [key]: isLoading,
+      [key]: isLoading
     }));
   }, []);
 
@@ -40,6 +40,6 @@ export function useLoadingState(initialState: LoadingState = {}) {
     isLoading,
     isAnyLoading,
     setLoading,
-    withLoading,
+    withLoading
   };
 }
