@@ -19,8 +19,8 @@ export function useErrorHandler() {
       description: options?.description || errorMessage || 'Ocorreu um erro inesperado',
       action: options?.action && options?.actionLabel ? {
         label: options.actionLabel,
-        onClick: options.action
-      } : undefined
+        onClick: options.action,
+      } : undefined,
     });
   }, []);
 
@@ -51,6 +51,6 @@ export function useErrorHandler() {
 
   return {
     handleError,
-    handleAsyncError
+    handleAsyncError,
   };
 }
