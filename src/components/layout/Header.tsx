@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import Sidebar from "./Sidebar";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 
 interface HeaderProps {
@@ -17,11 +17,30 @@ export default function Header({ title }: HeaderProps) {
   const { user } = useAuth();
   const isMobile = useIsMobile();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const sheetRef = useRef<HTMLDivElement>(null);
   
   // Close sidebar when switching from mobile to desktop
   useEffect(() => {
     if (!isMobile && isMenuOpen) {
       setIsMenuOpen(false);
+    }
+  }, [isMobile, isMenuOpen]);
+
+  // Force close sidebar on any route change or significant state change
+  useEffect(() => {
+    const handleDocumentClick = (event: MouseEvent) => {
+      if (isMobile && isMenuOpen) {
+        // Check if click is outside the sheet
+        const target = event.target as Node;
+        if (sheetRef.current && !sheetRef.current.contains(target)) {
+          setIsMenuOpen(false);
+        }
+      }
+    };
+
+    if (isMobile && isMenuOpen) {
+      document.addEventListener('click', handleDocumentClick);
+      return () => document.removeEventListener('click', handleDocumentClick);
     }
   }, [isMobile, isMenuOpen]);
   
@@ -47,14 +66,23 @@ export default function Header({ title }: HeaderProps) {
   };
 
   const handleSheetOpenChange = useCallback((open: boolean) => {
+    console.log("Header: Sheet open change:", open);
     setIsMenuOpen(open);
   }, []);
 
   const handleMobileClose = useCallback(() => {
+    console.log("Header: Mobile close triggered");
     if (isMobile) {
       setIsMenuOpen(false);
     }
   }, [isMobile]);
+
+  const handleMenuClick = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Header: Menu button clicked, current state:", isMenuOpen);
+    setIsMenuOpen(!isMenuOpen);
+  }, [isMenuOpen]);
 
   return (
     <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
@@ -62,19 +90,26 @@ export default function Header({ title }: HeaderProps) {
         {isMobile && (
           <Sheet open={isMenuOpen} onOpenChange={handleSheetOpenChange}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="mr-3">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="mr-3"
+                onClick={handleMenuClick}
+              >
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Menu</span>
               </Button>
             </SheetTrigger>
             <SheetContent 
+              ref={sheetRef}
               side="left" 
-              className="p-0 w-[80vw] max-w-[280px]"
+              className="p-0 w-[80vw] max-w-[280px] z-50"
               onPointerDownOutside={(e) => {
                 e.preventDefault();
-                setIsMenuOpen(false);
+                handleMobileClose();
               }}
-              onEscapeKeyDown={() => setIsMenuOpen(false)}
+              onEscapeKeyDown={handleMobileClose}
+              onInteractOutside={handleMobileClose}
             >
               <Sidebar onMobileClose={handleMobileClose} />
             </SheetContent>

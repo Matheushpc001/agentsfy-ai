@@ -1,4 +1,3 @@
-
 import { useState, useCallback, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -239,16 +238,26 @@ export default function Dashboard() {
   }, [user]);
 
   const handleRefreshResults = useCallback(async (e?: React.MouseEvent) => {
-    // Prevent any event bubbling or interference
+    // Enhanced event handling for mobile
     if (e) {
       e.preventDefault();
       e.stopPropagation();
       e.nativeEvent?.stopImmediatePropagation();
+      
+      // Additional mobile-specific event handling
+      if (isMobile) {
+        const target = e.target as HTMLElement;
+        target.blur(); // Remove focus to prevent keyboard issues
+      }
     }
     
-    if (isLoadingResults) return;
+    if (isLoadingResults) {
+      console.log("Dashboard: Refresh already in progress, ignoring");
+      return;
+    }
     
     try {
+      console.log("Dashboard: Starting refresh results");
       setIsLoadingResults(true);
       
       // Simulate API call delay
@@ -298,10 +307,11 @@ export default function Dashboard() {
       console.error("Error refreshing data:", error);
     } finally {
       setTimeout(() => {
+        console.log("Dashboard: Setting loading to false");
         setIsLoadingResults(false);
       }, 200);
     }
-  }, [isLoadingResults, user]);
+  }, [isLoadingResults, user, isMobile]);
 
   // Rendering the skeleton cards for the loading state
   const renderStatCardSkeletons = (count: number) => {
@@ -423,8 +433,20 @@ export default function Dashboard() {
                 size="sm"
                 className="gap-2"
                 type="button"
-                onTouchStart={(e) => e.stopPropagation()}
-                onTouchEnd={(e) => e.stopPropagation()}
+                style={{ 
+                  touchAction: 'manipulation',
+                  WebkitTouchCallout: 'none',
+                  WebkitUserSelect: 'none',
+                  userSelect: 'none'
+                }}
+                onTouchStart={(e) => {
+                  e.stopPropagation();
+                  console.log("Dashboard: Touch start on refresh button");
+                }}
+                onTouchEnd={(e) => {
+                  e.stopPropagation();
+                  console.log("Dashboard: Touch end on refresh button");
+                }}
               >
                 <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
                 Atualizar
@@ -479,8 +501,20 @@ export default function Dashboard() {
                   size="sm"
                   className="gap-2"
                   type="button"
-                  onTouchStart={(e) => e.stopPropagation()}
-                  onTouchEnd={(e) => e.stopPropagation()}
+                  style={{ 
+                    touchAction: 'manipulation',
+                    WebkitTouchCallout: 'none',
+                    WebkitUserSelect: 'none',
+                    userSelect: 'none'
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    console.log("Dashboard: Touch start on refresh button");
+                  }}
+                  onTouchEnd={(e) => {
+                    e.stopPropagation();
+                    console.log("Dashboard: Touch end on refresh button");
+                  }}
                 >
                   <RefreshCw className={cn("h-4 w-4", isLoadingResults && "animate-spin")} />
                   Atualizar

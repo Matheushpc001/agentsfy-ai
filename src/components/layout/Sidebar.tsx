@@ -120,6 +120,7 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
 
   const handleLogout = useCallback(() => {
     try {
+      console.log("Sidebar: Logout initiated");
       logout();
       navigate('/login', { replace: true });
     } catch (error) {
@@ -134,8 +135,11 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
       event.stopPropagation();
     }
     
+    console.log("Sidebar: Navigate to:", href, "Current:", location.pathname);
+    
     // Don't navigate if we're already on this page
     if (location.pathname === href) {
+      console.log("Sidebar: Already on this page, closing mobile sidebar");
       if (isMobile && onMobileClose) {
         onMobileClose();
       }
@@ -144,13 +148,15 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
     
     try {
       navigate(href);
+      console.log("Sidebar: Navigation successful");
       
       // On mobile, close the sidebar after navigation
       if (isMobile && onMobileClose) {
+        console.log("Sidebar: Closing mobile sidebar after navigation");
         // Small delay to ensure navigation happens first
         setTimeout(() => {
           onMobileClose();
-        }, 50);
+        }, 100);
       }
     } catch (error) {
       console.error("Navigation error:", error);
@@ -162,6 +168,20 @@ export default function Sidebar({ onMobileClose }: SidebarProps) {
       setIsCollapsed(!isCollapsed);
     }
   }, [isCollapsed, isMobile]);
+
+  // Auto-close sidebar on mobile when route changes
+  useEffect(() => {
+    console.log("Sidebar: Route changed to:", location.pathname, "Mobile:", isMobile);
+    if (isMobile && onMobileClose) {
+      // Close sidebar when route changes on mobile
+      const timeoutId = setTimeout(() => {
+        console.log("Sidebar: Auto-closing on route change");
+        onMobileClose();
+      }, 150);
+      
+      return () => clearTimeout(timeoutId);
+    }
+  }, [location.pathname, isMobile, onMobileClose]);
 
   if (!user) return null;
 
