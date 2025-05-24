@@ -17,21 +17,9 @@ export function ThemeToggle() {
   useEffect(() => {
     if (!mounted) return;
     
-    // Remove any existing theme classes first
-    document.documentElement.classList.remove("dark", "light");
-    
-    // Check for system preference on first mount if no theme is set
-    if (!theme) {
-      const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-      const newTheme = systemPrefersDark ? "dark" : "light";
-      setTheme(newTheme);
-      applyTheme(newTheme);
-      return;
-    }
-    
-    // Apply theme
+    // Apply theme immediately without checking system preference
     applyTheme(theme);
-  }, [theme, mounted, setTheme]);
+  }, [theme, mounted]);
   
   const applyTheme = (newTheme: "light" | "dark") => {
     // Ensure we're working with the actual document
@@ -41,11 +29,7 @@ export function ThemeToggle() {
     document.documentElement.classList.remove("dark", "light");
     
     // Add the appropriate class
-    if (newTheme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.add("light");
-    }
+    document.documentElement.classList.add(newTheme);
     
     // Also set the color-scheme meta tag for better mobile support
     const metaThemeColor = document.querySelector('meta[name="theme-color"]');

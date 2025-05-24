@@ -97,30 +97,43 @@ const AppRoutes = () => {
   );
 };
 
-// Theme initialization component
+// Improved theme initialization component
 const ThemeInitializer = () => {
   useEffect(() => {
     // Ensure proper theme initialization on app load
     const initializeTheme = () => {
       // Check if there's a saved theme
-      const savedTheme = localStorage.getItem('theme');
+      let savedTheme = 'light'; // default
       
-      if (savedTheme) {
-        const theme = JSON.parse(savedTheme);
-        document.documentElement.classList.remove('dark', 'light');
-        if (theme === 'dark') {
-          document.documentElement.classList.add('dark');
-        } else {
-          document.documentElement.classList.add('light');
+      try {
+        const themeFromStorage = localStorage.getItem('theme');
+        if (themeFromStorage) {
+          savedTheme = JSON.parse(themeFromStorage);
         }
-      } else {
-        // Default to light theme if no preference is saved
-        document.documentElement.classList.remove('dark');
-        document.documentElement.classList.add('light');
+      } catch (error) {
+        console.warn('Error reading theme from localStorage:', error);
       }
+      
+      // Apply theme immediately to prevent flash
+      document.documentElement.classList.remove('dark', 'light');
+      document.documentElement.classList.add(savedTheme);
+      
+      // Set color scheme
+      document.documentElement.style.colorScheme = savedTheme;
     };
 
+    // Run immediately
     initializeTheme();
+    
+    // Also run on storage events (when theme changes in another tab)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'theme') {
+        initializeTheme();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   return null;
@@ -131,7 +144,7 @@ const App = () => (
     <AuthProvider>
       <ThemeInitializer />
       <TooltipProvider>
-        <div className="min-h-screen bg-background text-foreground">
+        <div className="min-h-screen w-full bg-background text-foreground">
           <Toaster />
           <Sonner />
           <BrowserRouter>
