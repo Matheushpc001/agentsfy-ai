@@ -67,7 +67,7 @@ export default function Header({ title }: HeaderProps) {
                 console.log("Header: Sheet interact outside");
                 e.preventDefault();
               }} 
-              className="p-0 w-[80vw] max-w-[280px] bg-background border-none"
+              className="p-0 w-full max-w-none bg-background"
             >
               <div onClick={e => e.stopPropagation()}>
                 <Sidebar onNavigate={() => setIsMenuOpen(false)} />

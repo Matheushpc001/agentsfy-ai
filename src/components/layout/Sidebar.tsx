@@ -27,11 +27,11 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
-        "bg-background h-full transition-all duration-300 ease-in-out",
+        "bg-background border-r border-border h-full transition-all duration-300 ease-in-out",
         isMobile
-          ? "w-64 relative border-none"
+          ? "w-64 relative"
           : cn(
-              "fixed top-0 left-0 z-40 border-r border-border",
+              "fixed top-0 left-0 z-40",
               isCollapsed ? "w-16" : "w-64"
             )
       )}
