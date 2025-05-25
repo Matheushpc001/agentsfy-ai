@@ -29,14 +29,14 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
       className={cn(
         "bg-background h-full transition-all duration-300 ease-in-out",
         isMobile
-          ? "w-64 relative border-none z-50"
+          ? "w-64 relative border-none"
           : cn(
               "fixed top-0 left-0 z-40 border-r border-border",
               isCollapsed ? "w-16" : "w-64"
             )
       )}
     >
-      <ScrollArea className="py-4 h-full bg-background">
+      <ScrollArea className="py-4 h-full">
         <div className="space-y-4 flex flex-col justify-between h-full">
           <div className="space-y-4">
             <div

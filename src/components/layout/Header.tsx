@@ -1,4 +1,3 @@
-
 import { Bell, Menu, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +51,7 @@ export default function Header({ title }: HeaderProps) {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between flex-shrink-0 z-30">
+    <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
       <div className="flex items-center">
         {isMobile && (
           <Sheet open={isMenuOpen} onOpenChange={handleSheetOpenChange}>
@@ -68,7 +67,7 @@ export default function Header({ title }: HeaderProps) {
                 console.log("Header: Sheet interact outside");
                 e.preventDefault();
               }} 
-              className="p-0 w-[80vw] max-w-[280px] bg-background border-none z-50"
+              className="p-0 w-[80vw] max-w-[280px] bg-background border-none"
             >
               <div onClick={e => e.stopPropagation()}>
                 <Sidebar onNavigate={() => setIsMenuOpen(false)} />
