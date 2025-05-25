@@ -16,7 +16,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
 
   useEffect(() => {
     const handleSidebarToggle = () => {
-      const sidebar = document.querySelector('aside[data-sidebar]');
+      const sidebar = document.querySelector('aside[data-sidebar]') as HTMLElement;
       if (sidebar) {
         const width = sidebar.offsetWidth;
         setSidebarWidth(width);
@@ -28,7 +28,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
 
     // Listen for sidebar width changes
     const observer = new ResizeObserver(handleSidebarToggle);
-    const sidebar = document.querySelector('aside[data-sidebar]');
+    const sidebar = document.querySelector('aside[data-sidebar]') as HTMLElement;
     if (sidebar) {
       observer.observe(sidebar);
     }
