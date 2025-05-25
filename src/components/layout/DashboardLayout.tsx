@@ -42,16 +42,17 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
     <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
       {!isMobile && <Sidebar />}
       <div 
-        className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
-          !isMobile ? '' : 'ml-0'
+        className={`flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
+          isMobile ? 'flex-1 w-full' : 'flex-1'
         }`}
         style={{
-          marginLeft: !isMobile ? `${sidebarWidth}px` : '0px'
+          marginLeft: !isMobile ? `${sidebarWidth}px` : '0px',
+          width: isMobile ? '100%' : 'auto'
         }}
       >
         <Header title={title} />
-        <ScrollArea className="flex-1">
-          <div className="p-4 md:p-6">
+        <ScrollArea className="flex-1 bg-gray-50 dark:bg-gray-900">
+          <div className="p-4 md:p-6 min-h-full">
             <div className="max-w-full mx-auto pb-16">
               {children}
             </div>
