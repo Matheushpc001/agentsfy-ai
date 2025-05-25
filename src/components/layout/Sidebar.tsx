@@ -26,6 +26,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
 
   return (
     <aside
+      data-sidebar="true"
       className={cn(
         "bg-background h-full transition-all duration-300 ease-in-out",
         isMobile
@@ -35,9 +36,10 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               isCollapsed ? "w-16" : "w-64"
             )
       )}
+      translate="no"
     >
       <ScrollArea className="py-4 h-full">
-        <div className="space-y-4 flex flex-col justify-between h-full">
+        <div className="space-y-4 flex flex-col justify-between h-full" translate="no">
           <div className="space-y-4">
             <div
               className={cn(

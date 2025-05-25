@@ -34,20 +34,20 @@ export default function Login() {
   };
   
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4 relative">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4 relative" translate="no">
       <div className="absolute inset-0 gradient-bg opacity-5 z-0" />
       
       <div className="absolute top-4 right-4 z-20">
         <ThemeToggle />
       </div>
       
-      <Card className="w-full max-w-md shadow-lg z-10">
+      <Card className="w-full max-w-md shadow-lg z-10" translate="no">
         <CardHeader className="text-center pb-2">
           <div className="mx-auto w-14 h-14 bg-primary rounded-xl flex items-center justify-center mb-4">
             <Bot size={28} className="text-white" />
           </div>
-          <CardTitle className="text-2xl">AgentsFy</CardTitle>
-          <CardDescription className="text-muted-foreground">
+          <CardTitle className="text-2xl" translate="no">AgentsFy</CardTitle>
+          <CardDescription className="text-muted-foreground" translate="no">
             Plataforma de microfranquias para agentes de IA no WhatsApp
           </CardDescription>
         </CardHeader>
@@ -55,7 +55,7 @@ export default function Login() {
         <CardContent className="pt-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
+              <label htmlFor="email" className="text-sm font-medium" translate="no">
                 Email
               </label>
               <Input 
@@ -67,15 +67,16 @@ export default function Login() {
                 onChange={e => setEmail(e.target.value)} 
                 disabled={isLoading} 
                 required 
+                translate="no"
               />
             </div>
             
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <label htmlFor="password" className="text-sm font-medium">
+                <label htmlFor="password" className="text-sm font-medium" translate="no">
                   Senha
                 </label>
-                <a href="#" className="text-xs text-primary hover:underline">
+                <a href="#" className="text-xs text-primary hover:underline" translate="no">
                   Esqueceu a senha?
                 </a>
               </div>
@@ -88,27 +89,28 @@ export default function Login() {
                 onChange={e => setPassword(e.target.value)} 
                 disabled={isLoading} 
                 required 
+                translate="no"
               />
             </div>
             
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full" disabled={isLoading} translate="no">
               {isLoading ? "Entrando..." : "Entrar"}
             </Button>
           </form>
           
-          <div className="mt-6 text-center text-sm text-muted-foreground">
-            <p>
+          <div className="mt-6 text-center text-sm text-muted-foreground" translate="no">
+            <p translate="no">
               Credenciais de demonstração:
             </p>
             <div className="mt-2 space-y-1 text-xs">
-              <div className="p-1 rounded bg-muted">
-                <strong>Admin:</strong> admin@example.com / admin123
+              <div className="p-1 rounded bg-muted" translate="no">
+                <strong translate="no">Admin:</strong> admin@example.com / admin123
               </div>
-              <div className="p-1 rounded bg-muted">
-                <strong>Franqueado:</strong> joao@example.com / joao123
+              <div className="p-1 rounded bg-muted" translate="no">
+                <strong translate="no">Franqueado:</strong> joao@example.com / joao123
               </div>
-              <div className="p-1 rounded bg-muted">
-                <strong>Cliente:</strong> maria@example.com / maria123
+              <div className="p-1 rounded bg-muted" translate="no">
+                <strong translate="no">Cliente:</strong> maria@example.com / maria123
               </div>
             </div>
           </div>

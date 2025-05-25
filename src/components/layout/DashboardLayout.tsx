@@ -16,7 +16,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
 
   useEffect(() => {
     const handleSidebarToggle = () => {
-      const sidebar = document.querySelector('aside');
+      const sidebar = document.querySelector('aside[data-sidebar]');
       if (sidebar) {
         const width = sidebar.offsetWidth;
         setSidebarWidth(width);
@@ -28,7 +28,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
 
     // Listen for sidebar width changes
     const observer = new ResizeObserver(handleSidebarToggle);
-    const sidebar = document.querySelector('aside');
+    const sidebar = document.querySelector('aside[data-sidebar]');
     if (sidebar) {
       observer.observe(sidebar);
     }
@@ -39,7 +39,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
   }, []);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-900" translate="no">
       {!isMobile && <Sidebar />}
       <div 
         className={`flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out ${
@@ -48,10 +48,11 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
         style={{
           marginLeft: !isMobile ? `${sidebarWidth}px` : '0px'
         }}
+        translate="no"
       >
         <Header title={title} />
         <ScrollArea className="flex-1">
-          <div className="p-4 md:p-6">
+          <div className="p-4 md:p-6" translate="no">
             <div className="max-w-full mx-auto pb-16">
               {children}
             </div>
