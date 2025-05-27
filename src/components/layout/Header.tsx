@@ -52,53 +52,68 @@ export default function Header({ title }: HeaderProps) {
   };
 
   return (
-    <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between" translate="no">
-      <div className="flex items-center">
-        {isMobile && (
-          <Sheet open={isMenuOpen} onOpenChange={handleSheetOpenChange}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="mr-3" onClick={handleMenuClick} translate="no">
-                <Menu className="h-5 w-5" />
-                <span className="sr-only">Menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent 
-              side="left" 
-              onInteractOutside={e => {
-                console.log("Header: Sheet interact outside");
-                e.preventDefault();
-              }} 
-              className="p-0 w-[80vw] max-w-[280px] bg-background border-none"
-              translate="no"
-            >
-              <div onClick={e => e.stopPropagation()}>
-                <Sidebar onNavigate={() => setIsMenuOpen(false)} />
-              </div>
-            </SheetContent>
-          </Sheet>
-        )}
-        <div translate="no">
-          <h1 className="text-lg font-semibold" translate="no">{title}</h1>
-          <p className="text-muted-foreground text-xs sm:text-sm" translate="no">
-            {getGreeting()}, {user?.name}
-            <span className="text-xs ml-1 md:ml-2 px-1.5 py-0.5 bg-primary/10 text-primary rounded-full inline-block mt-1 md:mt-0 md:inline" translate="no">
-              {getRoleDisplay()}
+    <header className="bg-white dark:bg-gray-900 p-3 md:p-4 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex items-center justify-between">
+        {/* Left Section - Mobile Menu & Title */}
+        <div className="flex items-center gap-3">
+          {isMobile && (
+            <Sheet open={isMenuOpen} onOpenChange={handleSheetOpenChange}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" onClick={handleMenuClick}>
+                  <Menu className="h-5 w-5" />
+                  <span className="sr-only">Menu</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent 
+                side="left" 
+                onInteractOutside={e => {
+                  console.log("Header: Sheet interact outside");
+                  e.preventDefault();
+                }} 
+                className="p-0 w-[80vw] max-w-[280px] bg-background border-none"
+              >
+                <div onClick={e => e.stopPropagation()}>
+                  <Sidebar onNavigate={() => setIsMenuOpen(false)} />
+                </div>
+              </SheetContent>
+            </Sheet>
+          )}
+          
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg font-semibold text-foreground truncate">{title}</h1>
+            <p className="text-muted-foreground text-xs sm:text-sm flex items-center gap-2 flex-wrap">
+              <span>{getGreeting()}, {user?.name}</span>
+              <span className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full inline-block">
+                {getRoleDisplay()}
+              </span>
+            </p>
+          </div>
+        </div>
+
+        {/* Right Section - Search, Theme, Notifications */}
+        <div className="flex items-center gap-2">
+          {/* Search - Hidden on mobile */}
+          <div className="relative hidden md:block">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input 
+              type="search" 
+              placeholder="Buscar..." 
+              className="w-[200px] lg:w-[300px] pl-8" 
+            />
+          </div>
+          
+          {/* Theme Toggle */}
+          <ThemeToggle />
+          
+          {/* Notifications */}
+          <Button variant="ghost" size="icon" className="relative">
+            <Bell className="h-5 w-5" />
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center">
+              2
             </span>
-          </p>
+            <span className="sr-only">Notificações</span>
+          </Button>
         </div>
-      </div>
-      <div className="flex items-center">
-        <div className="relative mr-2 hidden md:block">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input type="search" placeholder="Buscar..." className="w-[200px] lg:w-[300px] pl-8" translate="no" />
-        </div>
-        <ThemeToggle />
-        <Button variant="ghost" size="icon" className="relative ml-2" translate="no">
-          <Bell className="h-5 w-5" />
-          <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-white text-xs flex items-center justify-center" translate="no">
-            2
-          </span>
-        </Button>
       </div>
     </header>
   );
