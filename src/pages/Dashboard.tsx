@@ -5,6 +5,7 @@ import { DashboardStats } from "@/components/dashboard/DashboardStats";
 import { DashboardMainStats } from "@/components/dashboard/DashboardMainStats";
 import { DashboardCharts } from "@/components/dashboard/DashboardCharts";
 import { useDashboardData } from "@/hooks/useDashboardData";
+import { useEffect } from "react";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -17,6 +18,21 @@ export default function Dashboard() {
     isInitialLoading,
     handleRefreshResults
   } = useDashboardData();
+
+  // Força re-renderização quando necessário para preservar layout
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Re-força o layout quando a página volta a ficar visível
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'));
+        }, 100);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   // Show loading only during initial load
   if (!user || isInitialLoading) {
@@ -42,7 +58,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout title="Dashboard">
-      <div className="space-y-6">
+      <div className="space-y-6" translate="no">
         <DashboardStats 
           userRole={user.role}
           analytics={analytics}

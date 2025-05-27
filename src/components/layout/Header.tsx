@@ -24,7 +24,7 @@ export default function Header({ title }: HeaderProps) {
   };
 
   return (
-    <header className="bg-background border-b border-border sticky top-0 z-40">
+    <header className="bg-background border-b border-border sticky top-0 z-40" translate="no">
       <div className="flex items-center justify-between p-4">
         {/* Left Section - Sidebar Trigger & Title */}
         <div className="flex items-center gap-3">

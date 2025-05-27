@@ -15,7 +15,6 @@ import {
   SidebarSeparator,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
   LayoutDashboard,
   Users,
@@ -84,7 +83,7 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar>
+    <Sidebar className="border-r border-border bg-background" translate="no">
       <SidebarHeader>
         <div className="flex items-center gap-3 px-2 py-2">
           <Avatar className="w-9 h-9">
@@ -114,6 +113,7 @@ export function AppSidebar() {
                     <SidebarMenuButton 
                       onClick={() => handleNavigate(item.href)}
                       tooltip={item.label}
+                      className="w-full justify-start"
                     >
                       <Icon className="h-4 w-4" />
                       <span>{item.label}</span>
@@ -129,7 +129,11 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton onClick={handleLogout} tooltip="Sair">
+            <SidebarMenuButton 
+              onClick={handleLogout} 
+              tooltip="Sair"
+              className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
               <LogOut className="h-4 w-4" />
               <span>Sair</span>
             </SidebarMenuButton>
