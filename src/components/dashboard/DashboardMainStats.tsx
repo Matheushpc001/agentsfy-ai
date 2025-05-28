@@ -38,7 +38,7 @@ export function DashboardMainStats({ analytics, isLoadingResults }: DashboardMai
             value={`${analytics.activeAgents}/${analytics.totalAgents}`} 
             description="Agentes conectados" 
             icon={<Bot size={20} />}
-            variant="success"
+            variant="default"
           />
           
           <EnhancedStatCard 
@@ -50,7 +50,7 @@ export function DashboardMainStats({ analytics, isLoadingResults }: DashboardMai
               value: 5,
               positive: true
             }}
-            variant="warning"
+            variant="default"
           />
           
           <EnhancedStatCard 
