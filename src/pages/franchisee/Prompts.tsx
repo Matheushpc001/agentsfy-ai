@@ -61,7 +61,7 @@ export default function Prompts() {
 
   return (
     <DashboardLayout title="Prompts">
-      <div className="space-y-4 lg:space-y-6 px-2 sm:px-4 md:px-0">
+      <div className="space-y-4 lg:space-y-6 px-2 sm:px-4 md:px-6">
         {/* Header */}
         <div className="flex flex-col space-y-4">
           <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-2">
@@ -148,34 +148,36 @@ export default function Prompts() {
 
         {/* Tabs for Niches */}
         <Tabs defaultValue="all" value={activeNiche} onValueChange={setActiveNiche}>
-          <div className="w-full">
-            <ScrollArea className="w-full">
-              <TabsList className="inline-flex w-max h-auto p-1 bg-muted rounded-md">
-                <TabsTrigger value="all" className="text-xs lg:text-sm px-2 lg:px-3 py-2 whitespace-nowrap">
-                  Todos ({prompts.length})
-                </TabsTrigger>
-                {niches.slice(0, 5).map((niche) => {
-                  const nicheCount = prompts.filter(p => p.niche === niche).length;
-                  return (
-                    <TabsTrigger key={niche} value={niche} className="text-xs lg:text-sm px-2 lg:px-3 py-2 whitespace-nowrap">
-                      {niche} ({nicheCount})
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
+          <div className="w-full overflow-hidden">
+            <ScrollArea className="w-full whitespace-nowrap">
+              <div className="pb-2">
+                <TabsList className="inline-flex w-max h-auto p-1 bg-muted rounded-md min-w-full">
+                  <TabsTrigger value="all" className="text-xs lg:text-sm px-3 py-2 whitespace-nowrap flex-shrink-0">
+                    Todos ({prompts.length})
+                  </TabsTrigger>
+                  {niches.slice(0, 5).map((niche) => {
+                    const nicheCount = prompts.filter(p => p.niche === niche).length;
+                    return (
+                      <TabsTrigger key={niche} value={niche} className="text-xs lg:text-sm px-3 py-2 whitespace-nowrap flex-shrink-0">
+                        {niche} ({nicheCount})
+                      </TabsTrigger>
+                    );
+                  })}
+                </TabsList>
+              </div>
             </ScrollArea>
           </div>
 
           <TabsContent value={activeNiche} className="mt-4 lg:mt-6">
             {filteredPrompts.length > 0 ? (
-              <div className="grid gap-3 lg:gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+              <div className="grid gap-3 lg:gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
                 {filteredPrompts.map((prompt) => (
                   <Card key={prompt.id} className="group hover:shadow-md transition-all duration-200 hover:border-primary/50 flex flex-col">
                     <CardHeader className="pb-3 flex-shrink-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <CardTitle className="text-sm lg:text-base truncate">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <CardTitle className="text-sm lg:text-base break-words">
                               {prompt.name}
                             </CardTitle>
                             {prompt.isDefault && (
@@ -221,8 +223,8 @@ export default function Prompts() {
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent className="flex-1 flex flex-col">
-                      <CardDescription className="line-clamp-4 text-xs lg:text-sm leading-relaxed flex-1">
+                    <CardContent className="flex-1 flex flex-col pt-0">
+                      <CardDescription className="line-clamp-4 text-xs lg:text-sm leading-relaxed flex-1 break-words">
                         {prompt.text}
                       </CardDescription>
                       <div className="mt-3 text-xs text-muted-foreground">
