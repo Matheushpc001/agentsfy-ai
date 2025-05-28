@@ -39,20 +39,20 @@ export default function AgentsList({
   );
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="relative w-full sm:w-[280px]">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500 dark:text-gray-400" />
+    <div className="space-y-6">
+      <div className="relative w-full sm:w-[250px]">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
           type="search"
           placeholder="Buscar agentes..."
-          className="w-full pl-8 bg-white/80 dark:bg-gray-900/80 border-gray-200 dark:border-gray-700 focus:border-blue-500 dark:focus:border-blue-400"
+          className="w-full pl-8"
           value={searchTerm}
           onChange={handleSearch}
         />
       </div>
 
       {filteredAgents.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4 lg:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredAgents.map(agent => (
             <AgentCard 
               key={agent.id} 
@@ -65,14 +65,12 @@ export default function AgentsList({
           ))}
         </div>
       ) : (
-        <div className="flex flex-col items-center justify-center h-48 sm:h-64 text-center px-4">
-          <Bot size={48} className="text-gray-400 dark:text-gray-500 mb-4" />
-          <p className="text-gray-600 dark:text-gray-300 mb-2 text-sm sm:text-base">
-            Nenhum agente encontrado.
-          </p>
+        <div className="flex flex-col items-center justify-center h-64">
+          <Bot size={48} className="text-muted-foreground/30 mb-4" />
+          <p className="text-muted-foreground mb-2">Nenhum agente encontrado.</p>
           {searchTerm && (
             <button 
-              className="text-blue-600 dark:text-blue-400 hover:underline text-sm"
+              className="text-primary hover:underline"
               onClick={() => setSearchTerm("")}
             >
               Limpar busca

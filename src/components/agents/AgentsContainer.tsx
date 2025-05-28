@@ -98,85 +98,79 @@ export default function AgentsContainer({
   const billingCycle = currentPlan?.billingCycle === 'annual' ? 'yearly' : 'monthly';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50/80 via-blue-50/40 to-indigo-50/60 dark:from-gray-900/95 dark:via-gray-800/90 dark:to-slate-900/95">
-      <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 space-y-6 lg:space-y-8 max-w-7xl">
-        {/* Header with enhanced styling */}
-        <div className="space-y-4 lg:space-y-6">
-          <AgentHeader
-            totalAgents={totalAgents}
-            agentLimit={agentLimit}
-            connectedAgents={connectedAgents}
-            planName={currentPlan?.name || 'Plano Básico'}
-            billingCycle={billingCycle}
-            onCreateClick={() => handleCreateAgentClick(agentLimit)}
-            onManagePromptsClick={handleOpenPromptsLibrary}
-          />
-        </div>
+    <div className="space-y-6">
+      {/* Header with stats, action buttons and plan info */}
+      <AgentHeader
+        totalAgents={totalAgents}
+        agentLimit={agentLimit}
+        connectedAgents={connectedAgents}
+        planName={currentPlan?.name || 'Plano Básico'}
+        billingCycle={billingCycle}
+        onCreateClick={() => handleCreateAgentClick(agentLimit)}
+        onManagePromptsClick={handleOpenPromptsLibrary}
+      />
 
-        {/* Agents list with better spacing and responsive design */}
-        <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200/80 dark:border-gray-700/80 p-4 sm:p-6">
-          <AgentsList 
-            agents={agents} 
-            onViewAgent={handleViewAgent}
-            onEditAgent={handleEditAgent}
-            onConnectAgent={handleConnectAgent}
-            onTest={handleTestAgent}
-          />
-        </div>
+      {/* Agents list */}
+      <AgentsList 
+        agents={agents} 
+        onViewAgent={handleViewAgent}
+        onEditAgent={handleEditAgent}
+        onConnectAgent={handleConnectAgent}
+        onTest={handleTestAgent}
+      />
 
-        {/* Modals */}
-        <AgentModals
-          isCreateModalOpen={isCreateModalOpen}
-          isEditModalOpen={isEditModalOpen}
-          isWhatsAppModalOpen={isWhatsAppModalOpen}
-          isCustomerPortalModalOpen={isCustomerPortalModalOpen}
-          isPlanLimitModalOpen={isPlanLimitModalOpen}
-          isPromptModalOpen={isPromptModalOpen}
-          isPromptsLibraryModalOpen={isPromptsLibraryModalOpen}
-          currentAgent={currentAgent}
-          currentCustomer={currentCustomer}
-          currentCustomerPortal={currentCustomerPortal}
-          currentPrompt={currentPrompt}
-          customers={customers}
-          prompts={prompts}
-          agentLimit={agentLimit}
-          allNiches={getAllNiches()}
-          onCloseCreateModal={() => setIsCreateModalOpen(false)}
-          onCloseEditModal={() => {
-            setIsEditModalOpen(false);
-            setCurrentAgent(null);
-          }}
-          onCloseWhatsAppModal={() => setIsWhatsAppModalOpen(false)}
-          onCloseCustomerPortalModal={handleClosePortalModal}
-          onClosePlanLimitModal={() => setIsPlanLimitModalOpen(false)}
-          onClosePromptModal={() => setIsPromptModalOpen(false)}
-          onClosePromptsLibraryModal={() => setIsPromptsLibraryModalOpen(false)}
-          onSubmitAgent={handleSubmitAgent}
-          onConnectWhatsApp={handleConnectWhatsApp}
-          onSendEmail={handleSendCredentialsEmail}
-          onSubmitPrompt={(promptData) => {
-            if (currentPrompt) {
-              updatePrompt(currentPrompt.id, promptData);
-            } else {
-              createPrompt(promptData);
-            }
-            setIsPromptModalOpen(false);
-          }}
-          onSelectPrompt={handleSelectPromptForAgent}
-          onEditPrompt={(prompt) => {
-            setCurrentPrompt(prompt);
-            setIsPromptsLibraryModalOpen(false);
-            setIsPromptModalOpen(true);
-          }}
-          onDeletePrompt={deletePrompt}
-          onCreatePrompt={() => {
-            setCurrentPrompt(null);
-            setIsPromptsLibraryModalOpen(false);
-            setIsPromptModalOpen(true);
-          }}
-          selectedPromptForAgent={selectedPromptForAgent}
-        />
-      </div>
+      {/* Modals */}
+      <AgentModals
+        isCreateModalOpen={isCreateModalOpen}
+        isEditModalOpen={isEditModalOpen}
+        isWhatsAppModalOpen={isWhatsAppModalOpen}
+        isCustomerPortalModalOpen={isCustomerPortalModalOpen}
+        isPlanLimitModalOpen={isPlanLimitModalOpen}
+        isPromptModalOpen={isPromptModalOpen}
+        isPromptsLibraryModalOpen={isPromptsLibraryModalOpen}
+        currentAgent={currentAgent}
+        currentCustomer={currentCustomer}
+        currentCustomerPortal={currentCustomerPortal}
+        currentPrompt={currentPrompt}
+        customers={customers}
+        prompts={prompts}
+        agentLimit={agentLimit}
+        allNiches={getAllNiches()}
+        onCloseCreateModal={() => setIsCreateModalOpen(false)}
+        onCloseEditModal={() => {
+          setIsEditModalOpen(false);
+          setCurrentAgent(null);
+        }}
+        onCloseWhatsAppModal={() => setIsWhatsAppModalOpen(false)}
+        onCloseCustomerPortalModal={handleClosePortalModal}
+        onClosePlanLimitModal={() => setIsPlanLimitModalOpen(false)}
+        onClosePromptModal={() => setIsPromptModalOpen(false)}
+        onClosePromptsLibraryModal={() => setIsPromptsLibraryModalOpen(false)}
+        onSubmitAgent={handleSubmitAgent}
+        onConnectWhatsApp={handleConnectWhatsApp}
+        onSendEmail={handleSendCredentialsEmail}
+        onSubmitPrompt={(promptData) => {
+          if (currentPrompt) {
+            updatePrompt(currentPrompt.id, promptData);
+          } else {
+            createPrompt(promptData);
+          }
+          setIsPromptModalOpen(false);
+        }}
+        onSelectPrompt={handleSelectPromptForAgent}
+        onEditPrompt={(prompt) => {
+          setCurrentPrompt(prompt);
+          setIsPromptsLibraryModalOpen(false);
+          setIsPromptModalOpen(true);
+        }}
+        onDeletePrompt={deletePrompt}
+        onCreatePrompt={() => {
+          setCurrentPrompt(null);
+          setIsPromptsLibraryModalOpen(false);
+          setIsPromptModalOpen(true);
+        }}
+        selectedPromptForAgent={selectedPromptForAgent}
+      />
     </div>
   );
 }
