@@ -50,7 +50,7 @@ export function EnhancedStatCard({
             variant === "success" && "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400",
             variant === "warning" && "bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-400",
             variant === "danger" && "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400",
-            variant === "default" && "bg-primary/10 text-primary"
+            variant === "default" && "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400"
           )}>
             {icon}
           </div>
