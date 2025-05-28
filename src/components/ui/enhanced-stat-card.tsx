@@ -1,4 +1,3 @@
-
 import { ReactNode, memo } from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -26,7 +25,7 @@ export const EnhancedStatCard = memo(function EnhancedStatCard({
   variant = "default"
 }: EnhancedStatCardProps) {
   const variantStyles = {
-    default: "border-border bg-white/80 hover:bg-white/90 dark:bg-gray-800/30 dark:hover:bg-gray-800/40 backdrop-blur-sm",
+    default: "border-border bg-white/95 hover:bg-white dark:bg-gray-800/30 dark:hover:bg-gray-800/40 backdrop-blur-sm",
     success: "border-green-200 bg-green-50/80 hover:bg-green-50 dark:border-green-800 dark:bg-green-950/80 dark:hover:bg-green-950/90",
     warning: "border-yellow-200 bg-yellow-50/80 hover:bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/80 dark:hover:bg-yellow-950/90",
     danger: "border-red-200 bg-red-50/80 hover:bg-red-50 dark:border-red-800 dark:bg-red-950/80 dark:hover:bg-red-950/90"
