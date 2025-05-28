@@ -61,29 +61,29 @@ export default function Prompts() {
 
   return (
     <DashboardLayout title="Prompts">
-      <div className="space-y-4 lg:space-y-6 px-4 md:px-0">
+      <div className="space-y-4 lg:space-y-6 px-2 sm:px-4 md:px-0">
         {/* Header */}
-        <div className="flex flex-col space-y-4 lg:flex-row lg:space-y-0 lg:items-center lg:justify-between">
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-2">
-              <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-sm flex-shrink-0">
-                <FileText className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h1 className="text-xl lg:text-2xl font-bold truncate">Biblioteca de Prompts</h1>
-                <p className="text-sm lg:text-base text-muted-foreground">
-                  Gerencie prompts personalizados para seus agentes IA
-                </p>
-              </div>
+        <div className="flex flex-col space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-2">
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-sm flex-shrink-0">
+              <FileText className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
             </div>
-          </div>
-
-          <div className="flex">
-            <Button onClick={() => setIsPromptModalOpen(true)} className="w-full sm:w-auto">
-              <Plus className="mr-2 h-4 w-4" />
-              <span className="hidden sm:inline">Novo Prompt</span>
-              <span className="sm:hidden">Novo</span>
-            </Button>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl lg:text-2xl font-bold">Biblioteca de Prompts</h1>
+              <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1 leading-relaxed">
+                Gerencie prompts personalizados para seus agentes IA
+              </p>
+            </div>
+            <div className="flex-shrink-0 w-full sm:w-auto">
+              <Button 
+                onClick={() => setIsPromptModalOpen(true)} 
+                className="w-full sm:w-auto text-sm px-3 py-2 h-9"
+                size="sm"
+              >
+                <Plus className="mr-1.5 h-4 w-4" />
+                <span>Novo Prompt</span>
+              </Button>
+            </div>
           </div>
         </div>
 
@@ -130,39 +130,40 @@ export default function Prompts() {
         </div>
 
         {/* Search and Filter */}
-        <div className="flex flex-col sm:flex-row gap-3 lg:gap-4">
-          <div className="relative flex-1">
+        <div className="flex flex-col gap-3 lg:gap-4">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar prompts..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 text-sm"
+              className="pl-10 text-sm h-10"
             />
           </div>
-          <div className="flex items-center gap-2 text-xs lg:text-sm text-muted-foreground">
+          <div className="flex items-center gap-2 text-xs lg:text-sm text-muted-foreground px-1">
             <Filter className="h-4 w-4 flex-shrink-0" />
-            <span className="hidden sm:inline">Filtrar por nicho:</span>
-            <span className="sm:hidden">Nicho:</span>
+            <span>Filtrar por nicho:</span>
           </div>
         </div>
 
         {/* Tabs for Niches */}
         <Tabs defaultValue="all" value={activeNiche} onValueChange={setActiveNiche}>
-          <div className="w-full overflow-x-auto">
-            <TabsList className="inline-flex w-max min-w-full h-auto p-1 bg-muted rounded-md">
-              <TabsTrigger value="all" className="text-xs lg:text-sm px-3 py-2 whitespace-nowrap">
-                Todos ({prompts.length})
-              </TabsTrigger>
-              {niches.slice(0, 5).map((niche) => {
-                const nicheCount = prompts.filter(p => p.niche === niche).length;
-                return (
-                  <TabsTrigger key={niche} value={niche} className="text-xs lg:text-sm px-3 py-2 whitespace-nowrap">
-                    {niche} ({nicheCount})
-                  </TabsTrigger>
-                );
-              })}
-            </TabsList>
+          <div className="w-full">
+            <ScrollArea className="w-full">
+              <TabsList className="inline-flex w-max h-auto p-1 bg-muted rounded-md">
+                <TabsTrigger value="all" className="text-xs lg:text-sm px-2 lg:px-3 py-2 whitespace-nowrap">
+                  Todos ({prompts.length})
+                </TabsTrigger>
+                {niches.slice(0, 5).map((niche) => {
+                  const nicheCount = prompts.filter(p => p.niche === niche).length;
+                  return (
+                    <TabsTrigger key={niche} value={niche} className="text-xs lg:text-sm px-2 lg:px-3 py-2 whitespace-nowrap">
+                      {niche} ({nicheCount})
+                    </TabsTrigger>
+                  );
+                })}
+              </TabsList>
+            </ScrollArea>
           </div>
 
           <TabsContent value={activeNiche} className="mt-4 lg:mt-6">
