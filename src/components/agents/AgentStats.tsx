@@ -26,7 +26,7 @@ export default function AgentStats({
       </div>
       
       <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border flex items-center gap-2">
-        <QrCode className="text-green-500 h-5 w-5" />
+        <QrCode className="text-primary h-5 w-5" />
         <div>
           <p className="text-sm text-muted-foreground">Conectados</p>
           <p className="font-medium">
