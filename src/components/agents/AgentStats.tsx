@@ -14,7 +14,7 @@ export default function AgentStats({
   connectedAgents
 }: AgentStatsProps) {
   return (
-    <div className="flex items-center gap-4 w-full md:w-auto">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 w-full">
       <EnhancedStatCard
         title="Agentes"
         value={`${totalAgents} / ${agentLimit}`}
@@ -25,7 +25,7 @@ export default function AgentStats({
           positive: totalAgents < agentLimit
         }}
         variant="default"
-        className="min-w-[160px]"
+        className="min-w-0"
       />
       
       <EnhancedStatCard
@@ -38,7 +38,7 @@ export default function AgentStats({
           positive: true
         }}
         variant="success"
-        className="min-w-[160px]"
+        className="min-w-0"
       />
     </div>
   );

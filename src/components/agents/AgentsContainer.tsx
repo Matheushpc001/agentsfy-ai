@@ -1,3 +1,4 @@
+
 import { Agent, Customer } from "@/types";
 import { Prompt } from "@/types/prompts";
 import { getPlanById } from "@/constants/plans";
@@ -97,21 +98,23 @@ export default function AgentsContainer({
   const billingCycle = currentPlan?.billingCycle === 'annual' ? 'yearly' : 'monthly';
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-blue-50/30 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-      <div className="container mx-auto px-4 py-8 space-y-8 max-w-7xl">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50/80 via-blue-50/40 to-indigo-50/60 dark:from-gray-900/95 dark:via-gray-800/90 dark:to-slate-900/95">
+      <div className="container mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8 space-y-6 lg:space-y-8 max-w-7xl">
         {/* Header with enhanced styling */}
-        <AgentHeader
-          totalAgents={totalAgents}
-          agentLimit={agentLimit}
-          connectedAgents={connectedAgents}
-          planName={currentPlan?.name || 'Plano Básico'}
-          billingCycle={billingCycle}
-          onCreateClick={() => handleCreateAgentClick(agentLimit)}
-          onManagePromptsClick={handleOpenPromptsLibrary}
-        />
+        <div className="space-y-4 lg:space-y-6">
+          <AgentHeader
+            totalAgents={totalAgents}
+            agentLimit={agentLimit}
+            connectedAgents={connectedAgents}
+            planName={currentPlan?.name || 'Plano Básico'}
+            billingCycle={billingCycle}
+            onCreateClick={() => handleCreateAgentClick(agentLimit)}
+            onManagePromptsClick={handleOpenPromptsLibrary}
+          />
+        </div>
 
-        {/* Agents list with better spacing */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+        {/* Agents list with better spacing and responsive design */}
+        <div className="bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200/80 dark:border-gray-700/80 p-4 sm:p-6">
           <AgentsList 
             agents={agents} 
             onViewAgent={handleViewAgent}
