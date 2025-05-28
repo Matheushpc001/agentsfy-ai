@@ -10,19 +10,19 @@ interface StatusIndicatorProps {
 export function StatusIndicator({ status, label, className }: StatusIndicatorProps) {
   const statusConfig = {
     online: {
-      color: "bg-primary",
+      color: "bg-green-500",
       label: label || "Online"
     },
     offline: {
-      color: "bg-muted-foreground",
+      color: "bg-gray-400",
       label: label || "Offline"
     },
     loading: {
-      color: "bg-primary animate-pulse",
+      color: "bg-yellow-500 animate-pulse",
       label: label || "Carregando"
     },
     error: {
-      color: "bg-destructive",
+      color: "bg-red-500",
       label: label || "Erro"
     }
   };
