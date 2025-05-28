@@ -25,7 +25,8 @@ import {
   Search,
   MessageSquareText,
   BookOpen,
-  LogOut
+  LogOut,
+  FileText
 } from "lucide-react";
 import { UserRole, NavItem } from "@/types";
 
@@ -46,6 +47,7 @@ export function AppSidebar() {
     franchisee: [
       { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
       { label: "Agentes", icon: Bot, href: "/franchisee/agents" },
+      { label: "Prompts", icon: FileText, href: "/franchisee/prompts" },
       { label: "Clientes", icon: Store, href: "/franchisee/customers" },
       { label: "Prospecção", icon: Search, href: "/franchisee/prospecting" },
       { label: "Vendedor IA", icon: MessageSquareText, href: "/franchisee/ai-sales-agent" },

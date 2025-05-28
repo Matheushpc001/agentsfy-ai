@@ -10,7 +10,8 @@ import {
   Calendar,
   Search,
   MessageSquareText,
-  BookOpen
+  BookOpen,
+  FileText
 } from "lucide-react";
 import { UserRole, NavItem } from "@/types";
 
@@ -58,6 +59,11 @@ export function SidebarNav({ userRole, isCollapsed, isMobile, onNavigate }: Side
         label: "Agentes", 
         icon: Bot, 
         href: "/franchisee/agents" 
+      },
+      { 
+        label: "Prompts", 
+        icon: FileText, 
+        href: "/franchisee/prompts" 
       },
       { 
         label: "Clientes", 

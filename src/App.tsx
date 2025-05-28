@@ -18,6 +18,7 @@ import Lessons from "./pages/admin/Lessons";
 
 // Franchisee pages
 import Agents from "./pages/franchisee/Agents";
+import Prompts from "./pages/franchisee/Prompts";
 import Customers from "./pages/franchisee/Customers";
 import Schedule from "./pages/franchisee/Schedule";
 import Plans from "./pages/franchisee/Plans";
@@ -74,6 +75,7 @@ const AppRoutes = () => {
 
       {/* Franchisee routes */}
       <Route path="/franchisee/agents" element={<ProtectedRoute element={<Agents />} allowedRoles={["franchisee"]} />} />
+      <Route path="/franchisee/prompts" element={<ProtectedRoute element={<Prompts />} allowedRoles={["franchisee"]} />} />
       <Route path="/franchisee/customers" element={<ProtectedRoute element={<Customers />} allowedRoles={["franchisee"]} />} />
       <Route path="/franchisee/schedule" element={<ProtectedRoute element={<Schedule />} allowedRoles={["franchisee"]} />} />
       <Route path="/franchisee/plans" element={<ProtectedRoute element={<Plans />} allowedRoles={["franchisee"]} />} />
