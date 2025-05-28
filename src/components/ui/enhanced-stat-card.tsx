@@ -1,6 +1,6 @@
 
 import { ReactNode } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface EnhancedStatCardProps {
@@ -13,6 +13,7 @@ interface EnhancedStatCardProps {
     positive: boolean;
   };
   className?: string;
+  variant?: "default" | "success" | "warning" | "danger";
 }
 
 export function EnhancedStatCard({ 
@@ -21,51 +22,59 @@ export function EnhancedStatCard({
   description, 
   icon, 
   trend, 
-  className 
+  className,
+  variant = "default"
 }: EnhancedStatCardProps) {
+  const variantStyles = {
+    default: "border-border",
+    success: "border-border bg-card",
+    warning: "border-border bg-card",
+    danger: "border-border bg-card"
+  };
+
   return (
     <Card className={cn(
-      "overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.02] group",
+      "transition-all duration-200 hover:shadow-md hover:-translate-y-1",
+      variantStyles[variant],
       className
     )}>
-      <CardHeader className="flex flex-row items-center justify-between pb-2 space-y-0">
-        <CardTitle className="text-sm font-medium text-muted-foreground transition-colors duration-300 group-hover:text-foreground">
-          {title}
-        </CardTitle>
+      <CardHeader className="flex flex-row items-center justify-between pb-3 space-y-0">
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-muted-foreground leading-none">
+            {title}
+          </p>
+        </div>
         {icon && (
-          <div className="text-primary transition-transform duration-300 group-hover:scale-110">
+          <div className="p-2 rounded-lg bg-primary/10 text-primary">
             {icon}
           </div>
         )}
       </CardHeader>
-      <CardContent>
-        <div className="text-2xl font-bold transition-colors duration-300 group-hover:text-primary">
-          {value}
-        </div>
-        {(description || trend) && (
-          <div className="flex items-center text-xs mt-1 space-x-1">
+      <CardContent className="pt-0">
+        <div className="space-y-2">
+          <div className="text-2xl font-bold tracking-tight">{value}</div>
+          
+          <div className="flex items-center gap-2 text-xs">
             {trend && (
               <span
                 className={cn(
-                  "inline-flex items-center font-medium transition-all duration-300",
+                  "inline-flex items-center gap-1 font-medium px-2 py-1 rounded-full",
                   trend.positive 
-                    ? "text-emerald-500 group-hover:text-emerald-600" 
-                    : "text-rose-500 group-hover:text-rose-600"
+                    ? "text-primary bg-primary/10" 
+                    : "text-muted-foreground bg-muted"
                 )}
               >
-                <span className="transition-transform duration-300 group-hover:scale-110">
-                  {trend.positive ? "↑" : "↓"}
+                <span className="text-xs">
+                  {trend.positive ? "↗" : "↘"}
                 </span>
-                <span className="ml-0.5">{Math.abs(trend.value)}%</span>
+                {Math.abs(trend.value)}%
               </span>
             )}
             {description && (
-              <span className="text-muted-foreground transition-colors duration-300 group-hover:text-foreground/80">
-                {description}
-              </span>
+              <span className="text-muted-foreground">{description}</span>
             )}
           </div>
-        )}
+        </div>
       </CardContent>
     </Card>
   );

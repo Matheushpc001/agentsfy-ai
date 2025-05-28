@@ -1,8 +1,8 @@
 
-import { EnhancedStatCard } from "@/components/ui/enhanced-stat-card";
-import { StatCardSkeleton } from "@/components/ui/stat-card-skeleton";
 import { MessageCircle, Bot, Clock, Zap } from "lucide-react";
 import { Analytics } from "@/types";
+import { EnhancedStatCard } from "@/components/ui/enhanced-stat-card";
+import { StatCardSkeleton } from "@/components/ui/enhanced-skeleton";
 
 interface DashboardMainStatsProps {
   analytics: Analytics;
@@ -29,14 +29,16 @@ export function DashboardMainStats({ analytics, isLoadingResults }: DashboardMai
             trend={{
               value: 12,
               positive: true
-            }} 
+            }}
+            variant="default"
           />
           
           <EnhancedStatCard 
             title="Agentes Ativos" 
             value={`${analytics.activeAgents}/${analytics.totalAgents}`} 
             description="Agentes conectados" 
-            icon={<Bot size={20} />} 
+            icon={<Bot size={20} />}
+            variant="success"
           />
           
           <EnhancedStatCard 
@@ -47,14 +49,16 @@ export function DashboardMainStats({ analytics, isLoadingResults }: DashboardMai
             trend={{
               value: 5,
               positive: true
-            }} 
+            }}
+            variant="warning"
           />
           
           <EnhancedStatCard 
             title="Tokens Usados" 
             value={analytics.tokensUsed.toLocaleString()} 
             description="Últimos 30 dias" 
-            icon={<Zap size={20} />} 
+            icon={<Zap size={20} />}
+            variant="default"
           />
         </>
       )}
