@@ -112,7 +112,7 @@ export default function AgentHeader({
           planName={planName}
           billingCycle={billingCycle}
           agentsUsed={totalAgents}
-          agentsLimit={agentLimit}
+          agentLimit={agentLimit}
         />
       </div>
     </div>
