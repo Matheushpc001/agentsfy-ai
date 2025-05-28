@@ -24,56 +24,69 @@ export default function AgentHeader({
   onManagePromptsClick
 }: AgentHeaderProps) {
   return (
-    <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-      <div className="flex-1">
-        <h1 className="text-2xl font-bold">Agentes</h1>
-        <p className="text-muted-foreground mt-1">
-          Gerencie os agentes IA e suas conexões WhatsApp
-        </p>
-      </div>
+    <div className="space-y-4">
+      <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold">Agentes</h1>
+          <p className="text-muted-foreground mt-1">
+            Gerencie os agentes IA e suas conexões WhatsApp
+          </p>
+        </div>
 
-      <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-        <AgentStats 
-          totalAgents={totalAgents} 
-          connectedAgents={connectedAgents} 
-          agentLimit={agentLimit} 
-        />
-        
-        <div className="flex gap-3">
-          {onManagePromptsClick && (
-            <Button 
-              variant="outline" 
-              className="flex-1 md:flex-none whitespace-nowrap"
-              onClick={onManagePromptsClick}
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="mr-1 h-4 w-4"
-              >
-                <path d="M3 3m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"></path>
-                <path d="M8 10v11"></path>
-                <path d="M12 12v9"></path>
-                <path d="M16 10v11"></path>
-                <path d="M3 10h18"></path>
-              </svg>
-              Prompts
-            </Button>
-          )}
+        <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
+          <AgentStats 
+            totalAgents={totalAgents} 
+            connectedAgents={connectedAgents} 
+            agentLimit={agentLimit} 
+          />
           
-          <Button onClick={onCreateClick} className="flex-1 md:flex-none">
-            <PlusCircle className="mr-1 h-4 w-4" />
-            Novo Agente
-          </Button>
+          <div className="flex gap-3">
+            {onManagePromptsClick && (
+              <Button 
+                variant="outline" 
+                className="flex-1 md:flex-none whitespace-nowrap"
+                onClick={onManagePromptsClick}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="mr-1 h-4 w-4"
+                >
+                  <path d="M3 3m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z"></path>
+                  <path d="M8 10v11"></path>
+                  <path d="M12 12v9"></path>
+                  <path d="M16 10v11"></path>
+                  <path d="M3 10h18"></path>
+                </svg>
+                Prompts
+              </Button>
+            )}
+            
+            <Button onClick={onCreateClick} className="flex-1 md:flex-none">
+              <PlusCircle className="mr-1 h-4 w-4" />
+              Novo Agente
+            </Button>
+          </div>
         </div>
       </div>
       
-      <div className="hidden xl:block ml-4">
+      {/* Plan info - compact version for mobile, full version for desktop */}
+      <div className="xl:hidden">
+        <PlanInfoCard 
+          planName={planName} 
+          billingCycle={billingCycle}
+          agentLimit={agentLimit}
+          totalAgents={totalAgents}
+          compact={true}
+        />
+      </div>
+      
+      <div className="hidden xl:block">
         <PlanInfoCard 
           planName={planName} 
           billingCycle={billingCycle}
