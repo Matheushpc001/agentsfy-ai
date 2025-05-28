@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Settings, TrendingUp } from "lucide-react";
@@ -7,7 +6,7 @@ interface PlanInfoCardProps {
   planName: string;
   agentLimit: number;
   billingCycle: string;
-  totalAgents: number;
+  agentsUsed: number;
   compact?: boolean;
 }
 
@@ -15,11 +14,11 @@ export default function PlanInfoCard({
   planName,
   agentLimit,
   billingCycle,
-  totalAgents,
+  agentsUsed,
   compact = false
 }: PlanInfoCardProps) {
   const navigate = useNavigate();
-  const usagePercentage = (totalAgents / agentLimit) * 100;
+  const usagePercentage = (agentsUsed / agentLimit) * 100;
   
   // Define colors based on usage percentage
   const getProgressColor = () => {
@@ -34,7 +33,7 @@ export default function PlanInfoCard({
         <div className="min-w-0 flex-1">
           <h3 className="font-semibold text-sm truncate text-gray-900 dark:text-gray-100">{planName}</h3>
           <div className="flex justify-between text-xs mb-2 text-gray-600 dark:text-gray-400">
-            <span className="font-medium">{totalAgents} agentes</span>
+            <span className="font-medium">{agentsUsed} agentes</span>
             <span>{agentLimit} total</span>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
@@ -69,7 +68,7 @@ export default function PlanInfoCard({
         </p>
         <div className="w-full sm:max-w-xs">
           <div className="flex justify-between text-xs mb-2 text-gray-600 dark:text-gray-400">
-            <span className="font-medium">{totalAgents} agentes usados</span>
+            <span className="font-medium">{agentsUsed} agentes usados</span>
             <span className="font-medium">{agentLimit} total</span>
           </div>
           <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3 overflow-hidden shadow-inner">
