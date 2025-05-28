@@ -26,7 +26,7 @@ export function EnhancedStatCard({
   variant = "default"
 }: EnhancedStatCardProps) {
   const variantStyles = {
-    default: "border-border bg-card",
+    default: "border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800/50",
     success: "border-green-200 bg-green-50/80 dark:border-green-800 dark:bg-green-950/80",
     warning: "border-yellow-200 bg-yellow-50/80 dark:border-yellow-800 dark:bg-yellow-950/80",
     danger: "border-red-200 bg-red-50/80 dark:border-red-800 dark:bg-red-950/80"
@@ -50,7 +50,7 @@ export function EnhancedStatCard({
             variant === "success" && "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400",
             variant === "warning" && "bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-400",
             variant === "danger" && "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400",
-            variant === "default" && "bg-blue-50 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400"
+            variant === "default" && "bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400"
           )}>
             {icon}
           </div>
