@@ -18,12 +18,19 @@ export function DashboardSection({
   headerAction 
 }: DashboardSectionProps) {
   return (
-    <section className={cn("space-y-4", className)}>
+    <section className={cn(
+      "space-y-4 animate-fade-in",
+      className
+    )}>
       <div className="flex items-center justify-between">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
+          <h2 className="text-xl font-semibold tracking-tight text-foreground">
+            {title}
+          </h2>
           {description && (
-            <p className="text-sm text-muted-foreground">{description}</p>
+            <p className="text-sm text-muted-foreground">
+              {description}
+            </p>
           )}
         </div>
         {headerAction && (
@@ -32,7 +39,9 @@ export function DashboardSection({
           </div>
         )}
       </div>
-      {children}
+      <div className="animate-slide-in-right">
+        {children}
+      </div>
     </section>
   );
 }
