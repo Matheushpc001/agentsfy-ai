@@ -64,125 +64,140 @@ export default function PromptsManagementModal({
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className={`
-        ${isMobile ? 'w-[95vw] h-[90vh] max-w-none' : 'w-full max-w-6xl h-[85vh]'} 
-        p-0 overflow-hidden
+        ${isMobile 
+          ? 'w-[95vw] h-[95vh] max-w-none max-h-[95vh] m-2' 
+          : 'w-full max-w-6xl h-[90vh] max-h-[90vh]'
+        } 
+        p-0 overflow-hidden fixed top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2
       `}>
         <div className="flex flex-col h-full">
-          <DialogHeader className="px-6 py-4 border-b flex-shrink-0">
-            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              Biblioteca de Prompts
-            </DialogTitle>
-            <p className="text-sm text-muted-foreground mt-1">
-              Gerencie prompts personalizados para seus agentes IA
-            </p>
-          </DialogHeader>
+          {/* Fixed Header */}
+          <div className="flex-shrink-0 px-4 sm:px-6 py-4 border-b bg-background">
+            <DialogHeader>
+              <DialogTitle className="text-lg sm:text-xl font-semibold flex items-center gap-2">
+                <FileText className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                Biblioteca de Prompts
+              </DialogTitle>
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                Gerencie prompts personalizados para seus agentes IA
+              </p>
+            </DialogHeader>
+          </div>
           
+          {/* Scrollable Content */}
           <div className="flex-1 overflow-hidden">
-            {/* Stats Cards */}
-            <div className="px-6 py-4 border-b bg-muted/30 flex-shrink-0">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800/30">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xs font-medium text-blue-700 dark:text-blue-300">
-                      Total de Prompts
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="text-lg font-bold text-blue-900 dark:text-blue-100">
-                      {prompts.length}
-                    </div>
-                  </CardContent>
-                </Card>
+            <ScrollArea className="h-full">
+              <div className="space-y-4 pb-6">
+                {/* Stats Cards */}
+                <div className="px-4 sm:px-6 py-4 bg-muted/30">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+                    <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800/30">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                          Total de Prompts
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="text-lg font-bold text-blue-900 dark:text-blue-100">
+                          {prompts.length}
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800/30">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xs font-medium text-green-700 dark:text-green-300">
-                      Nichos Disponíveis
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="text-lg font-bold text-green-900 dark:text-green-100">
-                      {allNiches.length}
-                    </div>
-                  </CardContent>
-                </Card>
+                    <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800/30">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xs font-medium text-green-700 dark:text-green-300">
+                          Nichos Disponíveis
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="text-lg font-bold text-green-900 dark:text-green-100">
+                          {allNiches.length}
+                        </div>
+                      </CardContent>
+                    </Card>
 
-                <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800/30">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-xs font-medium text-purple-700 dark:text-purple-300">
-                      Prompts Padrão
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="text-lg font-bold text-purple-900 dark:text-purple-100">
-                      {prompts.filter(p => p.isDefault).length}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-
-            {/* Search and Actions */}
-            <div className="px-6 py-4 border-b bg-muted/30 flex-shrink-0">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
-                  <Input
-                    placeholder="Buscar prompts..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10 text-base h-10 bg-background border-input"
-                  />
-                </div>
-                <Button onClick={onCreatePrompt} className="sm:w-auto w-full">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Novo Prompt
-                </Button>
-              </div>
-              
-              <div className="flex items-center gap-2 text-sm text-muted-foreground px-1 mt-3">
-                <Filter className="h-4 w-4 flex-shrink-0" />
-                <span>Filtrar por nicho:</span>
-              </div>
-            </div>
-
-            {/* Tabs and Content */}
-            <Tabs defaultValue="all" value={activeNiche} onValueChange={setActiveNiche} className="flex-1 flex flex-col overflow-hidden">
-              <div className="px-6 py-3 border-b flex-shrink-0">
-                <ScrollArea className="w-full">
-                  <div className="pb-2">
-                    <TabsList className="inline-flex h-10 p-1 bg-muted rounded-md">
-                      <TabsTrigger 
-                        value="all" 
-                        className="text-sm px-3 py-2 whitespace-nowrap flex-shrink-0 font-medium"
-                      >
-                        Todos ({prompts.length})
-                      </TabsTrigger>
-                      {allNiches.map((niche) => {
-                        const nicheCount = prompts.filter(p => p.niche === niche).length;
-                        return (
-                          <TabsTrigger 
-                            key={niche} 
-                            value={niche} 
-                            className="text-sm px-3 py-2 whitespace-nowrap flex-shrink-0 font-medium"
-                          >
-                            <span className="max-w-[120px] truncate">
-                              {niche}
-                            </span>
-                            <span className="ml-1">({nicheCount})</span>
-                          </TabsTrigger>
-                        );
-                      })}
-                    </TabsList>
+                    <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800/30">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-xs font-medium text-purple-700 dark:text-purple-300">
+                          Prompts Padrão
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="text-lg font-bold text-purple-900 dark:text-purple-100">
+                          {prompts.filter(p => p.isDefault).length}
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
-                </ScrollArea>
-              </div>
+                </div>
 
-              <div className="flex-1 overflow-hidden">
-                <TabsContent value={activeNiche} className="h-full mt-0 data-[state=active]:flex data-[state=active]:flex-col">
-                  <ScrollArea className="flex-1">
-                    <div className="px-6 py-4">
+                {/* Search and Actions */}
+                <div className="px-4 sm:px-6 space-y-4">
+                  <div className="flex flex-col gap-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground z-10" />
+                      <Input
+                        placeholder="Buscar prompts..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="pl-10 text-base h-10 bg-background border-input"
+                      />
+                    </div>
+                    <Button onClick={onCreatePrompt} className="w-full sm:w-auto sm:self-start">
+                      <Plus className="mr-2 h-4 w-4" />
+                      Novo Prompt
+                    </Button>
+                  </div>
+                  
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground px-1">
+                    <Filter className="h-4 w-4 flex-shrink-0" />
+                    <span>Filtrar por nicho:</span>
+                  </div>
+                </div>
+
+                {/* Tabs and Content */}
+                <div className="px-4 sm:px-6">
+                  <Tabs defaultValue="all" value={activeNiche} onValueChange={setActiveNiche}>
+                    {/* Tabs Navigation */}
+                    <div className="mb-6">
+                      <ScrollArea className="w-full">
+                        <div className="pb-2">
+                          <TabsList className="inline-flex h-auto p-1 bg-muted rounded-md gap-1">
+                            <TabsTrigger 
+                              value="all" 
+                              className={`
+                                text-xs sm:text-sm px-3 py-2 whitespace-nowrap flex-shrink-0 font-medium
+                                ${isMobile ? 'h-9' : 'h-8'}
+                              `}
+                            >
+                              Todos ({prompts.length})
+                            </TabsTrigger>
+                            {allNiches.map((niche) => {
+                              const nicheCount = prompts.filter(p => p.niche === niche).length;
+                              return (
+                                <TabsTrigger 
+                                  key={niche} 
+                                  value={niche} 
+                                  className={`
+                                    text-xs sm:text-sm px-3 py-2 whitespace-nowrap flex-shrink-0 font-medium
+                                    ${isMobile ? 'h-9' : 'h-8'}
+                                  `}
+                                >
+                                  <span className="max-w-[100px] sm:max-w-[120px] truncate">
+                                    {niche}
+                                  </span>
+                                  <span className="ml-1">({nicheCount})</span>
+                                </TabsTrigger>
+                              );
+                            })}
+                          </TabsList>
+                        </div>
+                      </ScrollArea>
+                    </div>
+
+                    {/* Tabs Content */}
+                    <TabsContent value={activeNiche}>
                       {filteredPrompts.length > 0 ? (
                         <div className={`
                           grid gap-4 
@@ -195,7 +210,7 @@ export default function PromptsManagementModal({
                                   <div className="flex-1 min-w-0">
                                     <div className="space-y-3">
                                       <div className="flex items-start gap-3 flex-wrap">
-                                        <CardTitle className="text-base font-semibold break-words leading-tight min-w-0 flex-1">
+                                        <CardTitle className="text-sm sm:text-base font-semibold break-words leading-tight min-w-0 flex-1">
                                           {prompt.name}
                                         </CardTitle>
                                         {prompt.isDefault && (
@@ -211,11 +226,7 @@ export default function PromptsManagementModal({
                                     </div>
                                   </div>
                                   
-                                  <div className={`
-                                    flex items-center gap-1 flex-shrink-0
-                                    ${isMobile ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}
-                                    transition-opacity duration-200
-                                  `}>
+                                  <div className="flex items-center gap-1 flex-shrink-0 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity duration-200">
                                     <Button 
                                       variant="ghost" 
                                       size="sm" 
@@ -287,11 +298,11 @@ export default function PromptsManagementModal({
                           </Button>
                         </div>
                       )}
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
+                    </TabsContent>
+                  </Tabs>
+                </div>
               </div>
-            </Tabs>
+            </ScrollArea>
           </div>
         </div>
       </DialogContent>
