@@ -83,27 +83,27 @@ export function AppSidebar() {
   };
 
   return (
-    <Sidebar className="border-r border-sidebar-border bg-sidebar text-sidebar-foreground" translate="no">
-      <SidebarHeader className="bg-sidebar">
+    <Sidebar className="border-r border-border bg-background" translate="no">
+      <SidebarHeader>
         <div className="flex items-center gap-3 px-2 py-2">
           <Avatar className="w-9 h-9">
             <AvatarImage src="https://github.com/shadcn.png" alt="Avatar" />
             <AvatarFallback>{user.name.charAt(0).toUpperCase()}</AvatarFallback>
           </Avatar>
           <div className="flex-1 min-w-0">
-            <p className="font-medium text-sm truncate text-sidebar-foreground">{user.name}</p>
-            <p className="text-xs text-sidebar-foreground/70 truncate">{user.email}</p>
-            <span className="text-xs px-1.5 py-0.5 bg-sidebar-primary/10 text-sidebar-primary rounded-full inline-block mt-1">
+            <p className="font-medium text-sm truncate">{user.name}</p>
+            <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+            <span className="text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full inline-block mt-1">
               {getRoleDisplay()}
             </span>
           </div>
         </div>
-        <SidebarSeparator className="bg-sidebar-border" />
+        <SidebarSeparator />
       </SidebarHeader>
 
-      <SidebarContent className="bg-sidebar">
+      <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/70">Menu Principal</SidebarGroupLabel>
+          <SidebarGroupLabel>Menu Principal</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {NAV_ITEMS[user.role].map((item) => {
@@ -113,7 +113,7 @@ export function AppSidebar() {
                     <SidebarMenuButton 
                       onClick={() => handleNavigate(item.href)}
                       tooltip={item.label}
-                      className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                      className="w-full justify-start"
                     >
                       <Icon className="h-4 w-4" />
                       <span>{item.label}</span>
@@ -126,7 +126,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="bg-sidebar">
+      <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton 

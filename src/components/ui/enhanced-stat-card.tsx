@@ -26,10 +26,10 @@ export function EnhancedStatCard({
   variant = "default"
 }: EnhancedStatCardProps) {
   const variantStyles = {
-    default: "border-border bg-card/50 backdrop-blur-sm",
-    success: "border-border bg-emerald-50/50 dark:bg-emerald-950/20 backdrop-blur-sm",
-    warning: "border-border bg-amber-50/50 dark:bg-amber-950/20 backdrop-blur-sm",
-    danger: "border-border bg-rose-50/50 dark:bg-rose-950/20 backdrop-blur-sm"
+    default: "border-border",
+    success: "border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-950/50",
+    warning: "border-yellow-200 bg-yellow-50/50 dark:border-yellow-800 dark:bg-yellow-950/50",
+    danger: "border-red-200 bg-red-50/50 dark:border-red-800 dark:bg-red-950/50"
   };
 
   return (
@@ -45,7 +45,13 @@ export function EnhancedStatCard({
           </p>
         </div>
         {icon && (
-          <div className="p-2 rounded-lg bg-primary/10 text-primary">
+          <div className={cn(
+            "p-2 rounded-lg",
+            variant === "success" && "bg-green-100 text-green-600 dark:bg-green-900 dark:text-green-400",
+            variant === "warning" && "bg-yellow-100 text-yellow-600 dark:bg-yellow-900 dark:text-yellow-400",
+            variant === "danger" && "bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-400",
+            variant === "default" && "bg-primary/10 text-primary"
+          )}>
             {icon}
           </div>
         )}
@@ -60,8 +66,8 @@ export function EnhancedStatCard({
                 className={cn(
                   "inline-flex items-center gap-1 font-medium px-2 py-1 rounded-full",
                   trend.positive 
-                    ? "text-primary bg-primary/10" 
-                    : "text-muted-foreground bg-muted"
+                    ? "text-green-700 bg-green-100 dark:text-green-400 dark:bg-green-900/50" 
+                    : "text-red-700 bg-red-100 dark:text-red-400 dark:bg-red-900/50"
                 )}
               >
                 <span className="text-xs">
