@@ -26,10 +26,10 @@ export function EnhancedStatCard({
   variant = "default"
 }: EnhancedStatCardProps) {
   const variantStyles = {
-    default: "border-border",
-    success: "border-border bg-card",
-    warning: "border-border bg-card",
-    danger: "border-border bg-card"
+    default: "border-border bg-card/50 backdrop-blur-sm",
+    success: "border-border bg-emerald-50/50 dark:bg-emerald-950/20 backdrop-blur-sm",
+    warning: "border-border bg-amber-50/50 dark:bg-amber-950/20 backdrop-blur-sm",
+    danger: "border-border bg-rose-50/50 dark:bg-rose-950/20 backdrop-blur-sm"
   };
 
   return (
