@@ -78,9 +78,17 @@ export default function AgentsContainer({
   // State for prompts library modal
   const [isPromptsLibraryModalOpen, setIsPromptsLibraryModalOpen] = useState(false);
   
+  // State for prompts management modal
+  const [isPromptsManagementModalOpen, setIsPromptsManagementModalOpen] = useState(false);
+  
   // Handle prompt library modal
   const handleOpenPromptsLibrary = () => {
     setIsPromptsLibraryModalOpen(true);
+  };
+  
+  // Handle prompts management modal
+  const handleOpenPromptsManagement = () => {
+    setIsPromptsManagementModalOpen(true);
   };
   
   // Handle prompt selection for agent
@@ -107,7 +115,7 @@ export default function AgentsContainer({
         planName={currentPlan?.name || 'Plano Básico'}
         billingCycle={billingCycle}
         onCreateClick={() => handleCreateAgentClick(agentLimit)}
-        onManagePromptsClick={handleOpenPromptsLibrary}
+        onManagePromptsClick={handleOpenPromptsManagement}
       />
 
       {/* Agents list */}
@@ -128,6 +136,7 @@ export default function AgentsContainer({
         isPlanLimitModalOpen={isPlanLimitModalOpen}
         isPromptModalOpen={isPromptModalOpen}
         isPromptsLibraryModalOpen={isPromptsLibraryModalOpen}
+        isPromptsManagementModalOpen={isPromptsManagementModalOpen}
         currentAgent={currentAgent}
         currentCustomer={currentCustomer}
         currentCustomerPortal={currentCustomerPortal}
@@ -146,6 +155,7 @@ export default function AgentsContainer({
         onClosePlanLimitModal={() => setIsPlanLimitModalOpen(false)}
         onClosePromptModal={() => setIsPromptModalOpen(false)}
         onClosePromptsLibraryModal={() => setIsPromptsLibraryModalOpen(false)}
+        onClosePromptsManagementModal={() => setIsPromptsManagementModalOpen(false)}
         onSubmitAgent={handleSubmitAgent}
         onConnectWhatsApp={handleConnectWhatsApp}
         onSendEmail={handleSendCredentialsEmail}
@@ -160,13 +170,13 @@ export default function AgentsContainer({
         onSelectPrompt={handleSelectPromptForAgent}
         onEditPrompt={(prompt) => {
           setCurrentPrompt(prompt);
-          setIsPromptsLibraryModalOpen(false);
+          setIsPromptsManagementModalOpen(false);
           setIsPromptModalOpen(true);
         }}
         onDeletePrompt={deletePrompt}
         onCreatePrompt={() => {
           setCurrentPrompt(null);
-          setIsPromptsLibraryModalOpen(false);
+          setIsPromptsManagementModalOpen(false);
           setIsPromptModalOpen(true);
         }}
         selectedPromptForAgent={selectedPromptForAgent}

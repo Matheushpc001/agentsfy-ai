@@ -7,6 +7,7 @@ import CustomerPortalModal from "@/components/agents/CustomerPortalModal";
 import PlanLimitModal from "@/components/agents/PlanLimitModal";
 import PromptModal from "@/components/agents/PromptModal";
 import PromptsLibraryModal from "@/components/agents/PromptsLibraryModal";
+import PromptsManagementModal from "@/components/agents/PromptsManagementModal";
 
 interface AgentModalsProps {
   isCreateModalOpen: boolean;
@@ -16,6 +17,7 @@ interface AgentModalsProps {
   isPlanLimitModalOpen: boolean;
   isPromptModalOpen: boolean;
   isPromptsLibraryModalOpen: boolean;
+  isPromptsManagementModalOpen: boolean;
   currentAgent: Agent | null;
   currentCustomer: Customer | null;
   currentCustomerPortal: CustomerPortalAccess | null;
@@ -31,6 +33,7 @@ interface AgentModalsProps {
   onClosePlanLimitModal: () => void;
   onClosePromptModal: () => void;
   onClosePromptsLibraryModal: () => void;
+  onClosePromptsManagementModal: () => void;
   onSubmitAgent: (agentData: Partial<Agent>, customerData?: Partial<Customer>, isNewCustomer?: boolean) => void;
   onConnectWhatsApp: () => void;
   onSendEmail: () => void;
@@ -50,6 +53,7 @@ export default function AgentModals({
   isPlanLimitModalOpen,
   isPromptModalOpen,
   isPromptsLibraryModalOpen,
+  isPromptsManagementModalOpen,
   currentAgent,
   currentCustomer,
   currentCustomerPortal,
@@ -65,6 +69,7 @@ export default function AgentModals({
   onClosePlanLimitModal,
   onClosePromptModal,
   onClosePromptsLibraryModal,
+  onClosePromptsManagementModal,
   onSubmitAgent,
   onConnectWhatsApp,
   onSendEmail,
@@ -134,6 +139,16 @@ export default function AgentModals({
         onDelete={onDeletePrompt}
         onCreateNew={onCreatePrompt}
         niches={allNiches}
+      />
+
+      <PromptsManagementModal
+        isOpen={isPromptsManagementModalOpen}
+        onClose={onClosePromptsManagementModal}
+        prompts={prompts}
+        onCreatePrompt={onCreatePrompt}
+        onEditPrompt={onEditPrompt}
+        onDeletePrompt={onDeletePrompt}
+        allNiches={allNiches}
       />
     </>
   );
