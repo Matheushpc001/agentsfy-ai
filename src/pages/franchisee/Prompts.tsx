@@ -52,7 +52,7 @@ export default function Prompts() {
 
   const handleCopyPrompt = (text: string, name: string) => {
     navigator.clipboard.writeText(text);
-    toast.success(`Prompt "${name}" copiado para a área de transferência!`);
+    toast.success(`Prompt "${name}" copiado!`);
   };
 
   const handleDeletePrompt = (id: string, name: string) => {
@@ -62,16 +62,16 @@ export default function Prompts() {
   return (
     <DashboardLayout title="Prompts">
       <div className="w-full max-w-full overflow-hidden">
-        <div className="space-y-4 lg:space-y-6 px-3 sm:px-4 lg:px-6">
+        <div className="space-y-3 sm:space-y-4 lg:space-y-6">
           {/* Header */}
-          <div className="flex flex-col space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-2">
+          <div className="flex flex-col space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-start gap-3">
               <div className="p-2 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg shadow-sm flex-shrink-0">
                 <FileText className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold">Biblioteca de Prompts</h1>
-                <p className="text-xs sm:text-sm lg:text-base text-muted-foreground mt-1 leading-relaxed">
+                <h1 className="text-lg sm:text-xl lg:text-2xl font-bold break-words">Biblioteca de Prompts</h1>
+                <p className="text-sm lg:text-base text-muted-foreground mt-1 leading-relaxed">
                   Gerencie prompts personalizados para seus agentes IA
                 </p>
               </div>
@@ -89,10 +89,10 @@ export default function Prompts() {
           </div>
 
           {/* Stats Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800/30">
-              <CardHeader className="pb-2 lg:pb-3">
-                <CardTitle className="text-xs lg:text-sm font-medium text-blue-700 dark:text-blue-300">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-blue-700 dark:text-blue-300">
                   Total de Prompts
                 </CardTitle>
               </CardHeader>
@@ -104,8 +104,8 @@ export default function Prompts() {
             </Card>
 
             <Card className="bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-900/20 dark:to-emerald-900/20 border-green-200 dark:border-green-800/30">
-              <CardHeader className="pb-2 lg:pb-3">
-                <CardTitle className="text-xs lg:text-sm font-medium text-green-700 dark:text-green-300">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-green-700 dark:text-green-300">
                   Nichos Disponíveis
                 </CardTitle>
               </CardHeader>
@@ -117,8 +117,8 @@ export default function Prompts() {
             </Card>
 
             <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 border-purple-200 dark:border-purple-800/30 sm:col-span-2 lg:col-span-1">
-              <CardHeader className="pb-2 lg:pb-3">
-                <CardTitle className="text-xs lg:text-sm font-medium text-purple-700 dark:text-purple-300">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-purple-700 dark:text-purple-300">
                   Prompts Padrão
                 </CardTitle>
               </CardHeader>
@@ -131,7 +131,7 @@ export default function Prompts() {
           </div>
 
           {/* Search and Filter */}
-          <div className="flex flex-col gap-3 lg:gap-4">
+          <div className="flex flex-col gap-3">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -141,7 +141,7 @@ export default function Prompts() {
                 className="pl-10 text-sm h-10"
               />
             </div>
-            <div className="flex items-center gap-2 text-xs lg:text-sm text-muted-foreground px-1">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Filter className="h-4 w-4 flex-shrink-0" />
               <span>Filtrar por nicho:</span>
             </div>
@@ -149,25 +149,25 @@ export default function Prompts() {
 
           {/* Tabs for Niches - Mobile Optimized */}
           <Tabs defaultValue="all" value={activeNiche} onValueChange={setActiveNiche}>
-            <div className="w-full">
+            <div className="w-full overflow-hidden">
               <ScrollArea className="w-full">
-                <div className="min-w-max">
+                <div className="pb-2">
                   <TabsList className="flex w-max h-auto p-1 bg-muted rounded-md gap-1">
                     <TabsTrigger 
                       value="all" 
-                      className="text-xs px-2 py-1.5 whitespace-nowrap flex-shrink-0 min-w-0"
+                      className="text-xs px-3 py-2 whitespace-nowrap flex-shrink-0"
                     >
-                      <span className="truncate">Todos ({prompts.length})</span>
+                      Todos ({prompts.length})
                     </TabsTrigger>
-                    {niches.slice(0, 4).map((niche) => {
+                    {niches.map((niche) => {
                       const nicheCount = prompts.filter(p => p.niche === niche).length;
                       return (
                         <TabsTrigger 
                           key={niche} 
                           value={niche} 
-                          className="text-xs px-2 py-1.5 whitespace-nowrap flex-shrink-0 min-w-0"
+                          className="text-xs px-3 py-2 whitespace-nowrap flex-shrink-0"
                         >
-                          <span className="truncate max-w-20">{niche}</span>
+                          <span className="max-w-[80px] truncate">{niche}</span>
                           <span className="ml-1">({nicheCount})</span>
                         </TabsTrigger>
                       );
@@ -177,17 +177,17 @@ export default function Prompts() {
               </ScrollArea>
             </div>
 
-            <TabsContent value={activeNiche} className="mt-4 lg:mt-6">
+            <TabsContent value={activeNiche} className="mt-4">
               {filteredPrompts.length > 0 ? (
-                <div className="grid gap-3 lg:gap-4 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
+                <div className="grid gap-3 grid-cols-1 lg:grid-cols-2 xl:grid-cols-3">
                   {filteredPrompts.map((prompt) => (
-                    <Card key={prompt.id} className="group hover:shadow-md transition-all duration-200 hover:border-primary/50 flex flex-col w-full min-w-0">
+                    <Card key={prompt.id} className="group hover:shadow-md transition-all duration-200 hover:border-primary/50 flex flex-col w-full">
                       <CardHeader className="pb-3 flex-shrink-0">
-                        <div className="flex items-start justify-between gap-2 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
                           <div className="flex-1 min-w-0">
                             <div className="flex flex-col gap-2 mb-1">
-                              <div className="flex items-center gap-2 flex-wrap min-w-0">
-                                <CardTitle className="text-sm lg:text-base break-words hyphens-auto min-w-0 flex-1">
+                              <div className="flex items-start gap-2 flex-wrap">
+                                <CardTitle className="text-sm lg:text-base break-words leading-tight min-w-0 flex-1">
                                   {prompt.name}
                                 </CardTitle>
                                 {prompt.isDefault && (
@@ -235,7 +235,7 @@ export default function Prompts() {
                         </div>
                       </CardHeader>
                       <CardContent className="flex-1 flex flex-col pt-0">
-                        <CardDescription className="line-clamp-4 text-xs lg:text-sm leading-relaxed flex-1 break-words hyphens-auto overflow-wrap-anywhere">
+                        <CardDescription className="line-clamp-4 text-sm leading-relaxed flex-1 break-words overflow-hidden">
                           {prompt.text}
                         </CardDescription>
                         <div className="mt-3 text-xs text-muted-foreground">
