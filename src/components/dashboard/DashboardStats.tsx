@@ -60,7 +60,7 @@ export function DashboardStats({
                     value: 12,
                     positive: true
                   }}
-                  variant="success"
+                  variant="default"
                 />
                 
                 <EnhancedStatCard 
@@ -103,7 +103,7 @@ export function DashboardStats({
                       minimumFractionDigits: 2
                     })}`}
                     icon={<Bot size={20} />}
-                    variant="warning"
+                    variant="default"
                   />
                   
                   <EnhancedStatCard 
@@ -116,7 +116,7 @@ export function DashboardStats({
                       value: 8,
                       positive: true
                     }}
-                    variant="success"
+                    variant="default"
                   />
                 </>
               )}
@@ -145,7 +145,7 @@ export function DashboardStats({
                     title="Status" 
                     value={`${analytics.activeCustomers} ativos`} 
                     icon={<UserCheck size={20} />}
-                    variant="success"
+                    variant="default"
                   />
                 </>
               )}
