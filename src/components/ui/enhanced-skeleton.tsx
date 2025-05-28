@@ -21,15 +21,12 @@ export function EnhancedSkeleton({
     <div
       className={cn(
         "animate-pulse rounded-lg",
-        "bg-gradient-to-r from-muted via-muted/70 to-muted",
+        "bg-gradient-to-r from-gray-200 via-gray-300 to-gray-200 dark:from-gray-700 dark:via-gray-600 dark:to-gray-700",
         "bg-[length:200%_100%]",
         "animate-[shimmer_2s_ease-in-out_infinite]",
         variants[variant],
         className
       )}
-      style={{
-        backgroundImage: "linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent)"
-      }}
     />
   );
 }
