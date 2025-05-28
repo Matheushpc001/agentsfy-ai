@@ -42,7 +42,7 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
           <Header title={title} />
           <ScrollArea className="flex-1 h-[calc(100vh-4rem)] bg-background">
             <main className="container-padding bg-background">
-              <div className="max-w-full mx-auto section-spacing pb-16 bg-background">
+              <div className="max-w-full mx-auto py-4 pb-16 bg-background">
                 {children}
               </div>
             </main>
