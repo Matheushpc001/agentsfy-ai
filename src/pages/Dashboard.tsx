@@ -38,7 +38,7 @@ export default function Dashboard() {
   if (!user || isInitialLoading) {
     return (
       <DashboardLayout title="Dashboard">
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64 bg-background">
           <div className="animate-pulse text-primary">Carregando...</div>
         </div>
       </DashboardLayout>
@@ -49,7 +49,7 @@ export default function Dashboard() {
   if (!analytics) {
     return (
       <DashboardLayout title="Dashboard">
-        <div className="flex items-center justify-center h-64">
+        <div className="flex items-center justify-center h-64 bg-background">
           <div className="animate-pulse text-primary">Carregando dados...</div>
         </div>
       </DashboardLayout>
@@ -58,7 +58,7 @@ export default function Dashboard() {
 
   return (
     <DashboardLayout title="Dashboard">
-      <div className="space-y-6" translate="no">
+      <div className="space-y-6 min-h-full bg-background" translate="no">
         <DashboardStats 
           userRole={user.role}
           analytics={analytics}

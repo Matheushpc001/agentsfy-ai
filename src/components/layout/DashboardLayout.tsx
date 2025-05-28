@@ -38,11 +38,11 @@ export default function DashboardLayout({ children, title }: DashboardLayoutProp
     <SidebarProvider defaultOpen={true}>
       <div className="min-h-screen flex w-full bg-background" translate="no">
         <AppSidebar />
-        <SidebarInset className="flex-1">
+        <SidebarInset className="flex-1 bg-background">
           <Header title={title} />
-          <ScrollArea className="flex-1 h-[calc(100vh-4rem)]">
-            <main className="container-padding">
-              <div className="max-w-full mx-auto section-spacing pb-16">
+          <ScrollArea className="flex-1 h-[calc(100vh-4rem)] bg-background">
+            <main className="container-padding bg-background">
+              <div className="max-w-full mx-auto section-spacing pb-16 bg-background">
                 {children}
               </div>
             </main>
