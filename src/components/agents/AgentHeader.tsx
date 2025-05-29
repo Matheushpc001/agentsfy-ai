@@ -57,7 +57,7 @@ export default function AgentHeader({
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <Card className="bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800/30">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-blue-700 dark:text-blue-300 flex items-center gap-1">
@@ -88,23 +88,6 @@ export default function AgentHeader({
             </div>
             <p className="text-xs text-green-600 dark:text-green-400 mt-1">
               WhatsApp conectado
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-900/20 dark:to-orange-900/20 border-amber-200 dark:border-amber-800/30">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-xs font-medium text-amber-700 dark:text-amber-300 flex items-center gap-1">
-              <FileText className="h-3 w-3" />
-              Taxa de Uso
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="text-xl font-bold text-amber-900 dark:text-amber-100">
-              {Math.round((totalAgents / agentLimit) * 100)}%
-            </div>
-            <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
-              do plano utilizado
             </p>
           </CardContent>
         </Card>
