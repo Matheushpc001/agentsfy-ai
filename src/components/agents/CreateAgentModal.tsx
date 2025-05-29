@@ -214,7 +214,7 @@ export default function CreateAgentModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-w-[90vw] max-h-[90vh] p-0 overflow-hidden">
+      <DialogContent className="sm:max-w-2xl max-w-[90vw] max-h-[90vh] p-0 overflow-hidden">
         <DialogHeader className="p-6 pb-2">
           <DialogTitle>{editing ? "Editar Agente" : "Criar Novo Agente"}</DialogTitle>
         </DialogHeader>
