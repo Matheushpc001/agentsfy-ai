@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Agent, Customer } from "@/types";
@@ -8,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import AgentFormTab from "./AgentFormTab";
 import CustomerFormTab from "./CustomerFormTab";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 interface CreateAgentModalProps {
   open: boolean;
@@ -54,6 +54,7 @@ export default function CreateAgentModal({
 
   const [knowledgeBaseFile, setKnowledgeBaseFile] = useState<File | null>(null);
   const [selectedPromptId, setSelectedPromptId] = useState<string>("");
+  const isMobile = useIsMobile();
 
   // Reset form when modal opens/closes or editing changes
   useEffect(() => {
@@ -214,12 +215,15 @@ export default function CreateAgentModal({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-w-[90vw] max-h-[90vh] p-0 overflow-hidden">
-        <DialogHeader className="p-6 pb-2">
+      <DialogContent className={`
+        ${isMobile ? 'w-[95vw] h-[90vh] max-w-none' : 'w-full max-w-4xl h-[85vh]'} 
+        p-0 flex flex-col max-h-[90vh] overflow-hidden
+      `}>
+        <DialogHeader className="p-6 pb-2 flex-shrink-0">
           <DialogTitle>{editing ? "Editar Agente" : "Criar Novo Agente"}</DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="max-h-[calc(90vh-130px)] px-6">
+        <ScrollArea className="max-h-[calc(90vh-130px)] px-6 flex-1 min-h-0">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="agent">Dados do Agente</TabsTrigger>
