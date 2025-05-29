@@ -26,8 +26,6 @@ export default function PromptsLibraryModal({
   onClose,
   prompts,
   onSelect,
-  onEdit,
-  onDelete,
   onCreateNew,
   niches
 }: PromptsLibraryModalProps) {
