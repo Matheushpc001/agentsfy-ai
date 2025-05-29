@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Prompt } from "@/types/prompts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, PenLine, Trash2, Filter, Search, Plus } from "lucide-react";
+import { Copy, PenLine, Filter, Search, Plus, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -156,12 +156,14 @@ export default function PromptsLibraryModal({
                             <Button 
                               variant="ghost" 
                               size="sm" 
-                              className="h-8 w-8 p-0 text-destructive hover:text-destructive opacity-60 hover:opacity-100"
-                              onClick={() => onDelete(prompt.id)}
-                              disabled={prompt.isDefault}
-                              title={prompt.isDefault ? "Não é possível excluir prompts padrão" : "Excluir prompt"}
+                              className="h-8 w-8 p-0 text-primary hover:text-primary opacity-60 hover:opacity-100"
+                              onClick={() => {
+                                onSelect(prompt);
+                                onClose();
+                              }}
+                              title="Usar este prompt para criar agente"
                             >
-                              <Trash2 size={14} />
+                              <Zap size={14} />
                             </Button>
                           </div>
                         </div>
