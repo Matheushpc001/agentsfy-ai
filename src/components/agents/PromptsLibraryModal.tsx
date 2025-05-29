@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -163,19 +162,6 @@ export default function PromptsLibraryModal({
                           <p className="text-sm text-foreground/80 line-clamp-4 leading-relaxed">
                             {prompt.text}
                           </p>
-                        </div>
-                        
-                        <div className="flex justify-end">
-                          <Button 
-                            size="sm" 
-                            onClick={() => {
-                              onSelect(prompt);
-                              onClose();
-                            }}
-                            className="group-hover:scale-105 transition-transform duration-200"
-                          >
-                            Usar este prompt
-                          </Button>
                         </div>
                       </div>
                     ))
