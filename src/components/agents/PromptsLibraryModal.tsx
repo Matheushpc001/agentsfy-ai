@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Prompt } from "@/types/prompts";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, PenLine, Filter, Search, Plus, Zap } from "lucide-react";
+import { Copy, Filter, Search, Plus, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -55,7 +55,7 @@ export default function PromptsLibraryModal({
             Biblioteca de Prompts
           </DialogTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            Gerencie e selecione prompts para seus agentes
+            Selecione um prompt para usar na criação do agente
           </p>
         </DialogHeader>
         
@@ -143,15 +143,6 @@ export default function PromptsLibraryModal({
                               title="Copiar prompt"
                             >
                               <Copy size={14} />
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-8 w-8 p-0 opacity-60 hover:opacity-100"
-                              onClick={() => onEdit(prompt)}
-                              title="Editar prompt"
-                            >
-                              <PenLine size={14} />
                             </Button>
                             <Button 
                               variant="ghost" 
