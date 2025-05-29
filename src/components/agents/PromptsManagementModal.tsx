@@ -120,70 +120,68 @@ export default function PromptsManagementModal({
   // Desktop version
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-5xl h-[85vh] max-h-[85vh] rounded-lg p-0 overflow-hidden">
-        <div className="flex flex-col h-full">
-          {/* Fixed Header */}
-          <div className="flex-shrink-0 border-b bg-background px-6 py-4">
-            <DialogHeader>
-              <DialogTitle className="text-xl font-semibold flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                Biblioteca de Prompts
-              </DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Gerencie prompts personalizados para seus agentes IA
-              </p>
-            </DialogHeader>
-          </div>
-          
-          {/* Scrollable Content */}
-          <div className="flex-1 min-h-0">
-            <ScrollArea className="h-full">
-              <div className="space-y-4 pb-6">
-                {/* Stats Cards */}
-                <div className="bg-muted/20 px-6 py-4">
-                  <PromptStatsCards 
-                    prompts={prompts} 
-                    allNiches={allNiches} 
-                    isMobile={isMobile} 
-                  />
-                </div>
+      <DialogContent className="w-full max-w-5xl h-[85vh] max-h-[85vh] rounded-lg p-0 overflow-hidden flex flex-col">
+        {/* Fixed Header */}
+        <div className="flex-shrink-0 border-b bg-background px-6 py-4">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Biblioteca de Prompts
+            </DialogTitle>
+            <p className="text-sm text-muted-foreground mt-1">
+              Gerencie prompts personalizados para seus agentes IA
+            </p>
+          </DialogHeader>
+        </div>
+        
+        {/* Scrollable Content */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <ScrollArea className="h-full">
+            <div className="space-y-4 pb-6">
+              {/* Stats Cards */}
+              <div className="bg-muted/20 px-6 py-4">
+                <PromptStatsCards 
+                  prompts={prompts} 
+                  allNiches={allNiches} 
+                  isMobile={isMobile} 
+                />
+              </div>
 
-                {/* Search and Actions */}
-                <div className="px-6">
-                  <PromptSearchAndActions
-                    searchTerm={searchTerm}
-                    onSearchChange={setSearchTerm}
-                    onCreatePrompt={onCreatePrompt}
+              {/* Search and Actions */}
+              <div className="px-6">
+                <PromptSearchAndActions
+                  searchTerm={searchTerm}
+                  onSearchChange={setSearchTerm}
+                  onCreatePrompt={onCreatePrompt}
+                  isMobile={isMobile}
+                />
+              </div>
+
+              {/* Tabs and Content */}
+              <div className="px-6">
+                <Tabs defaultValue="all" value={activeNiche} onValueChange={setActiveNiche}>
+                  <PromptTabs
+                    activeNiche={activeNiche}
+                    onNicheChange={setActiveNiche}
+                    prompts={prompts}
+                    allNiches={allNiches}
                     isMobile={isMobile}
                   />
-                </div>
 
-                {/* Tabs and Content */}
-                <div className="px-6">
-                  <Tabs defaultValue="all" value={activeNiche} onValueChange={setActiveNiche}>
-                    <PromptTabs
-                      activeNiche={activeNiche}
-                      onNicheChange={setActiveNiche}
-                      prompts={prompts}
-                      allNiches={allNiches}
-                      isMobile={isMobile}
-                    />
-
-                    <PromptList
-                      activeNiche={activeNiche}
-                      filteredPrompts={filteredPrompts}
-                      searchTerm={searchTerm}
-                      onCreatePrompt={onCreatePrompt}
-                      onCopyPrompt={handleCopyPrompt}
-                      onEditPrompt={onEditPrompt}
-                      onDeletePrompt={handleDeletePrompt}
-                      isMobile={isMobile}
-                    />
-                  </Tabs>
-                </div>
+                  <PromptList
+                    activeNiche={activeNiche}
+                    filteredPrompts={filteredPrompts}
+                    searchTerm={searchTerm}
+                    onCreatePrompt={onCreatePrompt}
+                    onCopyPrompt={handleCopyPrompt}
+                    onEditPrompt={onEditPrompt}
+                    onDeletePrompt={handleDeletePrompt}
+                    isMobile={isMobile}
+                  />
+                </Tabs>
               </div>
-            </ScrollArea>
-          </div>
+            </div>
+          </ScrollArea>
         </div>
       </DialogContent>
     </Dialog>
