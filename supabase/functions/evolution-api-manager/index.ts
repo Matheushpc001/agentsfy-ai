@@ -20,122 +20,178 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
     const { action, ...params } = await req.json();
 
+    console.log('Action:', action, 'Params:', params);
+
     switch (action) {
       case 'create_instance':
         return await createInstance(supabase, params);
-      
       case 'connect_instance':
         return await connectInstance(supabase, params);
-      
-      case 'get_qr_code':
-        return await getQRCode(supabase, params);
-      
       case 'disconnect_instance':
         return await disconnectInstance(supabase, params);
-      
       case 'send_message':
         return await sendMessage(supabase, params);
-      
+      case 'create_ai_agent':
+        return await createAIAgent(supabase, params);
+      case 'update_ai_agent':
+        return await updateAIAgent(supabase, params);
+      case 'test_connection':
+        return await testConnection(supabase, params);
       default:
-        throw new Error('Ação não reconhecida');
+        throw new Error(`Ação não reconhecida: ${action}`);
     }
 
   } catch (error) {
-    console.error('Erro no evolution-api-manager:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('Erro no manager:', error);
+    return new Response(JSON.stringify({ 
+      error: error.message,
+      details: error.stack 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });
 
-async function createInstance(supabase: any, { franchiseeId, instanceName, apiUrl, apiKey }: any) {
+async function createInstance(supabase: any, params: any) {
+  const { franchiseeId, instanceName, apiUrl, apiKey, managerUrl, globalApiKey } = params;
+
+  // Verificar se a instância já existe
+  const { data: existing } = await supabase
+    .from('evolution_api_configs')
+    .select('id')
+    .eq('franchisee_id', franchiseeId)
+    .eq('instance_name', instanceName)
+    .single();
+
+  if (existing) {
+    throw new Error('Uma instância com este nome já existe');
+  }
+
+  // Configurar webhook URL
+  const webhookUrl = `${supabaseUrl}/functions/v1/evolution-webhook`;
+
+  // Criar configuração no banco
+  const { data: config, error } = await supabase
+    .from('evolution_api_configs')
+    .insert({
+      franchisee_id: franchiseeId,
+      instance_name: instanceName,
+      api_url: apiUrl,
+      api_key: apiKey,
+      manager_url: managerUrl,
+      global_api_key: globalApiKey,
+      webhook_url: webhookUrl,
+      status: 'disconnected'
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
   try {
     // Criar instância na EvolutionAPI
-    const response = await fetch(`${apiUrl}/instance/create`, {
+    const createResponse = await fetch(`${apiUrl}/instance/create`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': apiKey
+        'apikey': globalApiKey || apiKey
       },
       body: JSON.stringify({
         instanceName,
-        qrcode: true,
-        webhook: `${supabaseUrl}/functions/v1/evolution-webhook`,
+        integration: 'WHATSAPP-BAILEYS',
+        webhook: webhookUrl,
         webhook_by_events: true,
         events: [
           'APPLICATION_STARTUP',
           'QRCODE_UPDATED',
           'CONNECTION_UPDATE',
-          'MESSAGES_UPSERT'
+          'MESSAGES_UPSERT',
+          'MESSAGES_UPDATE',
+          'MESSAGES_DELETE',
+          'SEND_MESSAGE',
+          'CONTACTS_UPDATE',
+          'CONTACTS_UPSERT',
+          'PRESENCE_UPDATE',
+          'CHATS_UPDATE',
+          'CHATS_UPSERT',
+          'CHATS_DELETE',
+          'GROUPS_UPSERT',
+          'GROUP_UPDATE',
+          'GROUP_PARTICIPANTS_UPDATE',
+          'NEW_JWT_TOKEN'
         ]
       })
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(`Erro ao criar instância: ${errorData.message || 'Erro desconhecido'}`);
+    if (!createResponse.ok) {
+      const errorText = await createResponse.text();
+      console.error('Erro ao criar instância:', errorText);
+      throw new Error(`Falha ao criar instância: ${errorText}`);
     }
 
-    const instanceData = await response.json();
+    const createResult = await createResponse.json();
+    console.log('Instância criada:', createResult);
 
-    // Salvar configuração no banco de dados
-    const { data: config, error } = await supabase
-      .from('evolution_api_configs')
-      .insert({
-        franchisee_id: franchiseeId,
-        instance_name: instanceName,
-        api_url: apiUrl,
-        api_key: apiKey,
-        webhook_url: `${supabaseUrl}/functions/v1/evolution-webhook`,
-        status: 'connecting'
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    return new Response(JSON.stringify({
-      success: true,
+    return new Response(JSON.stringify({ 
+      success: true, 
       config,
-      instance: instanceData
+      evolutionResponse: createResult 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-  } catch (error) {
-    console.error('Erro ao criar instância:', error);
-    throw error;
+  } catch (evolutionError) {
+    console.error('Erro da EvolutionAPI:', evolutionError);
+    
+    // Remover configuração do banco se falhou na EvolutionAPI
+    await supabase
+      .from('evolution_api_configs')
+      .delete()
+      .eq('id', config.id);
+
+    throw new Error(`Erro ao criar instância na EvolutionAPI: ${evolutionError.message}`);
   }
 }
 
-async function connectInstance(supabase: any, { configId }: any) {
+async function connectInstance(supabase: any, params: any) {
+  const { configId } = params;
+
+  const { data: config, error } = await supabase
+    .from('evolution_api_configs')
+    .select('*')
+    .eq('id', configId)
+    .single();
+
+  if (error || !config) {
+    throw new Error('Configuração não encontrada');
+  }
+
   try {
-    const { data: config } = await supabase
-      .from('evolution_api_configs')
-      .select('*')
-      .eq('id', configId)
-      .single();
-
-    if (!config) throw new Error('Configuração não encontrada');
-
-    // Conectar instância na EvolutionAPI
-    const response = await fetch(`${config.api_url}/instance/connect/${config.instance_name}`, {
+    // Conectar instância
+    const connectResponse = await fetch(`${config.api_url}/instance/connect/${config.instance_name}`, {
       method: 'GET',
       headers: {
-        'apikey': config.api_key
+        'apikey': config.global_api_key || config.api_key
       }
     });
 
-    if (!response.ok) {
-      throw new Error('Erro ao conectar instância');
+    if (!connectResponse.ok) {
+      throw new Error(`Falha ao conectar: ${connectResponse.statusText}`);
     }
 
-    const connectionData = await response.json();
+    const connectResult = await connectResponse.json();
 
-    return new Response(JSON.stringify({
-      success: true,
-      qrCode: connectionData.base64
+    // Atualizar status
+    await supabase
+      .from('evolution_api_configs')
+      .update({ status: 'connecting' })
+      .eq('id', configId);
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      qrCode: connectResult.base64,
+      result: connectResult 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -146,49 +202,29 @@ async function connectInstance(supabase: any, { configId }: any) {
   }
 }
 
-async function getQRCode(supabase: any, { configId }: any) {
-  try {
-    const { data: config } = await supabase
-      .from('evolution_api_configs')
-      .select('*')
-      .eq('id', configId)
-      .single();
+async function disconnectInstance(supabase: any, params: any) {
+  const { configId } = params;
 
-    if (!config) throw new Error('Configuração não encontrada');
+  const { data: config, error } = await supabase
+    .from('evolution_api_configs')
+    .select('*')
+    .eq('id', configId)
+    .single();
 
-    return new Response(JSON.stringify({
-      success: true,
-      qrCode: config.qr_code,
-      expiresAt: config.qr_code_expires_at
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (error) {
-    console.error('Erro ao buscar QR Code:', error);
-    throw error;
+  if (error || !config) {
+    throw new Error('Configuração não encontrada');
   }
-}
 
-async function disconnectInstance(supabase: any, { configId }: any) {
   try {
-    const { data: config } = await supabase
-      .from('evolution_api_configs')
-      .select('*')
-      .eq('id', configId)
-      .single();
-
-    if (!config) throw new Error('Configuração não encontrada');
-
-    // Desconectar instância na EvolutionAPI
-    await fetch(`${config.api_url}/instance/logout/${config.instance_name}`, {
+    // Desconectar instância
+    const disconnectResponse = await fetch(`${config.api_url}/instance/logout/${config.instance_name}`, {
       method: 'DELETE',
       headers: {
-        'apikey': config.api_key
+        'apikey': config.global_api_key || config.api_key
       }
     });
 
-    // Atualizar status no banco
+    // Atualizar status independentemente da resposta
     await supabase
       .from('evolution_api_configs')
       .update({ 
@@ -204,25 +240,42 @@ async function disconnectInstance(supabase: any, { configId }: any) {
 
   } catch (error) {
     console.error('Erro ao desconectar instância:', error);
-    throw error;
+    
+    // Atualizar status mesmo com erro
+    await supabase
+      .from('evolution_api_configs')
+      .update({ status: 'disconnected' })
+      .eq('id', configId);
+
+    return new Response(JSON.stringify({ success: true }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 }
 
-async function sendMessage(supabase: any, { configId, phoneNumber, message }: any) {
+async function sendMessage(supabase: any, params: any) {
+  const { configId, phoneNumber, message } = params;
+
+  const { data: config, error } = await supabase
+    .from('evolution_api_configs')
+    .select('*')
+    .eq('id', configId)
+    .single();
+
+  if (error || !config) {
+    throw new Error('Configuração não encontrada');
+  }
+
+  if (config.status !== 'connected') {
+    throw new Error('Instância não está conectada');
+  }
+
   try {
-    const { data: config } = await supabase
-      .from('evolution_api_configs')
-      .select('*')
-      .eq('id', configId)
-      .single();
-
-    if (!config) throw new Error('Configuração não encontrada');
-
-    const response = await fetch(`${config.api_url}/message/sendText/${config.instance_name}`, {
+    const sendResponse = await fetch(`${config.api_url}/message/sendText/${config.instance_name}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'apikey': config.api_key
+        'apikey': config.global_api_key || config.api_key
       },
       body: JSON.stringify({
         number: phoneNumber,
@@ -230,21 +283,101 @@ async function sendMessage(supabase: any, { configId, phoneNumber, message }: an
       })
     });
 
-    if (!response.ok) {
-      throw new Error('Erro ao enviar mensagem');
+    if (!sendResponse.ok) {
+      throw new Error(`Falha ao enviar mensagem: ${sendResponse.statusText}`);
     }
 
-    const result = await response.json();
+    const result = await sendResponse.json();
 
-    return new Response(JSON.stringify({
-      success: true,
-      result
-    }), {
+    return new Response(JSON.stringify({ success: true, result }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
   } catch (error) {
     console.error('Erro ao enviar mensagem:', error);
     throw error;
+  }
+}
+
+async function createAIAgent(supabase: any, params: any) {
+  const { 
+    agentId, 
+    evolutionConfigId, 
+    phoneNumber, 
+    openaiApiKey, 
+    model, 
+    systemPrompt,
+    autoResponse,
+    responseDelaySeconds 
+  } = params;
+
+  const { data: agent, error } = await supabase
+    .from('ai_whatsapp_agents')
+    .insert({
+      agent_id: agentId,
+      evolution_config_id: evolutionConfigId,
+      phone_number: phoneNumber,
+      openai_api_key: openaiApiKey,
+      model: model || 'gpt-4o-mini',
+      system_prompt: systemPrompt,
+      auto_response: autoResponse !== false,
+      response_delay_seconds: responseDelaySeconds || 2,
+      is_active: true
+    })
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return new Response(JSON.stringify({ success: true, agent }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+async function updateAIAgent(supabase: any, params: any) {
+  const { agentId, updates } = params;
+
+  const { data: agent, error } = await supabase
+    .from('ai_whatsapp_agents')
+    .update(updates)
+    .eq('id', agentId)
+    .select()
+    .single();
+
+  if (error) throw error;
+
+  return new Response(JSON.stringify({ success: true, agent }), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  });
+}
+
+async function testConnection(supabase: any, params: any) {
+  const { apiUrl, apiKey, globalApiKey } = params;
+
+  try {
+    const testResponse = await fetch(`${apiUrl}/instance/fetchInstances`, {
+      method: 'GET',
+      headers: {
+        'apikey': globalApiKey || apiKey
+      }
+    });
+
+    if (!testResponse.ok) {
+      throw new Error(`Falha na conexão: ${testResponse.statusText}`);
+    }
+
+    const result = await testResponse.json();
+
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: 'Conexão testada com sucesso',
+      instances: result 
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error) {
+    console.error('Erro ao testar conexão:', error);
+    throw new Error(`Erro de conexão: ${error.message}`);
   }
 }

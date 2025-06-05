@@ -9,6 +9,8 @@ interface EvolutionConfig {
   instance_name: string;
   api_url: string;
   api_key: string;
+  manager_url?: string;
+  global_api_key?: string;
   webhook_url?: string;
   status: 'connected' | 'disconnected' | 'connecting' | 'error';
   qr_code?: string;
@@ -26,6 +28,8 @@ interface AIAgent {
   openai_api_key?: string;
   model: string;
   system_prompt?: string;
+  auto_response?: boolean;
+  response_delay_seconds?: number;
   created_at: string;
   updated_at: string;
 }
@@ -49,8 +53,17 @@ export function useEvolutionAPI(franchiseeId: string) {
       )
       .subscribe();
 
+    const agentsSubscription = supabase
+      .channel('ai_agents_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'ai_whatsapp_agents' },
+        () => loadAIAgents()
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(configsSubscription);
+      supabase.removeChannel(agentsSubscription);
     };
   }, [franchiseeId]);
 
@@ -89,7 +102,36 @@ export function useEvolutionAPI(franchiseeId: string) {
     }
   };
 
-  const createInstance = async (instanceName: string, apiUrl: string, apiKey: string) => {
+  const testConnection = async (apiUrl: string, apiKey: string, globalApiKey?: string) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
+        body: {
+          action: 'test_connection',
+          apiUrl,
+          apiKey,
+          globalApiKey
+        }
+      });
+
+      if (error) throw error;
+
+      toast.success('Conexão testada com sucesso!');
+      return data;
+
+    } catch (error) {
+      console.error('Erro ao testar conexão:', error);
+      toast.error('Erro ao testar conexão com a EvolutionAPI');
+      throw error;
+    }
+  };
+
+  const createInstance = async (
+    instanceName: string, 
+    apiUrl: string, 
+    apiKey: string,
+    managerUrl?: string,
+    globalApiKey?: string
+  ) => {
     setIsCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
@@ -98,7 +140,9 @@ export function useEvolutionAPI(franchiseeId: string) {
           franchiseeId,
           instanceName,
           apiUrl,
-          apiKey
+          apiKey,
+          managerUrl,
+          globalApiKey
         }
       });
 
@@ -110,7 +154,7 @@ export function useEvolutionAPI(franchiseeId: string) {
 
     } catch (error) {
       console.error('Erro ao criar instância:', error);
-      toast.error('Erro ao criar instância da EvolutionAPI');
+      toast.error(`Erro ao criar instância: ${error.message}`);
       throw error;
     } finally {
       setIsCreating(false);
@@ -160,17 +204,18 @@ export function useEvolutionAPI(franchiseeId: string) {
 
   const createAIAgent = async (agentData: Partial<AIAgent>) => {
     try {
-      const { data, error } = await supabase
-        .from('ai_whatsapp_agents')
-        .insert(agentData)
-        .select()
-        .single();
+      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
+        body: {
+          action: 'create_ai_agent',
+          ...agentData
+        }
+      });
 
       if (error) throw error;
 
       toast.success('Agente IA criado com sucesso!');
       await loadAIAgents();
-      return data;
+      return data.agent;
 
     } catch (error) {
       console.error('Erro ao criar agente IA:', error);
@@ -181,18 +226,19 @@ export function useEvolutionAPI(franchiseeId: string) {
 
   const updateAIAgent = async (agentId: string, updates: Partial<AIAgent>) => {
     try {
-      const { data, error } = await supabase
-        .from('ai_whatsapp_agents')
-        .update(updates)
-        .eq('id', agentId)
-        .select()
-        .single();
+      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
+        body: {
+          action: 'update_ai_agent',
+          agentId,
+          updates
+        }
+      });
 
       if (error) throw error;
 
       toast.success('Agente IA atualizado!');
       await loadAIAgents();
-      return data;
+      return data.agent;
 
     } catch (error) {
       console.error('Erro ao atualizar agente IA:', error);
@@ -224,17 +270,42 @@ export function useEvolutionAPI(franchiseeId: string) {
     }
   };
 
+  const deleteInstance = async (configId: string) => {
+    try {
+      // Primeiro desconectar
+      await disconnectInstance(configId);
+      
+      // Depois deletar do banco
+      const { error } = await supabase
+        .from('evolution_api_configs')
+        .delete()
+        .eq('id', configId);
+
+      if (error) throw error;
+
+      toast.success('Instância removida com sucesso!');
+      await loadConfigs();
+
+    } catch (error) {
+      console.error('Erro ao deletar instância:', error);
+      toast.error('Erro ao remover instância');
+      throw error;
+    }
+  };
+
   return {
     configs,
     aiAgents,
     isLoading,
     isCreating,
+    testConnection,
     createInstance,
     connectInstance,
     disconnectInstance,
     createAIAgent,
     updateAIAgent,
     sendTestMessage,
+    deleteInstance,
     loadConfigs,
     loadAIAgents
   };

@@ -63,6 +63,7 @@ export type Database = {
       ai_whatsapp_agents: {
         Row: {
           agent_id: string
+          auto_response: boolean | null
           created_at: string
           evolution_config_id: string | null
           id: string
@@ -70,11 +71,13 @@ export type Database = {
           model: string | null
           openai_api_key: string | null
           phone_number: string
+          response_delay_seconds: number | null
           system_prompt: string | null
           updated_at: string
         }
         Insert: {
           agent_id: string
+          auto_response?: boolean | null
           created_at?: string
           evolution_config_id?: string | null
           id?: string
@@ -82,11 +85,13 @@ export type Database = {
           model?: string | null
           openai_api_key?: string | null
           phone_number: string
+          response_delay_seconds?: number | null
           system_prompt?: string | null
           updated_at?: string
         }
         Update: {
           agent_id?: string
+          auto_response?: boolean | null
           created_at?: string
           evolution_config_id?: string | null
           id?: string
@@ -94,6 +99,7 @@ export type Database = {
           model?: string | null
           openai_api_key?: string | null
           phone_number?: string
+          response_delay_seconds?: number | null
           system_prompt?: string | null
           updated_at?: string
         }
@@ -113,8 +119,10 @@ export type Database = {
           api_url: string
           created_at: string
           franchisee_id: string
+          global_api_key: string | null
           id: string
           instance_name: string
+          manager_url: string | null
           qr_code: string | null
           qr_code_expires_at: string | null
           status: string | null
@@ -126,8 +134,10 @@ export type Database = {
           api_url: string
           created_at?: string
           franchisee_id: string
+          global_api_key?: string | null
           id?: string
           instance_name: string
+          manager_url?: string | null
           qr_code?: string | null
           qr_code_expires_at?: string | null
           status?: string | null
@@ -139,8 +149,10 @@ export type Database = {
           api_url?: string
           created_at?: string
           franchisee_id?: string
+          global_api_key?: string | null
           id?: string
           instance_name?: string
+          manager_url?: string | null
           qr_code?: string | null
           qr_code_expires_at?: string | null
           status?: string | null
@@ -255,7 +267,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_active_ai_agents: {
+        Args: { config_id_param: string }
+        Returns: {
+          id: string
+          agent_id: string
+          phone_number: string
+          model: string
+          system_prompt: string
+          auto_response: boolean
+        }[]
+      }
+      get_active_evolution_config: {
+        Args: { franchisee_id_param: string }
+        Returns: {
+          id: string
+          instance_name: string
+          api_url: string
+          status: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
