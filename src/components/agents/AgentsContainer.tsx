@@ -6,7 +6,7 @@ import AgentsList from "./AgentsList";
 import AgentModals from "./AgentModals";
 import PlanInfoCard from "./PlanInfoCard";
 import useAgentManagement from "@/hooks/useAgentManagement";
-import { usePromptManagement } from "@/hooks/usePromptManagement";
+import usePromptManagement from "@/hooks/usePromptManagement";
 import EvolutionIntegration from "@/components/evolution/EvolutionIntegration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -41,7 +41,6 @@ export default function AgentsContainer({ initialAgents, initialCustomers }: Age
     handleViewAgent,
     handleEditAgent,
     handleConnectAgent,
-    handleTestAgent,
     handleCreateAgentClick,
     handleSubmitAgent,
     handleConnectWhatsApp,
@@ -71,8 +70,6 @@ export default function AgentsContainer({ initialAgents, initialCustomers }: Age
     <div className="space-y-6">
       <AgentHeader 
         totalAgents={totalAgents}
-        agentLimit={agentLimit}
-        onCreateAgent={() => handleCreateAgentClick(agentLimit)}
       />
 
       <Tabs defaultValue="traditional" className="w-full">
@@ -85,6 +82,7 @@ export default function AgentsContainer({ initialAgents, initialCustomers }: Age
           <AgentStats 
             totalAgents={totalAgents}
             connectedAgents={connectedAgents}
+            agentLimit={agentLimit}
           />
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -94,13 +92,12 @@ export default function AgentsContainer({ initialAgents, initialCustomers }: Age
                 onViewAgent={handleViewAgent}
                 onEditAgent={handleEditAgent}
                 onConnectAgent={handleConnectAgent}
-                onTestAgent={handleTestAgent}
               />
             </div>
             
             <div className="space-y-6">
               <PlanInfoCard 
-                currentAgents={totalAgents}
+                totalAgents={totalAgents}
                 agentLimit={agentLimit}
               />
             </div>
@@ -130,7 +127,7 @@ export default function AgentsContainer({ initialAgents, initialCustomers }: Age
         agentLimit={agentLimit}
         allNiches={allNiches}
         onCloseCreateModal={() => setIsCreateModalOpen(false)}
-        onCloseEditModal={() => setIsEditModalModal(false)}
+        onCloseEditModal={() => setIsEditModalOpen(false)}
         onCloseWhatsAppModal={() => setIsWhatsAppModalOpen(false)}
         onCloseCustomerPortalModal={handleClosePortalModal}
         onClosePlanLimitModal={() => setIsPlanLimitModalOpen(false)}

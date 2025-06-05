@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { Bot, MessageSquare, Settings, Zap } from 'lucide-react';
 import { useEvolutionAPI } from '@/hooks/useEvolutionAPI';
 import EvolutionAPISetup from './EvolutionAPISetup';
