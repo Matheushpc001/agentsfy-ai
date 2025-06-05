@@ -114,13 +114,11 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
               {configs.map((config) => (
                 <EvolutionInstanceCard
                   key={config.id}
-                  config={config}
+                  instance={config}
                   onConnect={() => connectInstance(config.id)}
                   onDisconnect={() => disconnectInstance(config.id)}
                   onDelete={() => deleteInstance(config.id)}
-                  onSendTest={(phoneNumber, message) => 
-                    sendTestMessage(config.id, phoneNumber, message)
-                  }
+                  aiAgents={aiAgents.filter(agent => agent.evolution_config_id === config.id)}
                 />
               ))}
             </div>
