@@ -36,6 +36,17 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
   const totalAIAgents = aiAgents.length;
   const activeAIAgents = aiAgents.filter(agent => agent.is_active).length;
 
+  // Transform EvolutionConfig to EvolutionInstance format
+  const transformedConfigs = configs.map(config => ({
+    id: config.id,
+    instance_name: config.instance_name,
+    api_url: config.global_config?.api_url || '',
+    status: config.status,
+    qr_code: config.qr_code,
+    qr_code_expires_at: config.qr_code_expires_at,
+    created_at: config.created_at
+  }));
+
   return (
     <div className="space-y-6">
       {/* Header com estatísticas */}
@@ -102,7 +113,7 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
         <TabsContent value="instances" className="space-y-6">
           {isLoading ? (
             <div className="text-center py-8">Carregando instâncias...</div>
-          ) : configs.length === 0 ? (
+          ) : transformedConfigs.length === 0 ? (
             <Card>
               <CardHeader>
                 <CardTitle>Nenhuma instância configurada</CardTitle>
@@ -113,14 +124,14 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
             </Card>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              {configs.map((config) => (
+              {transformedConfigs.map((instance) => (
                 <EvolutionInstanceCard
-                  key={config.id}
-                  instance={config}
-                  onConnect={() => connectInstance(config.id)}
-                  onDisconnect={() => disconnectInstance(config.id)}
-                  onDelete={() => deleteInstance(config.id)}
-                  aiAgents={aiAgents.filter(agent => agent.evolution_config_id === config.id)}
+                  key={instance.id}
+                  instance={instance}
+                  onConnect={() => connectInstance(instance.id)}
+                  onDisconnect={() => disconnectInstance(instance.id)}
+                  onDelete={() => deleteInstance(instance.id)}
+                  aiAgents={aiAgents.filter(agent => agent.evolution_config_id === instance.id)}
                 />
               ))}
             </div>
