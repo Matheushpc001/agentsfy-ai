@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Settings, Zap } from "lucide-react";
+import { Bot, Settings, Zap, AlertCircle } from "lucide-react";
 import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
 import EvolutionAPISetup from "./EvolutionAPISetup";
 import EvolutionInstanceCard from "./EvolutionInstanceCard";
@@ -49,8 +49,33 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
 
   return (
     <div className="space-y-6">
-      {/* Header com estatísticas */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      {/* Header com informações importantes */}
+      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-5 w-5" />
+            Integração Evolution API
+          </CardTitle>
+          <CardDescription>
+            Sistema completo de WhatsApp com IA. Configure instâncias, conecte ao WhatsApp e crie agentes inteligentes.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+
+      {/* Estatísticas principais */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Configurações Globais
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{globalConfigs.length}</div>
+            <p className="text-xs text-muted-foreground">Servidores disponíveis</p>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -58,7 +83,8 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{connectedConfigs.length}</div>
+            <div className="text-2xl font-bold text-green-600">{connectedConfigs.length}</div>
+            <p className="text-xs text-muted-foreground">De {configs.length} total</p>
           </CardContent>
         </Card>
 
@@ -69,18 +95,31 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{activeAIAgents}</div>
+            <div className="text-2xl font-bold text-blue-600">{activeAIAgents}</div>
+            <p className="text-xs text-muted-foreground">De {totalAIAgents} total</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total de Agentes
+              Status Geral
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalAIAgents}</div>
+            <div className="flex items-center gap-2">
+              {connectedConfigs.length > 0 ? (
+                <>
+                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-green-600">Operacional</span>
+                </>
+              ) : (
+                <>
+                  <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-red-600">Inativo</span>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -93,7 +132,7 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
           </TabsTrigger>
           <TabsTrigger value="instances" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            Instâncias
+            Instâncias WhatsApp
           </TabsTrigger>
           <TabsTrigger value="ai-agents" className="flex items-center gap-2">
             <Bot className="h-4 w-4" />
@@ -102,23 +141,40 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
         </TabsList>
 
         <TabsContent value="setup" className="space-y-6">
-          <EvolutionAPISetup
-            globalConfigs={globalConfigs}
-            onTestConnection={testConnection}
-            onCreateInstance={createInstance}
-            isCreating={isCreating}
-          />
+          {globalConfigs.length === 0 ? (
+            <Card className="border-orange-200 bg-orange-50">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-orange-800">
+                  <AlertCircle className="h-5 w-5" />
+                  Configuração Pendente
+                </CardTitle>
+                <CardDescription className="text-orange-700">
+                  Nenhuma configuração global disponível. Entre em contato com o administrador para configurar os servidores Evolution API.
+                </CardDescription>
+              </CardHeader>
+            </Card>
+          ) : (
+            <EvolutionAPISetup
+              globalConfigs={globalConfigs}
+              onTestConnection={testConnection}
+              onCreateInstance={createInstance}
+              isCreating={isCreating}
+            />
+          )}
         </TabsContent>
 
         <TabsContent value="instances" className="space-y-6">
           {isLoading ? (
-            <div className="text-center py-8">Carregando instâncias...</div>
+            <div className="text-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+              <p className="mt-2 text-muted-foreground">Carregando instâncias...</p>
+            </div>
           ) : transformedConfigs.length === 0 ? (
             <Card>
-              <CardHeader>
+              <CardHeader className="text-center">
                 <CardTitle>Nenhuma instância configurada</CardTitle>
                 <CardDescription>
-                  Configure sua primeira instância na aba "Configuração"
+                  Configure sua primeira instância na aba "Configuração" para começar a usar o WhatsApp com IA
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -140,11 +196,12 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
 
         <TabsContent value="ai-agents" className="space-y-6">
           {connectedConfigs.length === 0 ? (
-            <Card>
-              <CardHeader>
-                <CardTitle>Conecte uma instância primeiro</CardTitle>
-                <CardDescription>
-                  Você precisa ter pelo menos uma instância conectada para configurar agentes IA
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader className="text-center">
+                <CardTitle className="text-blue-800">Conecte uma instância primeiro</CardTitle>
+                <CardDescription className="text-blue-700">
+                  Você precisa ter pelo menos uma instância do WhatsApp conectada para configurar agentes IA.
+                  Vá para a aba "Instâncias WhatsApp" e conecte uma instância.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -156,60 +213,64 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
                 );
 
                 return (
-                  <div key={config.id} className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold flex items-center gap-2">
-                        {config.instance_name}
-                        <Badge variant="secondary">
-                          {configAgents.length} agente(s)
-                        </Badge>
-                      </h3>
-                    </div>
-
-                    <AIAgentSetup
-                      evolutionConfigId={config.id}
-                      onCreateAgent={createAIAgent}
-                      onUpdateAgent={updateAIAgent}
-                      agents={configAgents}
-                    />
-
-                    {configAgents.length > 0 && (
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Agentes Configurados:</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {configAgents.map((agent) => (
-                            <Card key={agent.id}>
-                              <CardContent className="pt-4">
-                                <div className="space-y-2">
-                                  <div className="flex items-center justify-between">
-                                    <span className="font-medium">{agent.agent_id}</span>
-                                    <Badge variant={agent.is_active ? "default" : "secondary"}>
-                                      {agent.is_active ? "Ativo" : "Inativo"}
-                                    </Badge>
-                                  </div>
-                                  <p className="text-sm text-muted-foreground">
-                                    {agent.phone_number}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    Modelo: {agent.model}
-                                  </p>
-                                  <div className="pt-2">
-                                    <AIAgentSetup
-                                      evolutionConfigId={config.id}
-                                      onCreateAgent={createAIAgent}
-                                      onUpdateAgent={updateAIAgent}
-                                      existingAgent={agent}
-                                      agents={configAgents}
-                                    />
-                                  </div>
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
+                  <Card key={config.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="flex items-center gap-2">
+                            {config.instance_name}
+                            <Badge variant="default" className="text-xs">
+                              {configAgents.length} agente(s)
+                            </Badge>
+                          </CardTitle>
+                          <CardDescription>
+                            Configure agentes IA para responder automaticamente no WhatsApp
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-sm text-green-600 font-medium">Conectado</span>
                         </div>
                       </div>
-                    )}
-                  </div>
+                    </CardHeader>
+
+                    <CardContent>
+                      <AIAgentSetup
+                        evolutionConfigId={config.id}
+                        onCreateAgent={createAIAgent}
+                        onUpdateAgent={updateAIAgent}
+                        agents={configAgents}
+                      />
+
+                      {configAgents.length > 0 && (
+                        <div className="mt-6 space-y-3">
+                          <h4 className="font-medium text-sm">Agentes Ativos:</h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {configAgents.map((agent) => (
+                              <Card key={agent.id} className="border-l-4 border-l-blue-500">
+                                <CardContent className="pt-4">
+                                  <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-medium text-sm">{agent.agent_id}</span>
+                                      <Badge variant={agent.is_active ? "default" : "secondary"} className="text-xs">
+                                        {agent.is_active ? "Ativo" : "Inativo"}
+                                      </Badge>
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">
+                                      📱 {agent.phone_number}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">
+                                      🤖 {agent.model} • Delay: {agent.response_delay_seconds}s
+                                    </p>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>

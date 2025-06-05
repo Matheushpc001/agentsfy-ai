@@ -1,17 +1,11 @@
 
-import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Bot, MessageSquare, Settings, Trash2 } from 'lucide-react';
-import { useEvolutionAPI } from '@/hooks/useEvolutionAPI';
-import { toast } from 'sonner';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Bot, Settings, Plus, Edit, Trash2 } from "lucide-react";
+import AIAgentSetup from "./AIAgentSetup";
+import { useState } from "react";
 
 interface AIAgentConfigProps {
   isOpen: boolean;
@@ -25,248 +19,131 @@ export default function AIAgentConfig({
   isOpen, 
   onClose, 
   evolutionConfigId, 
-  instanceName, 
+  instanceName,
   aiAgents 
 }: AIAgentConfigProps) {
-  const [isCreating, setIsCreating] = useState(false);
-  const [selectedAgent, setSelectedAgent] = useState<any>(null);
-  const [formData, setFormData] = useState({
-    agent_id: '',
-    phone_number: '',
-    openai_api_key: '',
-    model: 'gpt-4o-mini',
-    system_prompt: 'Você é um assistente útil e prestativo.',
-    is_active: true
-  });
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [editingAgent, setEditingAgent] = useState<any>(null);
 
-  const { createAIAgent, updateAIAgent, sendTestMessage } = useEvolutionAPI('');
-
-  const instanceAgents = aiAgents.filter(agent => agent.evolution_config_id === evolutionConfigId);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.agent_id || !formData.phone_number) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
-    }
-
-    try {
-      if (selectedAgent) {
-        await updateAIAgent(selectedAgent.id, formData);
-      } else {
-        await createAIAgent({
-          ...formData,
-          evolution_config_id: evolutionConfigId
-        });
-      }
-      
-      resetForm();
-    } catch (error) {
-      // Error handled in hook
-    }
+  const handleCreateAgent = async (agentData: any) => {
+    // This will be handled by the parent component's hook
+    console.log('Creating agent:', agentData);
+    setShowCreateForm(false);
   };
 
-  const resetForm = () => {
-    setFormData({
-      agent_id: '',
-      phone_number: '',
-      openai_api_key: '',
-      model: 'gpt-4o-mini',
-      system_prompt: 'Você é um assistente útil e prestativo.',
-      is_active: true
-    });
-    setSelectedAgent(null);
-    setIsCreating(false);
+  const handleUpdateAgent = async (agentId: string, updates: any) => {
+    // This will be handled by the parent component's hook
+    console.log('Updating agent:', agentId, updates);
+    setEditingAgent(null);
   };
 
-  const handleEdit = (agent: any) => {
-    setSelectedAgent(agent);
-    setFormData({
-      agent_id: agent.agent_id,
-      phone_number: agent.phone_number,
-      openai_api_key: agent.openai_api_key || '',
-      model: agent.model,
-      system_prompt: agent.system_prompt || 'Você é um assistente útil e prestativo.',
-      is_active: agent.is_active
-    });
-    setIsCreating(true);
+  const handleEditAgent = (agent: any) => {
+    setEditingAgent(agent);
+    setShowCreateForm(true);
   };
 
-  const handleTestMessage = async (agent: any) => {
-    try {
-      await sendTestMessage(
-        evolutionConfigId,
-        agent.phone_number,
-        'Mensagem de teste do agente IA. Tudo funcionando!'
-      );
-    } catch (error) {
-      // Error handled in hook
-    }
-  };
+  const activeAgents = aiAgents.filter(agent => agent.is_active);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Bot className="h-5 w-5" />
             Agentes IA - {instanceName}
           </DialogTitle>
         </DialogHeader>
+        
+        <div className="space-y-6">
+          {/* Estatísticas */}
+          <div className="grid grid-cols-2 gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Total de Agentes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{aiAgents.length}</div>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Agentes Ativos</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-green-600">{activeAgents.length}</div>
+              </CardContent>
+            </Card>
+          </div>
 
-        <div className="space-y-4">
-          {!isCreating ? (
-            <>
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium">Agentes Configurados</h3>
-                <Button onClick={() => setIsCreating(true)}>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Novo Agente
-                </Button>
+          {/* Botão para criar novo agente */}
+          <div className="flex justify-end">
+            <Button onClick={() => setShowCreateForm(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Agente IA
+            </Button>
+          </div>
+
+          {/* Formulário de criação/edição */}
+          {showCreateForm && (
+            <AIAgentSetup
+              evolutionConfigId={evolutionConfigId}
+              onCreateAgent={handleCreateAgent}
+              onUpdateAgent={handleUpdateAgent}
+              existingAgent={editingAgent}
+              agents={aiAgents}
+            />
+          )}
+
+          {/* Lista de agentes existentes */}
+          {aiAgents.length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Agentes Configurados</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {aiAgents.map((agent) => (
+                  <Card key={agent.id}>
+                    <CardHeader className="pb-2">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-base">{agent.agent_id}</CardTitle>
+                        <Badge variant={agent.is_active ? "default" : "secondary"}>
+                          {agent.is_active ? "Ativo" : "Inativo"}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <div className="text-sm">
+                        <span className="font-medium">Telefone:</span> {agent.phone_number}
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-medium">Modelo:</span> {agent.model}
+                      </div>
+                      <div className="text-sm">
+                        <span className="font-medium">Auto-resposta:</span> {agent.auto_response ? "Sim" : "Não"}
+                      </div>
+                      
+                      <div className="flex gap-2 pt-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          onClick={() => handleEditAgent(agent)}
+                        >
+                          <Edit className="h-3 w-3 mr-1" />
+                          Editar
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Excluir
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-
-              {instanceAgents.length === 0 ? (
-                <Card>
-                  <CardContent className="text-center py-8">
-                    <Bot className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">
-                      Nenhum agente IA configurado ainda.
-                    </p>
-                    <Button onClick={() => setIsCreating(true)} className="mt-4">
-                      Criar Primeiro Agente
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-3">
-                  {instanceAgents.map((agent) => (
-                    <Card key={agent.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <CardTitle className="text-base">
-                              Agente {agent.agent_id}
-                            </CardTitle>
-                            <Badge variant={agent.is_active ? 'default' : 'secondary'}>
-                              {agent.is_active ? 'Ativo' : 'Inativo'}
-                            </Badge>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleTestMessage(agent)}
-                              disabled={!agent.is_active}
-                            >
-                              <MessageSquare className="h-3 w-3" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(agent)}
-                            >
-                              <Settings className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="text-sm text-muted-foreground space-y-1">
-                          <p>Telefone: {agent.phone_number}</p>
-                          <p>Modelo: {agent.model}</p>
-                          <p>OpenAI: {agent.openai_api_key ? 'Configurado' : 'Não configurado'}</p>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="agent_id">ID do Agente</Label>
-                  <Input
-                    id="agent_id"
-                    placeholder="Ex: agent-001"
-                    value={formData.agent_id}
-                    onChange={(e) => setFormData(prev => ({ ...prev, agent_id: e.target.value }))}
-                    required
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone_number">Número do WhatsApp</Label>
-                  <Input
-                    id="phone_number"
-                    placeholder="Ex: 5511999999999"
-                    value={formData.phone_number}
-                    onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="openai_api_key">Chave OpenAI API</Label>
-                <Input
-                  id="openai_api_key"
-                  type="password"
-                  placeholder="sk-..."
-                  value={formData.openai_api_key}
-                  onChange={(e) => setFormData(prev => ({ ...prev, openai_api_key: e.target.value }))}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="model">Modelo IA</Label>
-                <Select value={formData.model} onValueChange={(value) => setFormData(prev => ({ ...prev, model: value }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gpt-4o-mini">GPT-4o Mini (Rápido)</SelectItem>
-                    <SelectItem value="gpt-4o">GPT-4o (Avançado)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="system_prompt">Prompt do Sistema</Label>
-                <Textarea
-                  id="system_prompt"
-                  rows={4}
-                  placeholder="Instruções para o comportamento do agente IA..."
-                  value={formData.system_prompt}
-                  onChange={(e) => setFormData(prev => ({ ...prev, system_prompt: e.target.value }))}
-                />
-              </div>
-
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="is_active"
-                  checked={formData.is_active}
-                  onCheckedChange={(checked) => setFormData(prev => ({ ...prev, is_active: checked }))}
-                />
-                <Label htmlFor="is_active">Agente ativo</Label>
-              </div>
-
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={resetForm}
-                  className="flex-1"
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit" className="flex-1">
-                  {selectedAgent ? 'Atualizar' : 'Criar'} Agente
-                </Button>
-              </div>
-            </form>
+            </div>
           )}
         </div>
       </DialogContent>

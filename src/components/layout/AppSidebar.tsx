@@ -26,7 +26,8 @@ import {
   MessageSquareText,
   BookOpen,
   LogOut,
-  FileText
+  FileText,
+  Settings
 } from "lucide-react";
 import { UserRole, NavItem } from "@/types";
 
@@ -42,6 +43,7 @@ export function AppSidebar() {
       { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
       { label: "Franqueados", icon: Users, href: "/admin/franchisees" },
       { label: "Estatísticas", icon: BarChart2, href: "/admin/analytics" },
+      { label: "Evolution API", icon: Settings, href: "/admin/evolution-config" },
       { label: "Aulas", icon: BookOpen, href: "/admin/lessons" },
     ],
     franchisee: [
