@@ -20,29 +20,23 @@ import {
 import { toast } from "sonner";
 import usePromptManagement from "@/hooks/usePromptManagement";
 import PromptModal from "@/components/agents/PromptModal";
-import PromptsLibraryModal from "@/components/agents/PromptsLibraryModal";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function Prompts() {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeNiche, setActiveNiche] = useState<string>("all");
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingPrompt, setEditingPrompt] = useState(null);
   const isMobile = useIsMobile();
   
   const {
     prompts,
     isPromptModalOpen,
     setIsPromptModalOpen,
-    createPrompt,
-    updatePrompt,
-    deletePrompt,
-    openEditPromptModal,
-    isEditPromptModalOpen,
-    setIsEditPromptModalOpen,
-    currentPrompt,
-    getAllNiches
+    allNiches,
+    handleSubmitPrompt,
+    handleDeletePrompt,
   } = usePromptManagement();
-
-  const niches = getAllNiches();
 
   const filteredPrompts = prompts.filter(prompt => {
     const matchesSearch = prompt.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -57,8 +51,20 @@ export default function Prompts() {
     toast.success(`Prompt "${name}" copiado!`);
   };
 
-  const handleDeletePrompt = (id: string, name: string) => {
-    deletePrompt(id);
+  const handleEditPrompt = (prompt) => {
+    setEditingPrompt(prompt);
+    setIsEditModalOpen(true);
+  };
+
+  const handleDeleteClick = (id: string, name: string) => {
+    handleDeletePrompt(id);
+  };
+
+  const handleUpdatePrompt = (promptData) => {
+    // For editing, we need to call the handler with the prompt data
+    handleSubmitPrompt(promptData);
+    setIsEditModalOpen(false);
+    setEditingPrompt(null);
   };
 
   return (
@@ -115,7 +121,7 @@ export default function Prompts() {
               </CardHeader>
               <CardContent className="pt-0">
                 <div className="text-2xl font-bold text-green-900 dark:text-green-100">
-                  {niches.length}
+                  {allNiches.length}
                 </div>
               </CardContent>
             </Card>
@@ -171,7 +177,7 @@ export default function Prompts() {
                     >
                       Todos ({prompts.length})
                     </TabsTrigger>
-                    {niches.map((niche) => {
+                    {allNiches.map((niche) => {
                       const nicheCount = prompts.filter(p => p.niche === niche).length;
                       return (
                         <TabsTrigger 
@@ -242,7 +248,7 @@ export default function Prompts() {
                               variant="ghost" 
                               size="sm" 
                               className="h-8 w-8 p-0 hover:bg-muted"
-                              onClick={() => openEditPromptModal(prompt)}
+                              onClick={() => handleEditPrompt(prompt)}
                               title="Editar prompt"
                             >
                               <Edit size={14} />
@@ -251,7 +257,7 @@ export default function Prompts() {
                               variant="ghost" 
                               size="sm" 
                               className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
-                              onClick={() => handleDeletePrompt(prompt.id, prompt.name)}
+                              onClick={() => handleDeleteClick(prompt.id, prompt.name)}
                               disabled={prompt.isDefault}
                               title={prompt.isDefault ? "Não é possível excluir prompts padrão" : "Excluir prompt"}
                             >
@@ -309,16 +315,19 @@ export default function Prompts() {
       <PromptModal
         isOpen={isPromptModalOpen}
         onClose={() => setIsPromptModalOpen(false)}
-        onSubmit={createPrompt}
-        allNiches={niches}
+        onSubmit={handleSubmitPrompt}
+        allNiches={allNiches}
       />
 
       <PromptModal
-        isOpen={isEditPromptModalOpen}
-        onClose={() => setIsEditPromptModalOpen(false)}
-        onSubmit={(data) => currentPrompt && updatePrompt(currentPrompt.id, data)}
-        editing={currentPrompt}
-        allNiches={niches}
+        isOpen={isEditModalOpen}
+        onClose={() => {
+          setIsEditModalOpen(false);
+          setEditingPrompt(null);
+        }}
+        onSubmit={handleUpdatePrompt}
+        editing={editingPrompt}
+        allNiches={allNiches}
       />
     </DashboardLayout>
   );
