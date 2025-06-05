@@ -1,6 +1,7 @@
 
 import { Agent, Customer } from "@/types";
 import { toast } from "sonner";
+import { useCallback } from "react";
 
 interface UseAgentFormValidationProps {
   formData: Partial<Agent>;
@@ -17,7 +18,7 @@ export function useAgentFormValidation({
   selectedCustomerId,
   setActiveTab,
 }: UseAgentFormValidationProps) {
-  const validateAgentForm = () => {
+  const validateAgentForm = useCallback(() => {
     console.log('Validating agent form:', formData);
     
     if (!formData.name?.trim()) {
@@ -42,9 +43,9 @@ export function useAgentFormValidation({
 
     console.log('Agent form validation passed');
     return true;
-  };
+  }, [formData]);
 
-  const validateCustomerForm = () => {
+  const validateCustomerForm = useCallback(() => {
     console.log('Validating customer form:', { isNewCustomer, customerData, selectedCustomerId });
     
     if (isNewCustomer) {
@@ -78,7 +79,7 @@ export function useAgentFormValidation({
     
     console.log('Customer form validation passed');
     return true;
-  };
+  }, [isNewCustomer, customerData, selectedCustomerId]);
 
   return {
     validateAgentForm,

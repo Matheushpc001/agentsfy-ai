@@ -1,10 +1,10 @@
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 
 export function useAgentTabNavigation() {
   const [activeTab, setActiveTab] = useState("agent");
 
-  const nextTab = (validateCurrentTab?: () => boolean) => {
+  const nextTab = useCallback((validateCurrentTab?: () => boolean) => {
     console.log('nextTab called, current tab:', activeTab);
     
     if (validateCurrentTab && !validateCurrentTab()) {
@@ -19,9 +19,9 @@ export function useAgentTabNavigation() {
     }
     
     return false;
-  };
+  }, [activeTab]);
 
-  const prevTab = () => {
+  const prevTab = useCallback(() => {
     console.log('prevTab called, current tab:', activeTab);
     
     if (activeTab === "customer") {
@@ -31,12 +31,12 @@ export function useAgentTabNavigation() {
     }
     
     return false;
-  };
+  }, [activeTab]);
 
-  const resetTab = () => {
+  const resetTab = useCallback(() => {
     console.log('Resetting tab to agent');
     setActiveTab("agent");
-  };
+  }, []);
 
   return {
     activeTab,

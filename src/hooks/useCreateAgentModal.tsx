@@ -40,13 +40,14 @@ export function useCreateAgentModal({ editing, selectedPrompt, open }: UseCreate
 
   const { knowledgeBaseFile, handleFileChange, resetFile } = useAgentFileHandling();
 
-  // Reset tab and file when modal opens
+  // Reset tab and file when modal opens (only when it actually opens, not on every render)
   useEffect(() => {
     if (open) {
+      console.log('Modal opened, resetting to agent tab');
       resetTab();
       resetFile();
     }
-  }, [open, resetTab, resetFile]);
+  }, [open]); // Remove resetTab and resetFile from dependencies to prevent infinite loops
 
   // Enhanced file change handler that updates form data
   const handleFileChangeWithFormUpdate = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,16 +65,26 @@ export function useCreateAgentModal({ editing, selectedPrompt, open }: UseCreate
 
   // Enhanced next tab function with proper validation
   const nextTabWithValidation = () => {
-    console.log('nextTabWithValidation called');
+    console.log('nextTabWithValidation called, current tab:', activeTab);
+    
+    if (activeTab !== 'agent') {
+      console.log('Not on agent tab, ignoring next tab call');
+      return;
+    }
+    
     const isValid = validateAgentForm();
+    console.log('Agent form validation result:', isValid);
     
     if (isValid) {
+      console.log('Validation passed, moving to customer tab');
       const moved = nextTab();
       if (moved) {
-        console.log('Successfully moved to next tab');
+        console.log('Successfully moved to customer tab');
+      } else {
+        console.log('Failed to move to customer tab');
       }
     } else {
-      console.log('Validation failed, staying on current tab');
+      console.log('Validation failed, staying on agent tab');
     }
   };
 
