@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,6 +14,7 @@ import NotFound from "./pages/NotFound";
 import Franchisees from "./pages/admin/Franchisees";
 import Analytics from "./pages/admin/Analytics";
 import Lessons from "./pages/admin/Lessons";
+import EvolutionConfig from "./pages/admin/EvolutionConfig";
 
 // Franchisee pages
 import Agents from "./pages/franchisee/Agents";
@@ -71,6 +71,7 @@ const AppRoutes = () => {
       {/* Admin routes */}
       <Route path="/admin/franchisees" element={<ProtectedRoute element={<Franchisees />} allowedRoles={["admin"]} />} />
       <Route path="/admin/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={["admin"]} />} />
+      <Route path="/admin/evolution-config" element={<ProtectedRoute element={<EvolutionConfig />} allowedRoles={["admin"]} />} />
       <Route path="/admin/lessons" element={<ProtectedRoute element={<Lessons />} allowedRoles={["admin"]} />} />
 
       {/* Franchisee routes */}
