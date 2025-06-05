@@ -115,14 +115,11 @@ export type Database = {
       }
       evolution_api_configs: {
         Row: {
-          api_key: string
-          api_url: string
           created_at: string
           franchisee_id: string
-          global_api_key: string | null
+          global_config_id: string | null
           id: string
           instance_name: string
-          manager_url: string | null
           qr_code: string | null
           qr_code_expires_at: string | null
           status: string | null
@@ -130,14 +127,11 @@ export type Database = {
           webhook_url: string | null
         }
         Insert: {
-          api_key: string
-          api_url: string
           created_at?: string
           franchisee_id: string
-          global_api_key?: string | null
+          global_config_id?: string | null
           id?: string
           instance_name: string
-          manager_url?: string | null
           qr_code?: string | null
           qr_code_expires_at?: string | null
           status?: string | null
@@ -145,19 +139,81 @@ export type Database = {
           webhook_url?: string | null
         }
         Update: {
-          api_key?: string
-          api_url?: string
           created_at?: string
           franchisee_id?: string
-          global_api_key?: string | null
+          global_config_id?: string | null
           id?: string
           instance_name?: string
-          manager_url?: string | null
           qr_code?: string | null
           qr_code_expires_at?: string | null
           status?: string | null
           updated_at?: string
           webhook_url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evolution_api_configs_global_config_id_fkey"
+            columns: ["global_config_id"]
+            isOneToOne: false
+            referencedRelation: "evolution_global_configs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evolution_global_configs: {
+        Row: {
+          api_key: string
+          api_url: string
+          created_at: string
+          global_api_key: string | null
+          id: string
+          is_active: boolean
+          manager_url: string | null
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          api_key: string
+          api_url: string
+          created_at?: string
+          global_api_key?: string | null
+          id?: string
+          is_active?: boolean
+          manager_url?: string | null
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          api_key?: string
+          api_url?: string
+          created_at?: string
+          global_api_key?: string | null
+          id?: string
+          is_active?: boolean
+          manager_url?: string | null
+          name?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
         }
         Relationships: []
       }
@@ -287,9 +343,16 @@ export type Database = {
           status: string
         }[]
       }
+      has_role: {
+        Args: {
+          _user_id: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "franchisee" | "customer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -404,6 +467,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "franchisee", "customer"],
+    },
   },
 } as const

@@ -4,27 +4,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle, XCircle, Loader2, TestTube, Zap } from "lucide-react";
 import { toast } from "sonner";
 
+interface GlobalConfig {
+  id: string;
+  name: string;
+  api_url: string;
+  is_active: boolean;
+}
+
 interface EvolutionAPISetupProps {
-  onTestConnection: (apiUrl: string, apiKey: string, globalApiKey?: string) => Promise<any>;
-  onCreateInstance: (instanceName: string, apiUrl: string, apiKey: string, managerUrl?: string, globalApiKey?: string) => Promise<any>;
+  globalConfigs: GlobalConfig[];
+  onTestConnection: (globalConfigId: string) => Promise<any>;
+  onCreateInstance: (instanceName: string, globalConfigId: string) => Promise<any>;
   isCreating: boolean;
 }
 
 export default function EvolutionAPISetup({ 
+  globalConfigs,
   onTestConnection, 
   onCreateInstance, 
   isCreating 
 }: EvolutionAPISetupProps) {
   const [formData, setFormData] = useState({
-    apiUrl: 'https://yourdomain.com/yourserver',
-    apiKey: '',
-    managerUrl: 'https://yourdomain.com/yourmanager',
-    globalApiKey: '',
+    selectedGlobalConfig: '',
     instanceName: ''
   });
 
@@ -33,15 +39,15 @@ export default function EvolutionAPISetup({
 
   const handleChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // Reset connection status when changing connection details
-    if (['apiUrl', 'apiKey', 'globalApiKey'].includes(field)) {
+    // Reset connection status when changing global config
+    if (field === 'selectedGlobalConfig') {
       setConnectionStatus('idle');
     }
   };
 
   const testConnection = async () => {
-    if (!formData.apiUrl || !formData.apiKey) {
-      toast.error('Preencha a URL da API e a chave da API');
+    if (!formData.selectedGlobalConfig) {
+      toast.error('Selecione uma configuração global');
       return;
     }
 
@@ -49,7 +55,7 @@ export default function EvolutionAPISetup({
     setConnectionStatus('testing');
 
     try {
-      await onTestConnection(formData.apiUrl, formData.apiKey, formData.globalApiKey);
+      await onTestConnection(formData.selectedGlobalConfig);
       setConnectionStatus('success');
     } catch (error) {
       setConnectionStatus('error');
@@ -59,7 +65,7 @@ export default function EvolutionAPISetup({
   };
 
   const createInstance = async () => {
-    if (!formData.instanceName || !formData.apiUrl || !formData.apiKey) {
+    if (!formData.instanceName || !formData.selectedGlobalConfig) {
       toast.error('Preencha todos os campos obrigatórios');
       return;
     }
@@ -72,10 +78,7 @@ export default function EvolutionAPISetup({
     try {
       await onCreateInstance(
         formData.instanceName,
-        formData.apiUrl,
-        formData.apiKey,
-        formData.managerUrl || undefined,
-        formData.globalApiKey || undefined
+        formData.selectedGlobalConfig
       );
       
       // Reset form after successful creation
@@ -98,6 +101,8 @@ export default function EvolutionAPISetup({
     }
   };
 
+  const selectedConfig = globalConfigs.find(config => config.id === formData.selectedGlobalConfig);
+
   return (
     <div className="space-y-6">
       <Card>
@@ -107,117 +112,112 @@ export default function EvolutionAPISetup({
             Configuração da EvolutionAPI
           </CardTitle>
           <CardDescription>
-            Configure sua instância da EvolutionAPI para integração com WhatsApp
+            Selecione uma configuração global e crie sua instância WhatsApp
           </CardDescription>
         </CardHeader>
         
         <CardContent className="space-y-6">
-          {/* Configurações de Conexão */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium">Configurações de Conexão</h3>
-              {getConnectionStatusBadge()}
+          {globalConfigs.length === 0 ? (
+            <div className="bg-muted/50 p-4 rounded-lg text-center">
+              <p className="text-muted-foreground">
+                Nenhuma configuração global disponível. Entre em contato com o administrador.
+              </p>
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="apiUrl">URL da API *</Label>
-                <Input
-                  id="apiUrl"
-                  value={formData.apiUrl}
-                  onChange={(e) => handleChange('apiUrl', e.target.value)}
-                  placeholder="https://yourdomain.com/yourserver"
-                />
+          ) : (
+            <>
+              {/* Seleção de Configuração Global */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-medium">Configuração Global</h3>
+                  {getConnectionStatusBadge()}
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="globalConfig">Configuração Disponível *</Label>
+                  <Select 
+                    value={formData.selectedGlobalConfig} 
+                    onValueChange={(value) => handleChange('selectedGlobalConfig', value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione uma configuração" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {globalConfigs.map((config) => (
+                        <SelectItem key={config.id} value={config.id}>
+                          <div className="flex items-center justify-between w-full">
+                            <span>{config.name}</span>
+                            <Badge variant="outline" className="ml-2">
+                              {config.api_url}
+                            </Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {selectedConfig && (
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <p className="text-sm">
+                      <span className="font-medium">URL da API:</span> {selectedConfig.api_url}
+                    </p>
+                  </div>
+                )}
+
+                <Button 
+                  onClick={testConnection} 
+                  disabled={isTesting || !formData.selectedGlobalConfig}
+                  variant="outline"
+                  className="w-full"
+                >
+                  <TestTube className="w-4 h-4 mr-2" />
+                  {isTesting ? 'Testando Conexão...' : 'Testar Conexão'}
+                </Button>
               </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="apiKey">Chave da API *</Label>
-                <Input
-                  id="apiKey"
-                  type="password"
-                  value={formData.apiKey}
-                  onChange={(e) => handleChange('apiKey', e.target.value)}
-                  placeholder="Sua chave da API"
-                />
+
+              {/* Criação de Instância */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Criar Nova Instância</h3>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="instanceName">Nome da Instância *</Label>
+                  <Input
+                    id="instanceName"
+                    value={formData.instanceName}
+                    onChange={(e) => handleChange('instanceName', e.target.value)}
+                    placeholder="minha-instancia-whatsapp"
+                  />
+                </div>
+
+                <Button 
+                  onClick={createInstance}
+                  disabled={isCreating || connectionStatus !== 'success' || !formData.instanceName}
+                  className="w-full"
+                >
+                  {isCreating ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Criando Instância...
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-4 h-4 mr-2" />
+                      Criar Instância
+                    </>
+                  )}
+                </Button>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="managerUrl">URL do Manager (Opcional)</Label>
-                <Input
-                  id="managerUrl"
-                  value={formData.managerUrl}
-                  onChange={(e) => handleChange('managerUrl', e.target.value)}
-                  placeholder="https://yourdomain.com/yourmanager"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="globalApiKey">Chave Global da API (Opcional)</Label>
-                <Input
-                  id="globalApiKey"
-                  type="password"
-                  value={formData.globalApiKey}
-                  onChange={(e) => handleChange('globalApiKey', e.target.value)}
-                  placeholder="Chave global para múltiplas instâncias"
-                />
-              </div>
-            </div>
-
-            <Button 
-              onClick={testConnection} 
-              disabled={isTesting || !formData.apiUrl || !formData.apiKey}
-              variant="outline"
-              className="w-full"
-            >
-              <TestTube className="w-4 h-4 mr-2" />
-              {isTesting ? 'Testando Conexão...' : 'Testar Conexão'}
-            </Button>
-          </div>
-
-          <Separator />
-
-          {/* Criação de Instância */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium">Criar Nova Instância</h3>
-            
-            <div className="space-y-2">
-              <Label htmlFor="instanceName">Nome da Instância *</Label>
-              <Input
-                id="instanceName"
-                value={formData.instanceName}
-                onChange={(e) => handleChange('instanceName', e.target.value)}
-                placeholder="minha-instancia-whatsapp"
-              />
-            </div>
-
-            <Button 
-              onClick={createInstance}
-              disabled={isCreating || connectionStatus !== 'success' || !formData.instanceName}
-              className="w-full"
-            >
-              {isCreating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Criando Instância...
-                </>
-              ) : (
-                <>
-                  <Zap className="w-4 h-4 mr-2" />
-                  Criar Instância
-                </>
-              )}
-            </Button>
-          </div>
+            </>
+          )}
 
           {/* Informações de ajuda */}
           <div className="bg-muted/50 p-4 rounded-lg">
-            <h4 className="font-medium mb-2">Como configurar:</h4>
+            <h4 className="font-medium mb-2">Como usar:</h4>
             <ul className="text-sm text-muted-foreground space-y-1">
-              <li>1. Insira a URL da sua EvolutionAPI</li>
-              <li>2. Configure a chave da API</li>
-              <li>3. Teste a conexão</li>
-              <li>4. Crie uma nova instância</li>
-              <li>5. Configure agentes IA na aba correspondente</li>
+              <li>1. Selecione uma configuração global disponível</li>
+              <li>2. Teste a conexão com o servidor</li>
+              <li>3. Crie uma nova instância para seu WhatsApp</li>
+              <li>4. Configure agentes IA na aba correspondente</li>
             </ul>
           </div>
         </CardContent>

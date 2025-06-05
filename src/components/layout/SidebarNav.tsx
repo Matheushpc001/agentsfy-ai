@@ -11,7 +11,8 @@ import {
   Search,
   MessageSquareText,
   BookOpen,
-  FileText
+  FileText,
+  Settings
 } from "lucide-react";
 import { UserRole, NavItem } from "@/types";
 
@@ -42,6 +43,11 @@ export function SidebarNav({ userRole, isCollapsed, isMobile, onNavigate }: Side
         label: "Estatísticas", 
         icon: BarChart2, 
         href: "/admin/analytics" 
+      },
+      { 
+        label: "Evolution API", 
+        icon: Settings, 
+        href: "/admin/evolution-config" 
       },
       { 
         label: "Aulas", 

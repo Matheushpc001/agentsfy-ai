@@ -7,16 +7,20 @@ interface EvolutionConfig {
   id: string;
   franchisee_id: string;
   instance_name: string;
-  api_url: string;
-  api_key: string;
-  manager_url?: string;
-  global_api_key?: string;
+  global_config_id?: string;
   webhook_url?: string;
   status: 'connected' | 'disconnected' | 'connecting' | 'error';
   qr_code?: string;
   qr_code_expires_at?: string;
   created_at: string;
   updated_at: string;
+  // Global config data (joined)
+  global_config?: {
+    api_url: string;
+    api_key: string;
+    manager_url?: string;
+    global_api_key?: string;
+  };
 }
 
 interface AIAgent {
@@ -34,14 +38,26 @@ interface AIAgent {
   updated_at: string;
 }
 
+interface GlobalConfig {
+  id: string;
+  name: string;
+  api_url: string;
+  api_key: string;
+  manager_url?: string;
+  global_api_key?: string;
+  is_active: boolean;
+}
+
 export function useEvolutionAPI(franchiseeId: string) {
   const [configs, setConfigs] = useState<EvolutionConfig[]>([]);
+  const [globalConfigs, setGlobalConfigs] = useState<GlobalConfig[]>([]);
   const [aiAgents, setAIAgents] = useState<AIAgent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
   useEffect(() => {
     loadConfigs();
+    loadGlobalConfigs();
     loadAIAgents();
     
     // Subscribe to real-time updates
@@ -71,17 +87,47 @@ export function useEvolutionAPI(franchiseeId: string) {
     try {
       const { data, error } = await supabase
         .from('evolution_api_configs')
-        .select('*')
+        .select(`
+          *,
+          evolution_global_configs!inner(
+            api_url,
+            api_key,
+            manager_url,
+            global_api_key
+          )
+        `)
         .eq('franchisee_id', franchiseeId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setConfigs(data || []);
+      
+      // Transform data to include global config
+      const transformedData = data?.map(config => ({
+        ...config,
+        global_config: config.evolution_global_configs
+      })) || [];
+      
+      setConfigs(transformedData);
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
       toast.error('Erro ao carregar configurações da EvolutionAPI');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadGlobalConfigs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('evolution_global_configs')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setGlobalConfigs(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar configurações globais:', error);
     }
   };
 
@@ -102,14 +148,12 @@ export function useEvolutionAPI(franchiseeId: string) {
     }
   };
 
-  const testConnection = async (apiUrl: string, apiKey: string, globalApiKey?: string) => {
+  const testConnection = async (globalConfigId: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
-          action: 'test_connection',
-          apiUrl,
-          apiKey,
-          globalApiKey
+          action: 'test_connection_global',
+          globalConfigId
         }
       });
 
@@ -127,22 +171,16 @@ export function useEvolutionAPI(franchiseeId: string) {
 
   const createInstance = async (
     instanceName: string, 
-    apiUrl: string, 
-    apiKey: string,
-    managerUrl?: string,
-    globalApiKey?: string
+    globalConfigId: string
   ) => {
     setIsCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
-          action: 'create_instance',
+          action: 'create_instance_with_global',
           franchiseeId,
           instanceName,
-          apiUrl,
-          apiKey,
-          managerUrl,
-          globalApiKey
+          globalConfigId
         }
       });
 
@@ -295,6 +333,7 @@ export function useEvolutionAPI(franchiseeId: string) {
 
   return {
     configs,
+    globalConfigs,
     aiAgents,
     isLoading,
     isCreating,

@@ -18,6 +18,7 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
   
   const {
     configs,
+    globalConfigs,
     aiAgents,
     isLoading,
     isCreating,
@@ -91,6 +92,7 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
 
         <TabsContent value="setup" className="space-y-6">
           <EvolutionAPISetup
+            globalConfigs={globalConfigs}
             onTestConnection={testConnection}
             onCreateInstance={createInstance}
             isCreating={isCreating}
