@@ -21,8 +21,9 @@ export function createNewAgent(
     franchiseeId: franchiseeId,
     whatsappConnected: false,
     createdAt: now,
-    updatedAt: now,
-    status: "active",
+    isActive: true,
+    messageCount: 0,
+    responseTime: 0,
     ...agentData
   };
 }
@@ -42,27 +43,18 @@ export function createNewCustomer(
     contactPhone: customerData.contactPhone || "",
     franchiseeId: franchiseeId,
     agentCount: 0,
-    status: "active",
     createdAt: now,
-    updatedAt: now,
+    role: "customer",
     ...customerData
   };
 }
 
 export function generateCustomerPortalAccess(customer: Customer): CustomerPortalAccess {
-  const now = new Date().toISOString();
-  
   return {
-    id: uuidv4(),
-    customerId: customer.id,
-    customerName: customer.name,
-    customerEmail: customer.email,
-    businessName: customer.businessName,
-    accessUrl: `https://portal.exemplo.com/customer/${customer.id}`,
+    url: `https://portal.exemplo.com/customer/${customer.id}`,
     username: customer.email,
     password: generateRandomPassword(),
-    createdAt: now,
-    expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 dias
+    customerId: customer.id,
   };
 }
 
