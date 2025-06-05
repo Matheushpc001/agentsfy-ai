@@ -40,6 +40,7 @@ export function useAgentFormValidation({
       return false;
     }
 
+    console.log('Agent form validation passed');
     return true;
   };
 
@@ -48,19 +49,16 @@ export function useAgentFormValidation({
     
     if (isNewCustomer) {
       if (!customerData.businessName?.trim()) {
-        setActiveTab("customer");
         toast.error("Por favor, preencha o nome da empresa");
         return false;
       }
 
       if (!customerData.name?.trim()) {
-        setActiveTab("customer");
         toast.error("Por favor, preencha o nome do responsável");
         return false;
       }
 
       if (!customerData.email?.trim()) {
-        setActiveTab("customer");
         toast.error("Por favor, preencha o email do responsável");
         return false;
       }
@@ -68,18 +66,17 @@ export function useAgentFormValidation({
       // Validação básica de email
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
       if (!emailRegex.test(customerData.email)) {
-        setActiveTab("customer");
         toast.error("Por favor, forneça um email válido");
         return false;
       }
     } else {
       if (!selectedCustomerId) {
-        setActiveTab("customer");
         toast.error("Por favor, selecione um cliente existente");
         return false;
       }
     }
     
+    console.log('Customer form validation passed');
     return true;
   };
 

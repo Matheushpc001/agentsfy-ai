@@ -35,27 +35,36 @@ export default function AgentFormTab({
   onNext,
   knowledgeBaseFile
 }: AgentFormTabProps) {
+  
+  const handleNextClick = () => {
+    console.log('Next button clicked in AgentFormTab');
+    console.log('Form data:', formData);
+    onNext();
+  };
+
   return (
     <div className="space-y-4">
       <div className="space-y-2">
-        <Label htmlFor="name">Nome do Agente</Label>
+        <Label htmlFor="name">Nome do Agente *</Label>
         <Input
           id="name"
           name="name"
           value={formData.name || ""}
           onChange={onFormChange}
           placeholder="Ex: Atendente Virtual"
+          required
         />
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="sector">Setor / Especialidade</Label>
+        <Label htmlFor="sector">Setor / Especialidade *</Label>
         <Input
           id="sector"
           name="sector"
           value={formData.sector || ""}
           onChange={onFormChange}
           placeholder="Ex: Atendimento ao Cliente"
+          required
         />
       </div>
       
@@ -63,14 +72,16 @@ export default function AgentFormTab({
       <div className="space-y-2">
         <Label htmlFor="promptSelector" className="flex justify-between">
           <span>Selecionar Prompt</span>
-          <Button 
-            type="button" 
-            variant="link" 
-            className="h-auto p-0 text-xs"
-            onClick={onOpenPromptsLibrary}
-          >
-            Ver biblioteca de prompts
-          </Button>
+          {onOpenPromptsLibrary && (
+            <Button 
+              type="button" 
+              variant="link" 
+              className="h-auto p-0 text-xs"
+              onClick={onOpenPromptsLibrary}
+            >
+              Ver biblioteca de prompts
+            </Button>
+          )}
         </Label>
         <Select value={selectedPromptId} onValueChange={onPromptSelect}>
           <SelectTrigger>
@@ -105,7 +116,7 @@ export default function AgentFormTab({
       
       <div className="space-y-2">
         <Label htmlFor="openAiKey" className="flex justify-between">
-          <span>Chave da API OpenAI</span>
+          <span>Chave da API OpenAI *</span>
           <a 
             href="https://platform.openai.com/api-keys" 
             target="_blank" 
@@ -122,6 +133,7 @@ export default function AgentFormTab({
           onChange={onFormChange}
           type="password"
           placeholder="sk-..."
+          required
         />
         <p className="text-xs text-muted-foreground">
           Sua chave ficará armazenada de forma segura e será usada apenas para este agente.
@@ -185,7 +197,11 @@ export default function AgentFormTab({
       </div>
 
       <div className="flex justify-end pt-4">
-        <Button type="button" onClick={onNext}>
+        <Button 
+          type="button" 
+          onClick={handleNextClick}
+          className="bg-primary hover:bg-primary/90"
+        >
           Próximo
         </Button>
       </div>

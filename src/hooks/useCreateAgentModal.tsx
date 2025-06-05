@@ -62,9 +62,19 @@ export function useCreateAgentModal({ editing, selectedPrompt, open }: UseCreate
     }
   };
 
-  // Enhanced next tab function
+  // Enhanced next tab function with proper validation
   const nextTabWithValidation = () => {
-    nextTab(validateAgentForm);
+    console.log('nextTabWithValidation called');
+    const isValid = validateAgentForm();
+    
+    if (isValid) {
+      const moved = nextTab();
+      if (moved) {
+        console.log('Successfully moved to next tab');
+      }
+    } else {
+      console.log('Validation failed, staying on current tab');
+    }
   };
 
   return {
