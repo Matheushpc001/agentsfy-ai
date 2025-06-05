@@ -41,12 +41,21 @@ export function useAgentSubmission({
     customerData?: Partial<Customer>, 
     isNewCustomer?: boolean
   ) => {
+    console.log('handleSubmitAgent called:', { 
+      agentData, 
+      customerData, 
+      isNewCustomer, 
+      franchiseeId,
+      isEditModalOpen 
+    });
+
     try {
       // Handle customer creation/selection
       let customerId = "";
       let customer: Customer | undefined;
 
       if (isNewCustomer && customerData) {
+        console.log('Creating new customer...');
         // Create new customer
         const createCustomerRequest: CreateCustomerRequest = {
           business_name: customerData.businessName || "",
@@ -59,13 +68,20 @@ export function useAgentSubmission({
         customer = await customerService.createCustomer(createCustomerRequest, franchiseeId);
         setCustomers([...customers, customer]);
         customerId = customer.id;
+        console.log('Customer created successfully:', customer.id);
       } else if (agentData.customerId) {
         // Use existing customer
         customerId = agentData.customerId;
         customer = customers.find(c => c.id === customerId);
+        console.log('Using existing customer:', customerId);
+      }
+
+      if (!customerId) {
+        throw new Error('Customer ID is required');
       }
 
       if (isEditModalOpen && currentAgent) {
+        console.log('Updating existing agent...');
         // Edit existing agent
         const updateRequest: Partial<CreateAgentRequest> = {
           name: agentData.name,
@@ -95,6 +111,7 @@ export function useAgentSubmission({
         setIsEditModalOpen(false);
         setCurrentAgent(null);
       } else {
+        console.log('Creating new agent...');
         // Create new agent
         const createAgentRequest: CreateAgentRequest = {
           name: agentData.name || "",
@@ -111,6 +128,8 @@ export function useAgentSubmission({
         setAgents([...agents, newAgent]);
         setCurrentAgent(newAgent);
         setIsCreateModalOpen(false);
+        
+        console.log('Agent created successfully:', newAgent.id);
         
         if (customer) {
           setCurrentCustomer(customer);

@@ -12,6 +12,8 @@ export default function useAgentManagement(
   initialCustomers: Customer[],
   franchiseeId: string
 ) {
+  console.log('useAgentManagement initialized with franchiseeId:', franchiseeId);
+
   // State management
   const {
     agents,
@@ -41,6 +43,11 @@ export default function useAgentManagement(
   // Load data from Supabase on mount
   useEffect(() => {
     const loadData = async () => {
+      if (!franchiseeId) {
+        console.warn('No franchiseeId provided, skipping data load');
+        return;
+      }
+
       try {
         console.log('Loading agents and customers for franchisee:', franchiseeId);
         
@@ -49,8 +56,10 @@ export default function useAgentManagement(
           customerService.getCustomers(franchiseeId)
         ]);
         
-        console.log('Loaded agents:', agentsData.length);
-        console.log('Loaded customers:', customersData.length);
+        console.log('Data loaded successfully:', {
+          agents: agentsData.length,
+          customers: customersData.length
+        });
         
         setAgents(agentsData);
         setCustomers(customersData);
@@ -60,9 +69,7 @@ export default function useAgentManagement(
       }
     };
 
-    if (franchiseeId) {
-      loadData();
-    }
+    loadData();
   }, [franchiseeId, setAgents, setCustomers]);
 
   // Agent actions
@@ -107,6 +114,7 @@ export default function useAgentManagement(
 
   // Enhanced create agent click handler
   const handleCreateAgentClickWithLimit = (agentLimit: number) => {
+    console.log('Creating agent with limit:', agentLimit, 'Current agents:', agents.length);
     handleCreateAgentClick(agentLimit, agents);
   };
 

@@ -7,6 +7,8 @@ import { Navigate } from "react-router-dom";
 export default function Agents() {
   const { user, loading } = useAuthCheck();
 
+  console.log('Agents page - Auth state:', { user: user?.id, loading });
+
   if (loading) {
     return (
       <DashboardLayout title="Agentes">
@@ -21,8 +23,11 @@ export default function Agents() {
   }
 
   if (!user) {
+    console.log('No user found, redirecting to login');
     return <Navigate to="/login" replace />;
   }
+
+  console.log('User authenticated, rendering agents page for:', user.id);
 
   // Use the authenticated user's ID as franchiseeId
   return (

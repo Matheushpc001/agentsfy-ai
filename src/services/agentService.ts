@@ -23,6 +23,8 @@ export interface CreateCustomerRequest {
 
 export const agentService = {
   async createAgent(agentData: CreateAgentRequest, franchiseeId: string): Promise<Agent> {
+    console.log('Creating agent:', { agentData, franchiseeId });
+    
     const { data, error } = await supabase
       .from('agents')
       .insert({
@@ -48,16 +50,24 @@ export const agentService = {
       throw new Error(`Failed to create agent: ${error.message}`);
     }
 
-    // Update customer agent count
-    await supabase
-      .from('customers')
-      .update({ agent_count: supabase.sql`agent_count + 1` })
-      .eq('id', agentData.customer_id);
+    console.log('Agent created successfully:', data);
+
+    // Update customer agent count using RPC or raw SQL
+    const { error: updateError } = await supabase.rpc('increment_customer_agent_count', {
+      customer_id: agentData.customer_id
+    });
+
+    if (updateError) {
+      console.warn('Failed to update customer agent count:', updateError);
+      // Don't throw error here as the agent was created successfully
+    }
 
     return this.mapAgentFromDB(data);
   },
 
   async updateAgent(agentId: string, updates: Partial<CreateAgentRequest>): Promise<Agent> {
+    console.log('Updating agent:', { agentId, updates });
+    
     const { data, error } = await supabase
       .from('agents')
       .update({
@@ -78,10 +88,13 @@ export const agentService = {
       throw new Error(`Failed to update agent: ${error.message}`);
     }
 
+    console.log('Agent updated successfully:', data);
     return this.mapAgentFromDB(data);
   },
 
   async getAgents(franchiseeId: string): Promise<Agent[]> {
+    console.log('Fetching agents for franchisee:', franchiseeId);
+    
     const { data, error } = await supabase
       .from('agents')
       .select('*')
@@ -93,10 +106,13 @@ export const agentService = {
       throw new Error(`Failed to fetch agents: ${error.message}`);
     }
 
+    console.log('Agents fetched successfully:', data.length);
     return data.map(this.mapAgentFromDB);
   },
 
   async updateAgentWhatsAppStatus(agentId: string, connected: boolean): Promise<void> {
+    console.log('Updating WhatsApp status:', { agentId, connected });
+    
     const { error } = await supabase
       .from('agents')
       .update({ whatsapp_connected: connected })
@@ -106,6 +122,8 @@ export const agentService = {
       console.error('Error updating WhatsApp status:', error);
       throw new Error(`Failed to update WhatsApp status: ${error.message}`);
     }
+
+    console.log('WhatsApp status updated successfully');
   },
 
   mapAgentFromDB(dbAgent: any): Agent {
@@ -132,6 +150,8 @@ export const agentService = {
 
 export const customerService = {
   async createCustomer(customerData: CreateCustomerRequest, franchiseeId: string): Promise<Customer> {
+    console.log('Creating customer:', { customerData, franchiseeId });
+    
     const { data, error } = await supabase
       .from('customers')
       .insert({
@@ -152,10 +172,13 @@ export const customerService = {
       throw new Error(`Failed to create customer: ${error.message}`);
     }
 
+    console.log('Customer created successfully:', data);
     return this.mapCustomerFromDB(data);
   },
 
   async getCustomers(franchiseeId: string): Promise<Customer[]> {
+    console.log('Fetching customers for franchisee:', franchiseeId);
+    
     const { data, error } = await supabase
       .from('customers')
       .select('*')
@@ -167,6 +190,7 @@ export const customerService = {
       throw new Error(`Failed to fetch customers: ${error.message}`);
     }
 
+    console.log('Customers fetched successfully:', data.length);
     return data.map(this.mapCustomerFromDB);
   },
 
