@@ -323,6 +323,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      debug_user_status: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          current_user_id: string
+          has_admin_role: boolean
+          user_roles_count: number
+        }[]
+      }
       get_active_ai_agents: {
         Args: { config_id_param: string }
         Returns: {
@@ -348,6 +356,10 @@ export type Database = {
           _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
         }
+        Returns: boolean
+      }
+      is_admin: {
+        Args: { user_id: string }
         Returns: boolean
       }
     }

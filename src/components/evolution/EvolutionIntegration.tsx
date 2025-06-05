@@ -3,11 +3,14 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Settings, Zap, AlertCircle } from "lucide-react";
+import { Bot, Settings, Zap, AlertCircle, BarChart3, FileText, Brain } from "lucide-react";
 import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
 import EvolutionAPISetup from "./EvolutionAPISetup";
 import EvolutionInstanceCard from "./EvolutionInstanceCard";
 import AIAgentSetup from "./AIAgentSetup";
+import EvolutionAnalytics from "./EvolutionAnalytics";
+import EvolutionLogs from "./EvolutionLogs";
+import AdvancedAIConfig from "./AdvancedAIConfig";
 
 interface EvolutionIntegrationProps {
   franchiseeId: string;
@@ -15,6 +18,7 @@ interface EvolutionIntegrationProps {
 
 export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrationProps) {
   const [activeTab, setActiveTab] = useState("setup");
+  const [selectedAgent, setSelectedAgent] = useState<any>(null);
   
   const {
     configs,
@@ -47,6 +51,11 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
     created_at: config.created_at
   }));
 
+  const handleAdvancedConfigOpen = (agent: any) => {
+    setSelectedAgent(agent);
+    setActiveTab("advanced-config");
+  };
+
   return (
     <div className="space-y-6">
       {/* Header com informações importantes */}
@@ -54,10 +63,10 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5" />
-            Integração Evolution API
+            Integração Evolution API - Versão Avançada
           </CardTitle>
           <CardDescription>
-            Sistema completo de WhatsApp com IA. Configure instâncias, conecte ao WhatsApp e crie agentes inteligentes.
+            Sistema completo de WhatsApp com IA. Configure instâncias, conecte ao WhatsApp, crie agentes inteligentes e monitore performance em tempo real.
           </CardDescription>
         </CardHeader>
       </Card>
@@ -125,18 +134,30 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="setup" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Configuração
           </TabsTrigger>
           <TabsTrigger value="instances" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
-            Instâncias WhatsApp
+            Instâncias
           </TabsTrigger>
           <TabsTrigger value="ai-agents" className="flex items-center gap-2">
             <Bot className="h-4 w-4" />
             Agentes IA
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Analytics
+          </TabsTrigger>
+          <TabsTrigger value="logs" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Logs
+          </TabsTrigger>
+          <TabsTrigger value="advanced-config" className="flex items-center gap-2" disabled={!selectedAgent}>
+            <Brain className="h-4 w-4" />
+            Config. Avançada
           </TabsTrigger>
         </TabsList>
 
@@ -201,7 +222,7 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
                 <CardTitle className="text-blue-800">Conecte uma instância primeiro</CardTitle>
                 <CardDescription className="text-blue-700">
                   Você precisa ter pelo menos uma instância do WhatsApp conectada para configurar agentes IA.
-                  Vá para a aba "Instâncias WhatsApp" e conecte uma instância.
+                  Vá para a aba "Instâncias" e conecte uma instância.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -252,9 +273,11 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
                                   <div className="space-y-2">
                                     <div className="flex items-center justify-between">
                                       <span className="font-medium text-sm">{agent.agent_id}</span>
-                                      <Badge variant={agent.is_active ? "default" : "secondary"} className="text-xs">
-                                        {agent.is_active ? "Ativo" : "Inativo"}
-                                      </Badge>
+                                      <div className="flex gap-1">
+                                        <Badge variant={agent.is_active ? "default" : "secondary"} className="text-xs">
+                                          {agent.is_active ? "Ativo" : "Inativo"}
+                                        </Badge>
+                                      </div>
                                     </div>
                                     <p className="text-xs text-muted-foreground">
                                       📱 {agent.phone_number}
@@ -262,6 +285,14 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
                                     <p className="text-xs text-muted-foreground">
                                       🤖 {agent.model} • Delay: {agent.response_delay_seconds}s
                                     </p>
+                                    <div className="flex gap-2 pt-2">
+                                      <button
+                                        onClick={() => handleAdvancedConfigOpen(agent)}
+                                        className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                                      >
+                                        Config. Avançada
+                                      </button>
+                                    </div>
                                   </div>
                                 </CardContent>
                               </Card>
@@ -274,6 +305,35 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
                 );
               })}
             </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="analytics" className="space-y-6">
+          <EvolutionAnalytics franchiseeId={franchiseeId} />
+        </TabsContent>
+
+        <TabsContent value="logs" className="space-y-6">
+          <EvolutionLogs franchiseeId={franchiseeId} />
+        </TabsContent>
+
+        <TabsContent value="advanced-config" className="space-y-6">
+          {selectedAgent ? (
+            <AdvancedAIConfig 
+              agent={selectedAgent} 
+              onUpdate={async (updates) => {
+                await updateAIAgent(selectedAgent.id, updates);
+                setSelectedAgent({ ...selectedAgent, ...updates });
+              }}
+            />
+          ) : (
+            <Card>
+              <CardHeader className="text-center">
+                <CardTitle>Selecione um Agente IA</CardTitle>
+                <CardDescription>
+                  Para acessar as configurações avançadas, selecione um agente na aba "Agentes IA"
+                </CardDescription>
+              </CardHeader>
+            </Card>
           )}
         </TabsContent>
       </Tabs>
