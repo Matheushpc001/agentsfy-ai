@@ -1,50 +1,24 @@
 
 import { Agent, Customer } from "@/types";
-import { Prompt } from "@/types/prompts";
-import { getPlanById } from "@/constants/plans";
-import AgentsList from "@/components/agents/AgentsList";
-import AgentHeader from "@/components/agents/AgentHeader";
-import AgentModals from "@/components/agents/AgentModals";
+import AgentHeader from "./AgentHeader";
+import AgentStats from "./AgentStats";
+import AgentsList from "./AgentsList";
+import AgentModals from "./AgentModals";
+import PlanInfoCard from "./PlanInfoCard";
 import useAgentManagement from "@/hooks/useAgentManagement";
-import usePromptManagement from "@/hooks/usePromptManagement";
-import { MOCK_FRANCHISEE } from "@/mocks/franchiseeMockData";
-import { useState } from "react";
+import { usePromptManagement } from "@/hooks/usePromptManagement";
+import EvolutionIntegration from "@/components/evolution/EvolutionIntegration";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface AgentsContainerProps {
   initialAgents: Agent[];
   initialCustomers: Customer[];
 }
 
-export default function AgentsContainer({ 
-  initialAgents, 
-  initialCustomers 
-}: AgentsContainerProps) {
-  // Get current plan details from the franchisee data
-  const currentPlanId = MOCK_FRANCHISEE.planId;
-  const currentPlan = currentPlanId ? getPlanById(currentPlanId) : null;
-  const agentLimit = currentPlan?.agentLimit || 3; // Default to 3 if no plan is found
-  
-  // State to store the selected prompt for an agent
-  const [selectedPromptForAgent, setSelectedPromptForAgent] = useState<Prompt | null>(null);
-  
-  // Prompts management
-  const {
-    prompts,
-    isPromptModalOpen,
-    isEditPromptModalOpen,
-    currentPrompt,
-    setIsPromptModalOpen,
-    setIsEditPromptModalOpen,
-    setCurrentPrompt,
-    createPrompt,
-    updatePrompt,
-    deletePrompt,
-    getAllNiches,
-    openPromptModal,
-    openEditPromptModal
-  } = usePromptManagement();
-  
-  // Agent management
+export default function AgentsContainer({ initialAgents, initialCustomers }: AgentsContainerProps) {
+  const franchiseeId = "franchisee-1"; // In a real app, get from auth context
+  const agentLimit = 5; // This would come from the user's plan
+
   const {
     agents,
     customers,
@@ -73,61 +47,71 @@ export default function AgentsContainer({
     handleConnectWhatsApp,
     handleClosePortalModal,
     handleSendCredentialsEmail
-  } = useAgentManagement(initialAgents, initialCustomers, MOCK_FRANCHISEE.id);
-  
-  // State for prompts library modal
-  const [isPromptsLibraryModalOpen, setIsPromptsLibraryModalOpen] = useState(false);
-  
-  // State for prompts management modal
-  const [isPromptsManagementModalOpen, setIsPromptsManagementModalOpen] = useState(false);
-  
-  // Handle prompt library modal
-  const handleOpenPromptsLibrary = () => {
-    setIsPromptsLibraryModalOpen(true);
-  };
-  
-  // Handle prompts management modal
-  const handleOpenPromptsManagement = () => {
-    setIsPromptsManagementModalOpen(true);
-  };
-  
-  // Handle prompt selection for agent
-  const handleSelectPromptForAgent = (prompt: Prompt) => {
-    setSelectedPromptForAgent(prompt);
-    // Reopen the create/edit agent modal
-    setTimeout(() => {
-      if (!isCreateModalOpen && !isEditModalOpen) {
-        setIsCreateModalOpen(true);
-      }
-    }, 100);
-  };
+  } = useAgentManagement(initialAgents, initialCustomers, franchiseeId);
 
-  // Convert billing cycle from "annual" to "yearly" to match expected type
-  const billingCycle = currentPlan?.billingCycle === 'annual' ? 'yearly' : 'monthly';
+  const {
+    prompts,
+    currentPrompt,
+    isPromptModalOpen,
+    isPromptsLibraryModalOpen,
+    isPromptsManagementModalOpen,
+    selectedPromptForAgent,
+    allNiches,
+    setIsPromptModalOpen,
+    setIsPromptsLibraryModalOpen,
+    setIsPromptsManagementModalOpen,
+    handleSubmitPrompt,
+    handleSelectPrompt,
+    handleEditPrompt,
+    handleDeletePrompt,
+    handleCreatePrompt,
+  } = usePromptManagement();
 
   return (
     <div className="space-y-6">
-      {/* Header with stats, action buttons and plan info */}
-      <AgentHeader
+      <AgentHeader 
         totalAgents={totalAgents}
         agentLimit={agentLimit}
-        connectedAgents={connectedAgents}
-        planName={currentPlan?.name || 'Plano Básico'}
-        billingCycle={billingCycle}
-        onCreateClick={() => handleCreateAgentClick(agentLimit)}
-        onManagePromptsClick={handleOpenPromptsManagement}
+        onCreateAgent={() => handleCreateAgentClick(agentLimit)}
       />
 
-      {/* Agents list */}
-      <AgentsList 
-        agents={agents} 
-        onViewAgent={handleViewAgent}
-        onEditAgent={handleEditAgent}
-        onConnectAgent={handleConnectAgent}
-        onTest={handleTestAgent}
-      />
+      <Tabs defaultValue="traditional" className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="traditional">Agentes Tradicionais</TabsTrigger>
+          <TabsTrigger value="evolution">Integração EvolutionAPI</TabsTrigger>
+        </TabsList>
 
-      {/* Modals */}
+        <TabsContent value="traditional" className="space-y-6">
+          <AgentStats 
+            totalAgents={totalAgents}
+            connectedAgents={connectedAgents}
+          />
+
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-3">
+              <AgentsList
+                agents={agents}
+                onViewAgent={handleViewAgent}
+                onEditAgent={handleEditAgent}
+                onConnectAgent={handleConnectAgent}
+                onTestAgent={handleTestAgent}
+              />
+            </div>
+            
+            <div className="space-y-6">
+              <PlanInfoCard 
+                currentAgents={totalAgents}
+                agentLimit={agentLimit}
+              />
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="evolution" className="space-y-6">
+          <EvolutionIntegration franchiseeId={franchiseeId} />
+        </TabsContent>
+      </Tabs>
+
       <AgentModals
         isCreateModalOpen={isCreateModalOpen}
         isEditModalOpen={isEditModalOpen}
@@ -144,12 +128,9 @@ export default function AgentsContainer({
         customers={customers}
         prompts={prompts}
         agentLimit={agentLimit}
-        allNiches={getAllNiches()}
+        allNiches={allNiches}
         onCloseCreateModal={() => setIsCreateModalOpen(false)}
-        onCloseEditModal={() => {
-          setIsEditModalOpen(false);
-          setCurrentAgent(null);
-        }}
+        onCloseEditModal={() => setIsEditModalModal(false)}
         onCloseWhatsAppModal={() => setIsWhatsAppModalOpen(false)}
         onCloseCustomerPortalModal={handleClosePortalModal}
         onClosePlanLimitModal={() => setIsPlanLimitModalOpen(false)}
@@ -159,26 +140,11 @@ export default function AgentsContainer({
         onSubmitAgent={handleSubmitAgent}
         onConnectWhatsApp={handleConnectWhatsApp}
         onSendEmail={handleSendCredentialsEmail}
-        onSubmitPrompt={(promptData) => {
-          if (currentPrompt) {
-            updatePrompt(currentPrompt.id, promptData);
-          } else {
-            createPrompt(promptData);
-          }
-          setIsPromptModalOpen(false);
-        }}
-        onSelectPrompt={handleSelectPromptForAgent}
-        onEditPrompt={(prompt) => {
-          setCurrentPrompt(prompt);
-          setIsPromptsManagementModalOpen(false);
-          setIsPromptModalOpen(true);
-        }}
-        onDeletePrompt={deletePrompt}
-        onCreatePrompt={() => {
-          setCurrentPrompt(null);
-          setIsPromptsManagementModalOpen(false);
-          setIsPromptModalOpen(true);
-        }}
+        onSubmitPrompt={handleSubmitPrompt}
+        onSelectPrompt={handleSelectPrompt}
+        onEditPrompt={handleEditPrompt}
+        onDeletePrompt={handleDeletePrompt}
+        onCreatePrompt={handleCreatePrompt}
         selectedPromptForAgent={selectedPromptForAgent}
       />
     </div>
