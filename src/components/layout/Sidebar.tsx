@@ -47,7 +47,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               )}
             >
               {(!isCollapsed || isMobile) && (
-                <SidebarUserInfo isCollapsed={isCollapsed} isMobile={isMobile} />
+                <SidebarUserInfo />
               )}
               <SidebarToggle
                 isCollapsed={isCollapsed}
@@ -62,11 +62,7 @@ export default function Sidebar({ onNavigate }: SidebarProps) {
               onNavigate={onNavigate}
             />
           </div>
-          <SidebarLogout
-            isCollapsed={isCollapsed}
-            isMobile={isMobile}
-            onNavigate={onNavigate}
-          />
+          <SidebarLogout />
         </div>
       </ScrollArea>
     </aside>
