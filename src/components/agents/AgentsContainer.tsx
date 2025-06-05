@@ -18,6 +18,8 @@ interface AgentsContainerProps {
 export default function AgentsContainer({ initialAgents, initialCustomers }: AgentsContainerProps) {
   const franchiseeId = "franchisee-1"; // In a real app, get from auth context
   const agentLimit = 5; // This would come from the user's plan
+  const planName = "Profissional";
+  const billingCycle = "monthly" as const;
 
   const {
     agents,
@@ -66,10 +68,30 @@ export default function AgentsContainer({ initialAgents, initialCustomers }: Age
     handleCreatePrompt,
   } = usePromptManagement();
 
+  // Handler for testing agents
+  const handleTestAgent = (agent: Agent) => {
+    console.log("Testing agent:", agent.name);
+    // This would open a test dialog or similar functionality
+  };
+
+  const handleCreateAgentWithLimit = () => {
+    handleCreateAgentClick(agentLimit);
+  };
+
+  const handleManagePrompts = () => {
+    setIsPromptsManagementModalOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <AgentHeader 
         totalAgents={totalAgents}
+        agentLimit={agentLimit}
+        connectedAgents={connectedAgents}
+        planName={planName}
+        billingCycle={billingCycle}
+        onCreateClick={handleCreateAgentWithLimit}
+        onManagePromptsClick={handleManagePrompts}
       />
 
       <Tabs defaultValue="traditional" className="w-full">
@@ -92,12 +114,15 @@ export default function AgentsContainer({ initialAgents, initialCustomers }: Age
                 onViewAgent={handleViewAgent}
                 onEditAgent={handleEditAgent}
                 onConnectAgent={handleConnectAgent}
+                onTest={handleTestAgent}
               />
             </div>
             
             <div className="space-y-6">
               <PlanInfoCard 
-                totalAgents={totalAgents}
+                planName={planName}
+                billingCycle={billingCycle}
+                agentsUsed={totalAgents}
                 agentLimit={agentLimit}
               />
             </div>

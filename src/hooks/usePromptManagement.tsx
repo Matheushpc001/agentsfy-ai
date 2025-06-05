@@ -8,8 +8,10 @@ import { v4 as uuidv4 } from 'uuid';
 export default function usePromptManagement() {
   const [prompts, setPrompts] = useState<Prompt[]>(MOCK_PROMPTS);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
-  const [isEditPromptModalOpen, setIsEditPromptModalOpen] = useState(false);
+  const [isPromptsLibraryModalOpen, setIsPromptsLibraryModalOpen] = useState(false);
+  const [isPromptsManagementModalOpen, setIsPromptsManagementModalOpen] = useState(false);
   const [currentPrompt, setCurrentPrompt] = useState<Prompt | null>(null);
+  const [selectedPromptForAgent, setSelectedPromptForAgent] = useState<Prompt | null>(null);
 
   const createPrompt = (promptData: Omit<Prompt, 'id' | 'createdAt'>) => {
     const newPrompt: Prompt = {
@@ -43,40 +45,56 @@ export default function usePromptManagement() {
     toast.success("Prompt excluído com sucesso!");
   };
 
-  const getPromptsByNiche = (niche?: string) => {
-    if (!niche) return prompts;
-    return prompts.filter((prompt) => prompt.niche === niche);
-  };
-
   const getAllNiches = () => {
     const niches = [...new Set(prompts.map((prompt) => prompt.niche))];
     return niches;
   };
 
-  const openPromptModal = () => {
+  // Handler functions
+  const handleSubmitPrompt = (promptData: Omit<Prompt, 'id' | 'createdAt'>) => {
+    if (currentPrompt) {
+      updatePrompt(currentPrompt.id, promptData);
+    } else {
+      createPrompt(promptData);
+    }
+    setIsPromptModalOpen(false);
+    setCurrentPrompt(null);
+  };
+
+  const handleSelectPrompt = (prompt: Prompt) => {
+    setSelectedPromptForAgent(prompt);
+    setIsPromptsLibraryModalOpen(false);
+  };
+
+  const handleEditPrompt = (prompt: Prompt) => {
+    setCurrentPrompt(prompt);
+    setIsPromptModalOpen(true);
+  };
+
+  const handleDeletePrompt = (id: string) => {
+    deletePrompt(id);
+  };
+
+  const handleCreatePrompt = () => {
     setCurrentPrompt(null);
     setIsPromptModalOpen(true);
   };
 
-  const openEditPromptModal = (prompt: Prompt) => {
-    setCurrentPrompt(prompt);
-    setIsEditPromptModalOpen(true);
-  };
-
   return {
     prompts,
-    isPromptModalOpen,
-    isEditPromptModalOpen,
     currentPrompt,
+    isPromptModalOpen,
+    isPromptsLibraryModalOpen,
+    isPromptsManagementModalOpen,
+    selectedPromptForAgent,
+    allNiches: getAllNiches(),
     setIsPromptModalOpen,
-    setIsEditPromptModalOpen,
-    setCurrentPrompt,
-    createPrompt,
-    updatePrompt,
-    deletePrompt,
-    getPromptsByNiche,
-    getAllNiches,
-    openPromptModal,
-    openEditPromptModal
+    setIsPromptsLibraryModalOpen,
+    setIsPromptsManagementModalOpen,
+    handleSubmitPrompt,
+    handleSelectPrompt,
+    handleEditPrompt,
+    handleDeletePrompt,
+    handleCreatePrompt,
   };
 }
