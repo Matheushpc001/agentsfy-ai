@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { QrCode, RefreshCw } from "lucide-react";
+import { QrCode, RefreshCw, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface WhatsAppQRCodeProps {
@@ -50,49 +50,51 @@ export default function WhatsAppQRCode({
     setCountdown(60);
   };
   
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+  
   return (
-    <div className={`flex flex-col items-center ${className}`}>
-      {/* Container do QR Code */}
-      <div className="w-64 h-64 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center mb-4 relative">
+    <div className={`flex flex-col items-center space-y-4 ${className}`}>
+      {/* Timer display - positioned above QR code */}
+      {qrCodeUrl && !expired && !isGenerating && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+          <Clock className="h-4 w-4 text-blue-600" />
+          <span className="text-sm font-medium text-blue-800">
+            Expira em {formatTime(countdown)}
+          </span>
+        </div>
+      )}
+
+      {/* QR Code Container - clean and unobstructed */}
+      <div className="w-64 h-64 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-white relative">
         {isGenerating ? (
-          // Carregando QR Code
+          // Loading state
           <div className="text-center">
-            <QrCode size={80} className="mx-auto text-gray-400 mb-2" />
-            <p className="text-sm text-muted-foreground animate-pulse">
+            <QrCode size={80} className="mx-auto text-gray-400 mb-2 animate-pulse" />
+            <p className="text-sm text-muted-foreground">
               Gerando código QR...
             </p>
           </div>
         ) : qrCodeUrl ? (
-          // QR Code gerado
-          <>
+          // QR Code display - no overlays for clean scanning
+          <div className="w-full h-full p-4 flex items-center justify-center">
             <img
               src={qrCodeUrl}
               alt="WhatsApp QR Code"
-              className="w-full h-full object-contain p-2"
+              className="w-full h-full object-contain"
             />
-            
-            {/* Contador de expiração */}
-            <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm rounded-full px-2 py-1 text-xs font-medium">
-              Expira em {countdown}s
-            </div>
-          </>
+          </div>
         ) : expired ? (
-          // QR Code expirado
+          // Expired state
           <div className="text-center p-4">
-            <QrCode size={60} className="mx-auto text-gray-300 mb-2" />
-            <p className="text-sm text-muted-foreground">QR Code expirado</p>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              className="mt-4" 
-              onClick={handleRefresh}
-            >
-              <RefreshCw className="mr-1 h-3 w-3" />
-              Gerar novo
-            </Button>
+            <QrCode size={60} className="mx-auto text-red-300 mb-2" />
+            <p className="text-sm text-red-600 font-medium">QR Code expirado</p>
           </div>
         ) : (
-          // Estado padrão
+          // Default state
           <div className="text-center">
             <QrCode size={60} className="mx-auto text-gray-400 mb-2" />
             <p className="text-sm text-muted-foreground">
@@ -101,34 +103,41 @@ export default function WhatsAppQRCode({
           </div>
         )}
       </div>
+
+      {/* Instructions */}
+      <div className="text-center max-w-sm">
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Abra o WhatsApp no seu celular, acesse <span className="font-medium">Configurações</span> → 
+          <span className="font-medium"> WhatsApp Web</span> e escaneie o código QR.
+        </p>
+      </div>
       
-      <p className="text-sm text-center text-muted-foreground mt-2 mb-4">
-        Abra o WhatsApp no seu celular, acesse Configurações &gt; WhatsApp Web e escaneie o código QR.
-      </p>
-      
-      {!qrCodeUrl && !isGenerating && !expired && (
-        <Button onClick={onRefresh}>
-          <QrCode className="mr-2 h-4 w-4" />
-          Gerar QR Code
-        </Button>
-      )}
-      
-      {expired && (
-        <Button onClick={handleRefresh}>
-          <RefreshCw className="mr-2 h-4 w-4" />
-          Gerar novo QR Code
-        </Button>
-      )}
-      
-      {qrCodeUrl && !expired && (
-        <Button 
-          variant="default" 
-          onClick={onConnect}
-          className="mt-2"
-        >
-          Simular Conexão
-        </Button>
-      )}
+      {/* Action buttons */}
+      <div className="flex flex-col items-center gap-3">
+        {!qrCodeUrl && !isGenerating && !expired && (
+          <Button onClick={onRefresh} className="min-w-[180px]">
+            <QrCode className="mr-2 h-4 w-4" />
+            Gerar QR Code
+          </Button>
+        )}
+        
+        {expired && (
+          <Button onClick={handleRefresh} variant="outline" className="min-w-[180px]">
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Gerar novo QR Code
+          </Button>
+        )}
+        
+        {qrCodeUrl && !expired && onConnect && (
+          <Button 
+            variant="default" 
+            onClick={onConnect}
+            className="min-w-[180px]"
+          >
+            Simular Conexão
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
