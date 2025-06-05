@@ -39,12 +39,23 @@ export function useAgentActions({
     }
     setIsWhatsAppModalOpen(true);
     
-    // Show notification
+    // Enhanced notification with more context
     toast.info(
-      <div className="flex flex-col gap-1">
-        <p className="font-medium">Conectar WhatsApp</p>
-        <p className="text-sm">Agente {agent.name} precisa ser conectado ao WhatsApp</p>
-      </div>
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse" />
+          <p className="font-medium">Configuração WhatsApp Necessária</p>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          O agente <strong>{agent.name}</strong> precisa ser conectado ao WhatsApp para funcionar corretamente.
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Cliente: {customer?.businessName || 'N/A'}
+        </p>
+      </div>,
+      {
+        duration: 5000,
+      }
     );
   };
   

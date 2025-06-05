@@ -75,7 +75,14 @@ export function useAgentSubmission({
         agent.id === currentAgent.id ? { ...agent, ...agentData } : agent
       );
       setAgents(updatedAgents);
-      toast.success(`Agente ${agentData.name} atualizado com sucesso!`);
+      toast.success(
+        <div className="flex flex-col gap-1">
+          <p className="font-medium">Agente atualizado!</p>
+          <p className="text-sm text-muted-foreground">
+            {agentData.name} foi atualizado com sucesso.
+          </p>
+        </div>
+      );
       setIsEditModalOpen(false);
       setCurrentAgent(null);
     } else {
@@ -88,18 +95,49 @@ export function useAgentSubmission({
       if (customer) {
         setCurrentCustomer(customer);
         
-        // Show WhatsApp connection modal after agent creation
-        setIsWhatsAppModalOpen(true);
+        // Enhanced success message for new agent
+        toast.success(
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-green-500 rounded-full" />
+              <p className="font-medium">Agente criado com sucesso!</p>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              <strong>{agentData.name}</strong> está pronto para ser configurado.
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Próximo passo: Conectar ao WhatsApp
+            </p>
+          </div>,
+          {
+            duration: 4000,
+          }
+        );
         
-        // Generate customer portal access
-        const customerPortal = generateCustomerPortalAccess(customer);
-        setCurrentCustomerPortal(customerPortal);
+        // Show WhatsApp connection modal after agent creation with a slight delay
+        setTimeout(() => {
+          setIsWhatsAppModalOpen(true);
+          
+          // Generate customer portal access
+          const customerPortal = generateCustomerPortalAccess(customer);
+          setCurrentCustomerPortal(customerPortal);
+        }, 1000);
       }
     }
   };
 
   const handleConnectWhatsApp = () => {
     if (!currentAgent) return;
+    
+    // Enhanced loading toast
+    const loadingToast = toast.loading(
+      <div className="flex flex-col gap-1">
+        <p className="font-medium">Conectando ao WhatsApp...</p>
+        <p className="text-sm text-muted-foreground">
+          Estabelecendo conexão para {currentAgent.name}
+        </p>
+      </div>
+    );
     
     // Simulate connecting the agent to WhatsApp
     setTimeout(() => {
@@ -109,23 +147,69 @@ export function useAgentSubmission({
       setAgents(updatedAgents);
       setIsWhatsAppModalOpen(false);
       
+      // Dismiss loading toast
+      toast.dismiss(loadingToast);
+      
       // Show customer portal access after WhatsApp connection
       setIsCustomerPortalModalOpen(true);
       
-      toast.success("Agente conectado ao WhatsApp com sucesso!");
-    }, 1000);
+      // Enhanced success message
+      toast.success(
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full" />
+            <p className="font-medium">WhatsApp conectado!</p>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            <strong>{currentAgent.name}</strong> está pronto para atender clientes.
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Agora você pode enviar as credenciais para o cliente.
+          </p>
+        </div>,
+        {
+          duration: 5000,
+        }
+      );
+    }, 2000);
   };
 
   const handleClosePortalModal = () => {
     setIsCustomerPortalModalOpen(false);
     setCurrentCustomerPortal(null);
     setCurrentAgent(null);
-    toast.success("Agente criado e conectado com sucesso!");
+    
+    toast.success(
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full" />
+          <p className="font-medium">Configuração concluída!</p>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Agente criado e conectado com sucesso. O cliente pode começar a usar o sistema.
+        </p>
+      </div>,
+      {
+        duration: 4000,
+      }
+    );
   };
 
   const handleSendCredentialsEmail = () => {
-    toast.success("Email com instruções enviado ao cliente!");
-    handleClosePortalModal();
+    const loadingToast = toast.loading("Enviando email com instruções...");
+    
+    setTimeout(() => {
+      toast.dismiss(loadingToast);
+      toast.success(
+        <div className="flex flex-col gap-1">
+          <p className="font-medium">Email enviado!</p>
+          <p className="text-sm text-muted-foreground">
+            Instruções de acesso foram enviadas para o cliente.
+          </p>
+        </div>
+      );
+      handleClosePortalModal();
+    }, 1500);
   };
 
   return {
