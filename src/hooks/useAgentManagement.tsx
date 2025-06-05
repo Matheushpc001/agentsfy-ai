@@ -3,6 +3,9 @@ import { Agent, Customer } from "@/types";
 import { useAgentState } from "./useAgentState";
 import { useAgentActions } from "./useAgentActions";
 import { useAgentSubmission } from "./useAgentSubmission";
+import { useEffect } from "react";
+import { agentService, customerService } from "@/services/agentService";
+import { toast } from "sonner";
 
 export default function useAgentManagement(
   initialAgents: Agent[],
@@ -34,6 +37,33 @@ export default function useAgentManagement(
     setCurrentCustomer,
     setCurrentCustomerPortal,
   } = useAgentState(initialAgents, initialCustomers);
+
+  // Load data from Supabase on mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        console.log('Loading agents and customers for franchisee:', franchiseeId);
+        
+        const [agentsData, customersData] = await Promise.all([
+          agentService.getAgents(franchiseeId),
+          customerService.getCustomers(franchiseeId)
+        ]);
+        
+        console.log('Loaded agents:', agentsData.length);
+        console.log('Loaded customers:', customersData.length);
+        
+        setAgents(agentsData);
+        setCustomers(customersData);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast.error('Erro ao carregar dados. Verifique sua conexão.');
+      }
+    };
+
+    if (franchiseeId) {
+      loadData();
+    }
+  }, [franchiseeId, setAgents, setCustomers]);
 
   // Agent actions
   const {

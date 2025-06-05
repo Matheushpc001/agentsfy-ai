@@ -1,4 +1,3 @@
-
 import { Agent, Customer } from "@/types";
 import AgentHeader from "./AgentHeader";
 import AgentStats from "./AgentStats";
@@ -13,10 +12,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 interface AgentsContainerProps {
   initialAgents: Agent[];
   initialCustomers: Customer[];
+  franchiseeId: string;
 }
 
-export default function AgentsContainer({ initialAgents, initialCustomers }: AgentsContainerProps) {
-  const franchiseeId = "franchisee-1"; // In a real app, get from auth context
+export default function AgentsContainer({ 
+  initialAgents, 
+  initialCustomers, 
+  franchiseeId 
+}: AgentsContainerProps) {
   const agentLimit = 5; // This would come from the user's plan
   const planName = "Profissional";
   const billingCycle = "monthly" as const;

@@ -1,11 +1,7 @@
-
 import { Agent, Customer, CustomerPortalAccess } from "@/types";
 import { toast } from "sonner";
-import { 
-  createNewAgent, 
-  createNewCustomer, 
-  generateCustomerPortalAccess 
-} from "@/utils/agentHelpers";
+import { generateCustomerPortalAccess } from "@/utils/agentHelpers";
+import { agentService, customerService, CreateAgentRequest, CreateCustomerRequest } from "@/services/agentService";
 
 interface UseAgentSubmissionProps {
   agents: Agent[];
@@ -40,93 +36,128 @@ export function useAgentSubmission({
   setIsWhatsAppModalOpen,
   setIsCustomerPortalModalOpen,
 }: UseAgentSubmissionProps) {
-  const handleSubmitAgent = (
+  const handleSubmitAgent = async (
     agentData: Partial<Agent>, 
     customerData?: Partial<Customer>, 
     isNewCustomer?: boolean
   ) => {
-    // Handle existing customer case
-    let customerId = "";
-    let customer: Customer | undefined;
+    try {
+      // Handle customer creation/selection
+      let customerId = "";
+      let customer: Customer | undefined;
 
-    if (isNewCustomer && customerData) {
-      // Create new customer
-      const newCustomer = createNewCustomer(customerData, franchiseeId);
-      setCustomers([...customers, newCustomer]);
-      customerId = newCustomer.id;
-      customer = newCustomer;
-    } else if (agentData.customerId) {
-      // Use existing customer
-      customerId = agentData.customerId;
-      customer = customers.find(c => c.id === customerId);
-      
-      // Update customer's agent count
-      if (customer) {
-        const updatedCustomers = customers.map(c => 
-          c.id === customerId ? { ...c, agentCount: c.agentCount + 1 } : c
-        );
-        setCustomers(updatedCustomers);
+      if (isNewCustomer && customerData) {
+        // Create new customer
+        const createCustomerRequest: CreateCustomerRequest = {
+          business_name: customerData.businessName || "",
+          name: customerData.name || "",
+          email: customerData.email || "",
+          document: customerData.document,
+          contact_phone: customerData.contactPhone
+        };
+        
+        customer = await customerService.createCustomer(createCustomerRequest, franchiseeId);
+        setCustomers([...customers, customer]);
+        customerId = customer.id;
+      } else if (agentData.customerId) {
+        // Use existing customer
+        customerId = agentData.customerId;
+        customer = customers.find(c => c.id === customerId);
       }
-    }
-    
-    if (isEditModalOpen && currentAgent) {
-      // Edit existing agent
-      const updatedAgents = agents.map(agent =>
-        agent.id === currentAgent.id ? { ...agent, ...agentData } : agent
-      );
-      setAgents(updatedAgents);
-      toast.success(
+
+      if (isEditModalOpen && currentAgent) {
+        // Edit existing agent
+        const updateRequest: Partial<CreateAgentRequest> = {
+          name: agentData.name,
+          sector: agentData.sector,
+          prompt: agentData.prompt,
+          open_ai_key: agentData.openAiKey,
+          enable_voice_recognition: agentData.enableVoiceRecognition,
+          knowledge_base: agentData.knowledgeBase,
+          phone_number: agentData.phoneNumber
+        };
+
+        const updatedAgent = await agentService.updateAgent(currentAgent.id, updateRequest);
+        
+        const updatedAgents = agents.map(agent =>
+          agent.id === currentAgent.id ? updatedAgent : agent
+        );
+        setAgents(updatedAgents);
+        
+        toast.success(
+          <div className="flex flex-col gap-1">
+            <p className="font-medium">Agente atualizado!</p>
+            <p className="text-sm text-muted-foreground">
+              {agentData.name} foi atualizado com sucesso.
+            </p>
+          </div>
+        );
+        setIsEditModalOpen(false);
+        setCurrentAgent(null);
+      } else {
+        // Create new agent
+        const createAgentRequest: CreateAgentRequest = {
+          name: agentData.name || "",
+          sector: agentData.sector || "",
+          prompt: agentData.prompt,
+          open_ai_key: agentData.openAiKey || "",
+          enable_voice_recognition: agentData.enableVoiceRecognition,
+          knowledge_base: agentData.knowledgeBase,
+          customer_id: customerId,
+          phone_number: agentData.phoneNumber
+        };
+
+        const newAgent = await agentService.createAgent(createAgentRequest, franchiseeId);
+        setAgents([...agents, newAgent]);
+        setCurrentAgent(newAgent);
+        setIsCreateModalOpen(false);
+        
+        if (customer) {
+          setCurrentCustomer(customer);
+          
+          // Enhanced success message for new agent
+          toast.success(
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full" />
+                <p className="font-medium">Agente criado com sucesso!</p>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                <strong>{agentData.name}</strong> está pronto para ser configurado.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Próximo passo: Conectar ao WhatsApp
+              </p>
+            </div>,
+            {
+              duration: 4000,
+            }
+          );
+          
+          // Show WhatsApp connection modal after agent creation with a slight delay
+          setTimeout(() => {
+            setIsWhatsAppModalOpen(true);
+            
+            // Generate customer portal access
+            const customerPortal = generateCustomerPortalAccess(customer);
+            setCurrentCustomerPortal(customerPortal);
+          }, 1000);
+        }
+      }
+    } catch (error) {
+      console.error('Error submitting agent:', error);
+      toast.error(
         <div className="flex flex-col gap-1">
-          <p className="font-medium">Agente atualizado!</p>
+          <p className="font-medium">Erro ao salvar agente</p>
           <p className="text-sm text-muted-foreground">
-            {agentData.name} foi atualizado com sucesso.
+            {error instanceof Error ? error.message : 'Erro desconhecido'}
           </p>
         </div>
       );
-      setIsEditModalOpen(false);
-      setCurrentAgent(null);
-    } else {
-      // Create new agent
-      const newAgent = createNewAgent(agentData, customerId, franchiseeId);
-      setAgents([...agents, newAgent]);
-      setCurrentAgent(newAgent);
-      setIsCreateModalOpen(false);
-      
-      if (customer) {
-        setCurrentCustomer(customer);
-        
-        // Enhanced success message for new agent
-        toast.success(
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-green-500 rounded-full" />
-              <p className="font-medium">Agente criado com sucesso!</p>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              <strong>{agentData.name}</strong> está pronto para ser configurado.
-            </p>
-            <p className="text-xs text-muted-foreground">
-              Próximo passo: Conectar ao WhatsApp
-            </p>
-          </div>,
-          {
-            duration: 4000,
-          }
-        );
-        
-        // Show WhatsApp connection modal after agent creation with a slight delay
-        setTimeout(() => {
-          setIsWhatsAppModalOpen(true);
-          
-          // Generate customer portal access
-          const customerPortal = generateCustomerPortalAccess(customer);
-          setCurrentCustomerPortal(customerPortal);
-        }, 1000);
-      }
     }
   };
 
-  const handleConnectWhatsApp = () => {
+  const handleConnectWhatsApp = async () => {
     if (!currentAgent) return;
     
     // Enhanced loading toast
@@ -139,8 +170,11 @@ export function useAgentSubmission({
       </div>
     );
     
-    // Simulate connecting the agent to WhatsApp
-    setTimeout(() => {
+    try {
+      // Update WhatsApp connection status in database
+      await agentService.updateAgentWhatsAppStatus(currentAgent.id, true);
+      
+      // Update local state
       const updatedAgents = agents.map(agent =>
         agent.id === currentAgent.id ? { ...agent, whatsappConnected: true } : agent
       );
@@ -171,7 +205,11 @@ export function useAgentSubmission({
           duration: 5000,
         }
       );
-    }, 2000);
+    } catch (error) {
+      console.error('Error connecting WhatsApp:', error);
+      toast.dismiss(loadingToast);
+      toast.error('Erro ao conectar WhatsApp. Tente novamente.');
+    }
   };
 
   const handleClosePortalModal = () => {

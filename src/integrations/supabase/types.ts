@@ -9,6 +9,66 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      agents: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          demo_url: string | null
+          enable_voice_recognition: boolean | null
+          franchisee_id: string
+          id: string
+          is_active: boolean | null
+          knowledge_base: string | null
+          message_count: number | null
+          name: string
+          open_ai_key: string
+          phone_number: string | null
+          prompt: string | null
+          response_time: number | null
+          sector: string
+          updated_at: string | null
+          whatsapp_connected: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          demo_url?: string | null
+          enable_voice_recognition?: boolean | null
+          franchisee_id: string
+          id?: string
+          is_active?: boolean | null
+          knowledge_base?: string | null
+          message_count?: number | null
+          name: string
+          open_ai_key: string
+          phone_number?: string | null
+          prompt?: string | null
+          response_time?: number | null
+          sector: string
+          updated_at?: string | null
+          whatsapp_connected?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          demo_url?: string | null
+          enable_voice_recognition?: boolean | null
+          franchisee_id?: string
+          id?: string
+          is_active?: boolean | null
+          knowledge_base?: string | null
+          message_count?: number | null
+          name?: string
+          open_ai_key?: string
+          phone_number?: string | null
+          prompt?: string | null
+          response_time?: number | null
+          sector?: string
+          updated_at?: string | null
+          whatsapp_connected?: boolean | null
+        }
+        Relationships: []
+      }
       ai_interaction_logs: {
         Row: {
           agent_id: string | null
@@ -112,6 +172,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      customers: {
+        Row: {
+          agent_count: number | null
+          business_name: string
+          contact_phone: string | null
+          created_at: string | null
+          document: string | null
+          email: string
+          franchisee_id: string
+          id: string
+          logo: string | null
+          name: string
+          portal_url: string | null
+          role: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          agent_count?: number | null
+          business_name: string
+          contact_phone?: string | null
+          created_at?: string | null
+          document?: string | null
+          email: string
+          franchisee_id: string
+          id?: string
+          logo?: string | null
+          name: string
+          portal_url?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          agent_count?: number | null
+          business_name?: string
+          contact_phone?: string | null
+          created_at?: string | null
+          document?: string | null
+          email?: string
+          franchisee_id?: string
+          id?: string
+          logo?: string | null
+          name?: string
+          portal_url?: string | null
+          role?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       evolution_api_configs: {
         Row: {
