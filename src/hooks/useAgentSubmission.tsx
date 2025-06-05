@@ -1,7 +1,9 @@
+
 import { Agent, Customer, CustomerPortalAccess } from "@/types";
 import { toast } from "sonner";
 import { generateCustomerPortalAccess } from "@/utils/agentHelpers";
 import { agentService, customerService, CreateAgentRequest, CreateCustomerRequest } from "@/services/agentService";
+import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
 
 interface UseAgentSubmissionProps {
   agents: Agent[];
@@ -36,6 +38,8 @@ export function useAgentSubmission({
   setIsWhatsAppModalOpen,
   setIsCustomerPortalModalOpen,
 }: UseAgentSubmissionProps) {
+  const { globalConfigs, createInstance, connectInstance, createAIAgent } = useEvolutionAPI(franchiseeId);
+
   const handleSubmitAgent = async (
     agentData: Partial<Agent>, 
     customerData?: Partial<Customer>, 
@@ -56,7 +60,6 @@ export function useAgentSubmission({
 
       if (isNewCustomer && customerData) {
         console.log('Creating new customer...');
-        // Create new customer
         const createCustomerRequest: CreateCustomerRequest = {
           business_name: customerData.businessName || "",
           name: customerData.name || "",
@@ -70,7 +73,6 @@ export function useAgentSubmission({
         customerId = customer.id;
         console.log('Customer created successfully:', customer.id);
       } else if (agentData.customerId) {
-        // Use existing customer
         customerId = agentData.customerId;
         customer = customers.find(c => c.id === customerId);
         console.log('Using existing customer:', customerId);
@@ -82,7 +84,6 @@ export function useAgentSubmission({
 
       if (isEditModalOpen && currentAgent) {
         console.log('Updating existing agent...');
-        // Edit existing agent
         const updateRequest: Partial<CreateAgentRequest> = {
           name: agentData.name,
           sector: agentData.sector,
@@ -100,19 +101,11 @@ export function useAgentSubmission({
         );
         setAgents(updatedAgents);
         
-        toast.success(
-          <div className="flex flex-col gap-1">
-            <p className="font-medium">Agente atualizado!</p>
-            <p className="text-sm text-muted-foreground">
-              {agentData.name} foi atualizado com sucesso.
-            </p>
-          </div>
-        );
+        toast.success("Agente atualizado com sucesso!");
         setIsEditModalOpen(false);
         setCurrentAgent(null);
       } else {
         console.log('Creating new agent...');
-        // Create new agent
         const createAgentRequest: CreateAgentRequest = {
           name: agentData.name || "",
           sector: agentData.sector || "",
@@ -134,62 +127,92 @@ export function useAgentSubmission({
         if (customer) {
           setCurrentCustomer(customer);
           
-          // Enhanced success message for new agent
-          toast.success(
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full" />
-                <p className="font-medium">Agente criado com sucesso!</p>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                <strong>{agentData.name}</strong> está pronto para ser configurado.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Próximo passo: Conectar ao WhatsApp
-              </p>
-            </div>,
-            {
-              duration: 4000,
-            }
-          );
+          toast.success("Agente criado com sucesso!");
           
-          // Show WhatsApp connection modal after agent creation with a slight delay
-          setTimeout(() => {
-            setIsWhatsAppModalOpen(true);
-            
-            // Generate customer portal access
-            const customerPortal = generateCustomerPortalAccess(customer);
-            setCurrentCustomerPortal(customerPortal);
-          }, 1000);
+          // Automatically create EvolutionAPI instance for WhatsApp integration
+          await handleCreateEvolutionInstance(newAgent, customer);
         }
       }
     } catch (error) {
       console.error('Error submitting agent:', error);
-      toast.error(
-        <div className="flex flex-col gap-1">
-          <p className="font-medium">Erro ao salvar agente</p>
-          <p className="text-sm text-muted-foreground">
-            {error instanceof Error ? error.message : 'Erro desconhecido'}
-          </p>
-        </div>
-      );
+      toast.error(`Erro ao salvar agente: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+    }
+  };
+
+  const handleCreateEvolutionInstance = async (agent: Agent, customer: Customer) => {
+    try {
+      console.log('Creating EvolutionAPI instance for agent:', agent.id);
+      
+      // Check if we have available global configs
+      if (!globalConfigs || globalConfigs.length === 0) {
+        console.warn('No EvolutionAPI global configs available');
+        toast.warning("Configuração do WhatsApp não disponível. Configure a EvolutionAPI primeiro.");
+        return;
+      }
+
+      // Use the first available global config
+      const globalConfig = globalConfigs[0];
+      
+      // Create unique instance name
+      const instanceName = `agent_${agent.id.replace(/-/g, '_')}_${Date.now()}`;
+      
+      toast.loading("Criando instância do WhatsApp...");
+      
+      // Create Evolution instance
+      const evolutionConfig = await createInstance(instanceName, globalConfig.id);
+      
+      console.log('EvolutionAPI instance created:', evolutionConfig.id);
+      
+      // Create AI Agent integration
+      await createAIAgent({
+        agent_id: agent.id,
+        evolution_config_id: evolutionConfig.id,
+        phone_number: agent.phoneNumber || '',
+        openai_api_key: agent.openAiKey,
+        model: 'gpt-4o-mini',
+        system_prompt: agent.prompt || 'Você é um assistente útil.',
+        auto_response: true,
+        response_delay_seconds: 2
+      });
+
+      console.log('AI Agent integration created');
+      
+      toast.success("Instância do WhatsApp criada com sucesso!");
+      
+      // Show WhatsApp connection modal with real QR code
+      setTimeout(() => {
+        setIsWhatsAppModalOpen(true);
+        
+        // Generate customer portal access
+        const customerPortal = generateCustomerPortalAccess(customer);
+        setCurrentCustomerPortal(customerPortal);
+      }, 1000);
+      
+    } catch (error) {
+      console.error('Error creating EvolutionAPI instance:', error);
+      toast.error(`Erro ao criar instância do WhatsApp: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      
+      // Still show the modal but with the old flow as fallback
+      setTimeout(() => {
+        setIsWhatsAppModalOpen(true);
+        const customerPortal = generateCustomerPortalAccess(customer);
+        setCurrentCustomerPortal(customerPortal);
+      }, 1000);
     }
   };
 
   const handleConnectWhatsApp = async () => {
     if (!currentAgent) return;
     
-    // Enhanced loading toast
-    const loadingToast = toast.loading(
-      <div className="flex flex-col gap-1">
-        <p className="font-medium">Conectando ao WhatsApp...</p>
-        <p className="text-sm text-muted-foreground">
-          Estabelecendo conexão para {currentAgent.name}
-        </p>
-      </div>
-    );
+    const loadingToast = toast.loading("Conectando ao WhatsApp...");
     
     try {
+      // Try to find the evolution config for this agent
+      console.log('Looking for EvolutionAPI config for agent:', currentAgent.id);
+      
+      // For now, simulate the connection - in a real implementation,
+      // you would call the Evolution API to get the real connection status
+      
       // Update WhatsApp connection status in database
       await agentService.updateAgentWhatsAppStatus(currentAgent.id, true);
       
@@ -200,30 +223,12 @@ export function useAgentSubmission({
       setAgents(updatedAgents);
       setIsWhatsAppModalOpen(false);
       
-      // Dismiss loading toast
       toast.dismiss(loadingToast);
       
       // Show customer portal access after WhatsApp connection
       setIsCustomerPortalModalOpen(true);
       
-      // Enhanced success message
-      toast.success(
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full" />
-            <p className="font-medium">WhatsApp conectado!</p>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            <strong>{currentAgent.name}</strong> está pronto para atender clientes.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Agora você pode enviar as credenciais para o cliente.
-          </p>
-        </div>,
-        {
-          duration: 5000,
-        }
-      );
+      toast.success("WhatsApp conectado com sucesso!");
     } catch (error) {
       console.error('Error connecting WhatsApp:', error);
       toast.dismiss(loadingToast);
@@ -236,20 +241,7 @@ export function useAgentSubmission({
     setCurrentCustomerPortal(null);
     setCurrentAgent(null);
     
-    toast.success(
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full" />
-          <p className="font-medium">Configuração concluída!</p>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Agente criado e conectado com sucesso. O cliente pode começar a usar o sistema.
-        </p>
-      </div>,
-      {
-        duration: 4000,
-      }
-    );
+    toast.success("Configuração concluída! Agente criado e conectado com sucesso.");
   };
 
   const handleSendCredentialsEmail = () => {
@@ -257,14 +249,7 @@ export function useAgentSubmission({
     
     setTimeout(() => {
       toast.dismiss(loadingToast);
-      toast.success(
-        <div className="flex flex-col gap-1">
-          <p className="font-medium">Email enviado!</p>
-          <p className="text-sm text-muted-foreground">
-            Instruções de acesso foram enviadas para o cliente.
-          </p>
-        </div>
-      );
+      toast.success("Email enviado com sucesso!");
       handleClosePortalModal();
     }, 1500);
   };
