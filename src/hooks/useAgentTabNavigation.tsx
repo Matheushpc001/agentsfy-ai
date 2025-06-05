@@ -2,17 +2,22 @@
 import { useState } from "react";
 
 export function useAgentTabNavigation() {
-  const [activeTab, setActiveTab] = useState<string>("agent");
+  const [activeTab, setActiveTab] = useState("agent");
 
-  const nextTab = (validateAgentForm: () => boolean) => {
-    if (!validateAgentForm()) {
+  const nextTab = (validateCurrentTab?: () => boolean) => {
+    if (validateCurrentTab && !validateCurrentTab()) {
       return;
     }
-    setActiveTab("customer");
+    
+    if (activeTab === "agent") {
+      setActiveTab("customer");
+    }
   };
 
   const prevTab = () => {
-    setActiveTab("agent");
+    if (activeTab === "customer") {
+      setActiveTab("agent");
+    }
   };
 
   const resetTab = () => {

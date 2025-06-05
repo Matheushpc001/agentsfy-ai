@@ -26,13 +26,11 @@ export default function AIAgentConfig({
   const [editingAgent, setEditingAgent] = useState<any>(null);
 
   const handleCreateAgent = async (agentData: any) => {
-    // This will be handled by the parent component's hook
     console.log('Creating agent:', agentData);
     setShowCreateForm(false);
   };
 
   const handleUpdateAgent = async (agentId: string, updates: any) => {
-    // This will be handled by the parent component's hook
     console.log('Updating agent:', agentId, updates);
     setEditingAgent(null);
   };
@@ -110,33 +108,23 @@ export default function AIAgentConfig({
                         </Badge>
                       </div>
                     </CardHeader>
-                    <CardContent className="space-y-2">
-                      <div className="text-sm">
-                        <span className="font-medium">Telefone:</span> {agent.phone_number}
+                    <CardContent>
+                      <div className="space-y-2 text-sm text-muted-foreground">
+                        <p>📱 {agent.phone_number}</p>
+                        <p>🤖 {agent.model}</p>
+                        <p>⏱️ Delay: {agent.response_delay_seconds}s</p>
+                        {agent.system_prompt && (
+                          <p className="truncate">💬 {agent.system_prompt.substring(0, 50)}...</p>
+                        )}
                       </div>
-                      <div className="text-sm">
-                        <span className="font-medium">Modelo:</span> {agent.model}
-                      </div>
-                      <div className="text-sm">
-                        <span className="font-medium">Auto-resposta:</span> {agent.auto_response ? "Sim" : "Não"}
-                      </div>
-                      
-                      <div className="flex gap-2 pt-2">
-                        <Button 
-                          size="sm" 
+                      <div className="flex gap-2 mt-4">
+                        <Button
+                          size="sm"
                           variant="outline"
                           onClick={() => handleEditAgent(agent)}
                         >
                           <Edit className="h-3 w-3 mr-1" />
                           Editar
-                        </Button>
-                        <Button 
-                          size="sm" 
-                          variant="outline"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-3 w-3 mr-1" />
-                          Excluir
                         </Button>
                       </div>
                     </CardContent>

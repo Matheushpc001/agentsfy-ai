@@ -18,13 +18,25 @@ export function useAgentFormValidation({
   setActiveTab,
 }: UseAgentFormValidationProps) {
   const validateAgentForm = () => {
-    if (!formData.name || !formData.sector) {
-      toast.error("Por favor, preencha todos os campos obrigatórios do agente");
+    console.log('Validating agent form:', formData);
+    
+    if (!formData.name?.trim()) {
+      toast.error("Por favor, preencha o nome do agente");
       return false;
     }
 
-    if (!formData.openAiKey || !formData.openAiKey.startsWith("sk-")) {
-      toast.error("Por favor, forneça uma chave válida da OpenAI");
+    if (!formData.sector?.trim()) {
+      toast.error("Por favor, preencha o setor do agente");
+      return false;
+    }
+
+    if (!formData.openAiKey?.trim()) {
+      toast.error("Por favor, forneça uma chave da OpenAI");
+      return false;
+    }
+
+    if (!formData.openAiKey.startsWith("sk-")) {
+      toast.error("A chave da OpenAI deve começar com 'sk-'");
       return false;
     }
 
@@ -32,17 +44,42 @@ export function useAgentFormValidation({
   };
 
   const validateCustomerForm = () => {
+    console.log('Validating customer form:', { isNewCustomer, customerData, selectedCustomerId });
+    
     if (isNewCustomer) {
-      if (!customerData.businessName || !customerData.name || !customerData.email) {
+      if (!customerData.businessName?.trim()) {
         setActiveTab("customer");
-        toast.error("Por favor, preencha os dados obrigatórios do cliente");
+        toast.error("Por favor, preencha o nome da empresa");
         return false;
       }
-    } else if (!selectedCustomerId) {
-      setActiveTab("customer");
-      toast.error("Por favor, selecione um cliente existente");
-      return false;
+
+      if (!customerData.name?.trim()) {
+        setActiveTab("customer");
+        toast.error("Por favor, preencha o nome do responsável");
+        return false;
+      }
+
+      if (!customerData.email?.trim()) {
+        setActiveTab("customer");
+        toast.error("Por favor, preencha o email do responsável");
+        return false;
+      }
+
+      // Validação básica de email
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(customerData.email)) {
+        setActiveTab("customer");
+        toast.error("Por favor, forneça um email válido");
+        return false;
+      }
+    } else {
+      if (!selectedCustomerId) {
+        setActiveTab("customer");
+        toast.error("Por favor, selecione um cliente existente");
+        return false;
+      }
     }
+    
     return true;
   };
 
