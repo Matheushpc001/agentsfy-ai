@@ -25,6 +25,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
         setSession(session);
         
         if (event === 'SIGNED_IN' && session?.user) {
@@ -44,6 +45,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const loadUserProfile = async (supabaseUser: SupabaseUser) => {
     try {
+      console.log('Loading profile for user:', supabaseUser.email);
+      
       // Load user profile and role
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -68,8 +71,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // Get the primary role (first one found)
-      const primaryRole = userRoles?.[0]?.role || 'customer';
+      // Get the primary role (first one found, prefer admin > franchisee > customer)
+      const rolesPriority = ['admin', 'franchisee', 'customer'];
+      const availableRoles = userRoles?.map(ur => ur.role) || [];
+      const primaryRole = rolesPriority.find(role => availableRoles.includes(role)) || 'customer';
+
+      console.log('User roles found:', availableRoles, 'Primary role:', primaryRole);
 
       const userObj: User = {
         id: profile.id,
@@ -79,6 +86,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       };
 
       setUser(userObj);
+      console.log('User profile loaded successfully:', userObj);
     } catch (error) {
       console.error('Unexpected error loading user profile:', error);
     } finally {
@@ -89,6 +97,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const login = async (email: string, password: string) => {
     setLoading(true);
     try {
+      console.log('Attempting login for:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -96,6 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       if (error) throw error;
 
+      console.log('Login successful for:', email);
       // User profile will be loaded by the auth state change listener
       return;
     } catch (error) {
@@ -107,9 +118,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const logout = async () => {
     try {
+      console.log('Logging out user');
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
+      console.log('Logout successful');
     } catch (error) {
       console.error("Logout error:", error);
     }

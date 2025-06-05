@@ -27,7 +27,13 @@ export default function Auth() {
       navigate("/dashboard");
     } catch (error: any) {
       console.error("Login error:", error);
-      toast.error(error.message || "Falha ao fazer login. Verifique suas credenciais.");
+      if (error.message.includes("Invalid login credentials")) {
+        toast.error("Email ou senha incorretos. Verifique suas credenciais.");
+      } else if (error.message.includes("Email not confirmed")) {
+        toast.error("Por favor, confirme seu email antes de fazer login.");
+      } else {
+        toast.error(error.message || "Falha ao fazer login. Verifique suas credenciais.");
+      }
     } finally {
       setIsLoading(false);
     }
