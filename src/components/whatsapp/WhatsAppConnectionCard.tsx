@@ -6,6 +6,8 @@ import { QrCode, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
 import { Agent } from "@/types";
+import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
+import { toast } from "sonner";
 
 interface WhatsAppConnectionCardProps {
   agent: Agent;
@@ -16,21 +18,53 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
   
-  const handleGenerateQR = () => {
+  const { configs, aiAgents, connectInstance } = useEvolutionAPI();
+
+  const handleGenerateQR = async () => {
+    // Find the AI agent configuration for this agent
+    const aiAgent = aiAgents.find(ai => ai.agent_id === agent.id);
+    const evolutionConfigId = aiAgent?.evolution_config_id || configs[0]?.id;
+
+    if (!evolutionConfigId) {
+      setQrError('Nenhuma configuração da EvolutionAPI encontrada');
+      return;
+    }
+
     setIsGenerating(true);
-    // Simulate API call
-    setTimeout(() => {
-      setQrCodeUrl("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=whatsapp-connection-agent-" + agent.id);
+    setQrError(null);
+    
+    try {
+      console.log('Generating QR for agent:', agent.id, 'with config:', evolutionConfigId);
+      
+      const qrCodeData = await connectInstance(evolutionConfigId);
+      
+      if (qrCodeData) {
+        // Handle different QR code formats
+        let qrCodeUrl = qrCodeData;
+        if (typeof qrCodeData === 'string' && !qrCodeData.startsWith('data:') && !qrCodeData.startsWith('http')) {
+          qrCodeUrl = `data:image/png;base64,${qrCodeData}`;
+        }
+        setQrCodeUrl(qrCodeUrl);
+      } else {
+        throw new Error('QR code não foi retornado pela EvolutionAPI');
+      }
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setQrError(`Erro ao gerar QR code: ${errorMessage}`);
+      toast.error('Erro ao conectar com EvolutionAPI');
+    } finally {
       setIsGenerating(false);
-    }, 1500);
+    }
   };
   
   const handleConnect = () => {
-    // Simulate a successful connection
     setTimeout(() => {
       setIsModalOpen(false);
       if (onRefresh) onRefresh(agent);
+      toast.success("Conexão simulada com sucesso!");
     }, 1000);
   };
   
@@ -84,19 +118,19 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
         </CardFooter>
       </Card>
       
-      {/* QR Code Dialog */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Conectar WhatsApp</DialogTitle>
             <DialogDescription>
-              Escaneie o código QR abaixo com o celular da sua empresa para conectar o agente.
+              Conecte usando a EvolutionAPI para WhatsApp real.
             </DialogDescription>
           </DialogHeader>
           
           <WhatsAppQRCode
             isGenerating={isGenerating}
             qrCodeUrl={qrCodeUrl || undefined}
+            error={qrError || undefined}
             onRefresh={handleGenerateQR}
             onConnect={handleConnect}
             className="my-4"

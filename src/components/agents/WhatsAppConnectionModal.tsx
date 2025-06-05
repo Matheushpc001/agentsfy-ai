@@ -3,10 +3,11 @@ import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle2, AlertCircle, Smartphone } from "lucide-react";
+import { CheckCircle2, AlertCircle, Smartphone, Wifi } from "lucide-react";
 import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
 import { Agent, Customer } from "@/types";
 import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
+import { toast } from "sonner";
 
 interface WhatsAppConnectionModalProps {
   isOpen: boolean;
@@ -25,49 +26,63 @@ export default function WhatsAppConnectionModal({
 }: WhatsAppConnectionModalProps) {
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [currentQrCode, setCurrentQrCode] = useState<string | null>(null);
+  const [qrError, setQrError] = useState<string | null>(null);
   const [connectionStep, setConnectionStep] = useState<'instructions' | 'qr' | 'connecting'>('instructions');
   const [evolutionConfigId, setEvolutionConfigId] = useState<string | null>(null);
   
-  const { configs, connectInstance } = useEvolutionAPI();
+  const { configs, aiAgents, connectInstance } = useEvolutionAPI();
 
-  // Find the evolution config for this agent
   useEffect(() => {
     if (agent && configs.length > 0) {
-      // In a real implementation, you would have a way to link agents to evolution configs
-      // For now, we'll use the most recent config for this franchisee
-      const config = configs.find(c => c.status === 'disconnected') || configs[0];
-      if (config) {
-        setEvolutionConfigId(config.id);
+      // Find the AI agent configuration for this agent
+      const aiAgent = aiAgents.find(ai => ai.agent_id === agent.id);
+      if (aiAgent && aiAgent.evolution_config_id) {
+        setEvolutionConfigId(aiAgent.evolution_config_id);
+      } else {
+        // Find any available config for this franchisee
+        const config = configs.find(c => c.status === 'disconnected') || configs[0];
+        if (config) {
+          setEvolutionConfigId(config.id);
+        }
       }
     }
-  }, [agent, configs]);
+  }, [agent, configs, aiAgents]);
 
   const handleGenerateQrCode = async () => {
+    if (!evolutionConfigId) {
+      setQrError('Nenhuma configuração da EvolutionAPI encontrada. Configure primeiro uma instância.');
+      return;
+    }
+
     setIsGeneratingQr(true);
     setConnectionStep('qr');
+    setQrError(null);
+    setCurrentQrCode(null);
     
     try {
-      if (evolutionConfigId) {
-        console.log('Connecting to EvolutionAPI instance:', evolutionConfigId);
+      console.log('Generating QR code with EvolutionAPI for config:', evolutionConfigId);
+      
+      const qrCodeData = await connectInstance(evolutionConfigId);
+      
+      if (qrCodeData) {
+        // Handle different QR code formats from EvolutionAPI
+        let qrCodeUrl = qrCodeData;
         
-        // Use real EvolutionAPI to generate QR code
-        const qrCode = await connectInstance(evolutionConfigId);
-        setCurrentQrCode(qrCode);
+        // If it's base64, convert to data URL
+        if (typeof qrCodeData === 'string' && !qrCodeData.startsWith('data:') && !qrCodeData.startsWith('http')) {
+          qrCodeUrl = `data:image/png;base64,${qrCodeData}`;
+        }
+        
+        setCurrentQrCode(qrCodeUrl);
+        console.log('QR code generated successfully');
       } else {
-        console.log('No EvolutionAPI config found, using fallback QR code');
-        
-        // Fallback to simulated QR code
-        setTimeout(() => {
-          setCurrentQrCode("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=whatsapp-connection-code-" + Date.now());
-        }, 1500);
+        throw new Error('QR code não foi retornado pela EvolutionAPI');
       }
     } catch (error) {
       console.error('Error generating QR code:', error);
-      
-      // Fallback to simulated QR code on error
-      setTimeout(() => {
-        setCurrentQrCode("https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=whatsapp-connection-fallback-" + Date.now());
-      }, 1500);
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      setQrError(`Erro ao gerar QR code: ${errorMessage}`);
+      toast.error('Erro ao conectar com EvolutionAPI');
     } finally {
       setIsGeneratingQr(false);
     }
@@ -76,6 +91,12 @@ export default function WhatsAppConnectionModal({
   const handleConnect = () => {
     setConnectionStep('connecting');
     onConnect();
+  };
+
+  const handleRetryConnection = () => {
+    setQrError(null);
+    setCurrentQrCode(null);
+    setConnectionStep('instructions');
   };
 
   const renderStepContent = () => {
@@ -87,8 +108,8 @@ export default function WhatsAppConnectionModal({
               <Smartphone className="h-4 w-4" />
               <AlertDescription>
                 {evolutionConfigId 
-                  ? "Conecte seu WhatsApp usando nossa integração avançada com EvolutionAPI."
-                  : "Antes de conectar, certifique-se de ter o WhatsApp instalado no celular que será usado para este agente."
+                  ? "Conecte seu WhatsApp usando nossa integração com EvolutionAPI."
+                  : "Configure primeiro uma instância da EvolutionAPI para conectar o WhatsApp."
                 }
               </AlertDescription>
             </Alert>
@@ -108,36 +129,38 @@ export default function WhatsAppConnectionModal({
                   <span className="text-sm text-muted-foreground">Setor:</span>
                   <span className="text-sm font-medium">{agent?.sector}</span>
                 </div>
-                {evolutionConfigId && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Status:</span>
-                    <span className="text-sm font-medium text-green-600">EvolutionAPI Ativa</span>
-                  </div>
-                )}
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Status API:</span>
+                  <span className={`text-sm font-medium ${evolutionConfigId ? 'text-green-600' : 'text-red-600'}`}>
+                    {evolutionConfigId ? 'Configurada' : 'Não Configurada'}
+                  </span>
+                </div>
               </div>
             </div>
 
-            <div className="space-y-3">
-              <h4 className="font-medium text-sm">Como funciona a conexão:</h4>
-              <ol className="text-sm text-muted-foreground space-y-2">
-                <li className="flex items-start gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">1</span>
-                  <span>Clique em "Gerar QR Code" para iniciar a conexão</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">2</span>
-                  <span>Abra o WhatsApp no celular do cliente</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">3</span>
-                  <span>Vá em Configurações → WhatsApp Web/Desktop</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">4</span>
-                  <span>Escaneie o código QR que aparecerá na tela</span>
-                </li>
-              </ol>
-            </div>
+            {evolutionConfigId && (
+              <div className="space-y-3">
+                <h4 className="font-medium text-sm">Como conectar:</h4>
+                <ol className="text-sm text-muted-foreground space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">1</span>
+                    <span>Clique em "Conectar WhatsApp" para gerar o QR code</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">2</span>
+                    <span>Abra o WhatsApp no celular</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">3</span>
+                    <span>Vá em Configurações → WhatsApp Web/Desktop</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">4</span>
+                    <span>Escaneie o código QR</span>
+                  </li>
+                </ol>
+              </div>
+            )}
           </div>
         );
       
@@ -145,11 +168,11 @@ export default function WhatsAppConnectionModal({
         return (
           <div className="space-y-4">
             <Alert>
-              <AlertCircle className="h-4 w-4" />
+              <Wifi className="h-4 w-4" />
               <AlertDescription>
-                {evolutionConfigId 
-                  ? "Escaneie o código QR com o WhatsApp do cliente. Este é um QR code real da EvolutionAPI."
-                  : "Escaneie o código QR com o WhatsApp do cliente para conectar o agente."
+                {qrError 
+                  ? "Erro ao conectar com EvolutionAPI. Verifique a configuração."
+                  : "Escaneie o código QR gerado pela EvolutionAPI com o WhatsApp."
                 }
               </AlertDescription>
             </Alert>
@@ -157,6 +180,7 @@ export default function WhatsAppConnectionModal({
             <WhatsAppQRCode
               isGenerating={isGeneratingQr}
               qrCodeUrl={currentQrCode || undefined}
+              error={qrError || undefined}
               onRefresh={handleGenerateQrCode}
               onConnect={handleConnect}
               className="flex justify-center"
@@ -171,10 +195,7 @@ export default function WhatsAppConnectionModal({
             <div>
               <h4 className="font-medium">Conectando...</h4>
               <p className="text-sm text-muted-foreground mt-1">
-                {evolutionConfigId 
-                  ? "Estabelecendo conexão real com o WhatsApp via EvolutionAPI"
-                  : "Aguarde enquanto estabelecemos a conexão com o WhatsApp"
-                }
+                Estabelecendo conexão com o WhatsApp via EvolutionAPI
               </p>
             </div>
           </div>
@@ -190,7 +211,7 @@ export default function WhatsAppConnectionModal({
       case 'instructions':
         return 'Conectar Agente ao WhatsApp';
       case 'qr':
-        return evolutionConfigId ? 'Escaneie o QR Code (EvolutionAPI)' : 'Escaneie o QR Code';
+        return 'Escaneie o QR Code (EvolutionAPI)';
       case 'connecting':
         return 'Conectando WhatsApp';
       default:
@@ -201,13 +222,9 @@ export default function WhatsAppConnectionModal({
   const getDialogDescription = () => {
     switch (connectionStep) {
       case 'instructions':
-        return evolutionConfigId 
-          ? 'Usando integração avançada com EvolutionAPI para conectar seu agente ao WhatsApp.'
-          : 'Siga as instruções abaixo para conectar seu agente ao WhatsApp.';
+        return 'Usando integração com EvolutionAPI para conectar seu agente ao WhatsApp.';
       case 'qr':
-        return evolutionConfigId
-          ? 'QR Code gerado pela EvolutionAPI. Use o WhatsApp do celular para escanear o código abaixo.'
-          : 'Use o WhatsApp do celular para escanear o código QR abaixo.';
+        return 'QR Code gerado pela EvolutionAPI. Use o WhatsApp do celular para escanear.';
       case 'connecting':
         return 'Estabelecendo conexão com o WhatsApp...';
       default:
@@ -235,9 +252,11 @@ export default function WhatsAppConnectionModal({
               <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
                 Configurar depois
               </Button>
-              <Button onClick={handleGenerateQrCode} className="w-full sm:w-auto">
-                {evolutionConfigId ? 'Gerar QR Code (EvolutionAPI)' : 'Gerar QR Code'}
-              </Button>
+              {evolutionConfigId && (
+                <Button onClick={handleGenerateQrCode} className="w-full sm:w-auto">
+                  Conectar WhatsApp
+                </Button>
+              )}
             </>
           )}
           
@@ -246,6 +265,11 @@ export default function WhatsAppConnectionModal({
               <Button variant="outline" onClick={() => setConnectionStep('instructions')} className="w-full sm:w-auto">
                 Voltar
               </Button>
+              {qrError && (
+                <Button onClick={handleRetryConnection} className="w-full sm:w-auto">
+                  Tentar Novamente
+                </Button>
+              )}
               <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
                 Configurar depois
               </Button>
