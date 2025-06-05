@@ -15,7 +15,6 @@ interface EvolutionConfig {
   qr_code_expires_at?: string;
   created_at: string;
   updated_at: string;
-  // Global config data (joined)
   global_config?: {
     api_url: string;
     api_key: string;
@@ -57,7 +56,6 @@ export function useEvolutionAPI(franchiseeId?: string) {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
-  // Use the franchiseeId parameter or fallback to current user ID
   const effectiveFranchiseeId = franchiseeId || user?.id;
 
   useEffect(() => {
@@ -70,12 +68,10 @@ export function useEvolutionAPI(franchiseeId?: string) {
     loadGlobalConfigs();
     loadAIAgents();
     
-    // Create unique channel names using franchiseeId and timestamp to avoid conflicts
     const timestamp = Date.now();
     const configChannelName = `evolution_configs_${effectiveFranchiseeId}_${timestamp}`;
     const agentsChannelName = `ai_agents_${effectiveFranchiseeId}_${timestamp}`;
     
-    // Subscribe to real-time updates with unique channel names
     const configsSubscription = supabase
       .channel(configChannelName)
       .on('postgres_changes', 
@@ -113,7 +109,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
         .from('evolution_api_configs')
         .select(`
           *,
-          evolution_global_configs!inner(
+          evolution_global_configs(
             api_url,
             api_key,
             manager_url,
@@ -125,7 +121,6 @@ export function useEvolutionAPI(franchiseeId?: string) {
 
       if (error) throw error;
       
-      // Transform data to include global config
       const transformedData = data?.map(config => ({
         ...config,
         global_config: config.evolution_global_configs
@@ -174,12 +169,11 @@ export function useEvolutionAPI(franchiseeId?: string) {
     }
   };
 
-  const testConnection = async (globalConfigId: string) => {
+  const testConnection = async () => {
     try {
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
-          action: 'test_connection_global',
-          globalConfigId
+          action: 'test_connection_global'
         }
       });
 
@@ -195,10 +189,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
     }
   };
 
-  const createInstance = async (
-    instanceName: string, 
-    globalConfigId: string
-  ) => {
+  const createInstance = async (instanceName: string) => {
     if (!effectiveFranchiseeId) {
       throw new Error('User ID not available');
     }
@@ -209,8 +200,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
         body: {
           action: 'create_instance_with_global',
           franchiseeId: effectiveFranchiseeId,
-          instanceName,
-          globalConfigId
+          instanceName
         }
       });
 
@@ -340,10 +330,8 @@ export function useEvolutionAPI(franchiseeId?: string) {
 
   const deleteInstance = async (configId: string) => {
     try {
-      // Primeiro desconectar
       await disconnectInstance(configId);
       
-      // Depois deletar do banco
       const { error } = await supabase
         .from('evolution_api_configs')
         .delete()

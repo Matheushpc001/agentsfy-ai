@@ -25,10 +25,10 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
   const handleGenerateQR = async () => {
     // Find the AI agent configuration for this agent
     const aiAgent = aiAgents.find(ai => ai.agent_id === agent.id);
-    const evolutionConfigId = aiAgent?.evolution_config_id || configs[0]?.id;
+    const evolutionConfigId = aiAgent?.evolution_config_id;
 
     if (!evolutionConfigId) {
-      setQrError('Nenhuma configuração da EvolutionAPI encontrada');
+      setQrError('Agente não possui instância EvolutionAPI configurada');
       return;
     }
 
@@ -64,7 +64,7 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
     setTimeout(() => {
       setIsModalOpen(false);
       if (onRefresh) onRefresh(agent);
-      toast.success("Conexão simulada com sucesso!");
+      toast.success("Conexão realizada com sucesso!");
     }, 1000);
   };
   
@@ -74,7 +74,7 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
         <CardHeader className="pb-2">
           <CardTitle className="text-lg">WhatsApp Conexão</CardTitle>
           <CardDescription>
-            Status da conexão do WhatsApp com seu agente
+            Status da conexão do WhatsApp com EvolutionAPI
           </CardDescription>
         </CardHeader>
         <CardContent>

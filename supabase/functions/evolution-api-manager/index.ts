@@ -1,9 +1,10 @@
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const supabaseUrl = 'https://kzxiqdakyfxtyyuybwtl.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGlxZGFreWZ4dHl5dXlid3RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg0NTYwNjksImV4cCI6MjA2NDAzMjA2OX0.8GwAjmdwup-i7gfhHKAxKi2Uufr3JAisKj5jg0qIALk';
+const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,14 +17,12 @@ serve(async (req) => {
   }
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
     const { action, ...params } = await req.json();
 
     console.log('Evolution API Manager - Action:', action, 'Params keys:', Object.keys(params));
 
     switch (action) {
-      case 'create_instance':
-        return await createInstance(supabase, params);
       case 'create_instance_with_global':
         return await createInstanceWithGlobal(supabase, params);
       case 'connect_instance':
@@ -36,8 +35,6 @@ serve(async (req) => {
         return await createAIAgent(supabase, params);
       case 'update_ai_agent':
         return await updateAIAgent(supabase, params);
-      case 'test_connection':
-        return await testConnection(supabase, params);
       case 'test_connection_global':
         return await testConnectionGlobal(supabase, params);
       default:
@@ -56,24 +53,28 @@ serve(async (req) => {
   }
 });
 
-async function createInstanceWithGlobal(supabase: any, params: any) {
-  const { franchiseeId, instanceName, globalConfigId } = params;
-  console.log('Creating instance with global config:', { franchiseeId, instanceName, globalConfigId });
-
-  // Get global config
-  const { data: globalConfig, error: globalError } = await supabase
+async function getActiveGlobalConfig(supabase: any) {
+  const { data: globalConfigs, error } = await supabase
     .from('evolution_global_configs')
     .select('*')
-    .eq('id', globalConfigId)
     .eq('is_active', true)
-    .single();
+    .order('created_at', { ascending: false })
+    .limit(1);
 
-  if (globalError || !globalConfig) {
-    console.error('Global config error:', globalError);
-    throw new Error('Configuração global não encontrada ou inativa');
+  if (error || !globalConfigs || globalConfigs.length === 0) {
+    throw new Error('Nenhuma configuração global ativa encontrada. Configure a EvolutionAPI no painel admin.');
   }
 
-  console.log('Using global config:', { name: globalConfig.name, api_url: globalConfig.api_url });
+  return globalConfigs[0];
+}
+
+async function createInstanceWithGlobal(supabase: any, params: any) {
+  const { franchiseeId, instanceName } = params;
+  console.log('Creating instance for franchisee:', franchiseeId, 'with name:', instanceName);
+
+  // Get active global config automatically
+  const globalConfig = await getActiveGlobalConfig(supabase);
+  console.log('Using active global config:', globalConfig.name);
 
   // Check if instance already exists
   const { data: existing } = await supabase
@@ -96,7 +97,7 @@ async function createInstanceWithGlobal(supabase: any, params: any) {
     .insert({
       franchisee_id: franchiseeId,
       instance_name: instanceName,
-      global_config_id: globalConfigId,
+      global_config_id: globalConfig.id,
       webhook_url: webhookUrl,
       status: 'disconnected'
     })
@@ -119,26 +120,14 @@ async function createInstanceWithGlobal(supabase: any, params: any) {
       webhook_by_events: true,
       events: [
         'APPLICATION_STARTUP',
-        'QRCODE_UPDATED',
+        'QRCODE_UPDATED', 
         'CONNECTION_UPDATE',
         'MESSAGES_UPSERT',
-        'MESSAGES_UPDATE',
-        'MESSAGES_DELETE',
-        'SEND_MESSAGE',
-        'CONTACTS_UPDATE',
-        'CONTACTS_UPSERT',
-        'PRESENCE_UPDATE',
-        'CHATS_UPDATE',
-        'CHATS_UPSERT',
-        'CHATS_DELETE',
-        'GROUPS_UPSERT',
-        'GROUP_UPDATE',
-        'GROUP_PARTICIPANTS_UPDATE',
-        'NEW_JWT_TOKEN'
+        'SEND_MESSAGE'
       ]
     };
 
-    console.log('Creating instance in EvolutionAPI with payload:', createPayload);
+    console.log('Creating instance in EvolutionAPI:', createPayload);
 
     const createResponse = await fetch(`${globalConfig.api_url}/instance/create`, {
       method: 'POST',
@@ -163,10 +152,10 @@ async function createInstanceWithGlobal(supabase: any, params: any) {
       createResult = JSON.parse(responseText);
     } catch (parseError) {
       console.error('Failed to parse EvolutionAPI response:', parseError);
-      createResult = { raw_response: responseText };
+      createResult = { success: true, raw_response: responseText };
     }
 
-    console.log('Instância criada com sucesso na EvolutionAPI:', createResult);
+    console.log('Instância criada com sucesso na EvolutionAPI');
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -180,153 +169,6 @@ async function createInstanceWithGlobal(supabase: any, params: any) {
     console.error('Erro da EvolutionAPI ao criar instância:', evolutionError);
     
     // Remove config from database if EvolutionAPI failed
-    await supabase
-      .from('evolution_api_configs')
-      .delete()
-      .eq('id', config.id);
-
-    throw new Error(`Erro ao criar instância na EvolutionAPI: ${evolutionError.message}`);
-  }
-}
-
-async function testConnectionGlobal(supabase: any, params: any) {
-  const { globalConfigId } = params;
-  console.log('Testing global connection for config:', globalConfigId);
-
-  const { data: globalConfig, error } = await supabase
-    .from('evolution_global_configs')
-    .select('*')
-    .eq('id', globalConfigId)
-    .eq('is_active', true)
-    .single();
-
-  if (error || !globalConfig) {
-    console.error('Global config not found:', error);
-    throw new Error('Configuração global não encontrada');
-  }
-
-  try {
-    console.log('Testing connection to:', globalConfig.api_url);
-    
-    const testResponse = await fetch(`${globalConfig.api_url}/instance/fetchInstances`, {
-      method: 'GET',
-      headers: {
-        'apikey': globalConfig.global_api_key || globalConfig.api_key
-      }
-    });
-
-    const responseText = await testResponse.text();
-    console.log('Test connection response status:', testResponse.status);
-    console.log('Test connection response:', responseText);
-
-    if (!testResponse.ok) {
-      throw new Error(`Falha na conexão: ${testResponse.status} - ${responseText}`);
-    }
-
-    let result;
-    try {
-      result = JSON.parse(responseText);
-    } catch (parseError) {
-      result = { raw_response: responseText };
-    }
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      message: 'Conexão testada com sucesso',
-      instances: result 
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (error) {
-    console.error('Erro ao testar conexão:', error);
-    throw new Error(`Erro de conexão: ${error.message}`);
-  }
-}
-
-async function createInstance(supabase: any, params: any) {
-  const { franchiseeId, instanceName, apiUrl, apiKey, managerUrl, globalApiKey } = params;
-
-  const { data: existing } = await supabase
-    .from('evolution_api_configs')
-    .select('id')
-    .eq('franchisee_id', franchiseeId)
-    .eq('instance_name', instanceName)
-    .single();
-
-  if (existing) {
-    throw new Error('Uma instância com este nome já existe');
-  }
-
-  const webhookUrl = `${supabaseUrl}/functions/v1/evolution-webhook`;
-
-  const { data: config, error } = await supabase
-    .from('evolution_api_configs')
-    .insert({
-      franchisee_id: franchiseeId,
-      instance_name: instanceName,
-      webhook_url: webhookUrl,
-      status: 'disconnected'
-    })
-    .select()
-    .single();
-
-  if (error) throw error;
-
-  try {
-    const createResponse = await fetch(`${apiUrl}/instance/create`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': globalApiKey || apiKey
-      },
-      body: JSON.stringify({
-        instanceName,
-        integration: 'WHATSAPP-BAILEYS',
-        webhook: webhookUrl,
-        webhook_by_events: true,
-        events: [
-          'APPLICATION_STARTUP',
-          'QRCODE_UPDATED',
-          'CONNECTION_UPDATE',
-          'MESSAGES_UPSERT',
-          'MESSAGES_UPDATE',
-          'MESSAGES_DELETE',
-          'SEND_MESSAGE',
-          'CONTACTS_UPDATE',
-          'CONTACTS_UPSERT',
-          'PRESENCE_UPDATE',
-          'CHATS_UPDATE',
-          'CHATS_UPSERT',
-          'CHATS_DELETE',
-          'GROUPS_UPSERT',
-          'GROUP_UPDATE',
-          'GROUP_PARTICIPANTS_UPDATE',
-          'NEW_JWT_TOKEN'
-        ]
-      })
-    });
-
-    if (!createResponse.ok) {
-      const errorText = await createResponse.text();
-      console.error('Erro ao criar instância:', errorText);
-      throw new Error(`Falha ao criar instância: ${errorText}`);
-    }
-
-    const createResult = await createResponse.json();
-    console.log('Instância criada:', createResult);
-
-    return new Response(JSON.stringify({ 
-      success: true, 
-      config,
-      evolutionResponse: createResult 
-    }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-  } catch (evolutionError) {
-    console.error('Erro da EvolutionAPI:', evolutionError);
-    
     await supabase
       .from('evolution_api_configs')
       .delete()
@@ -381,7 +223,6 @@ async function connectInstance(supabase: any, params: any) {
 
     const responseText = await connectResponse.text();
     console.log('Connect response status:', connectResponse.status);
-    console.log('Connect response length:', responseText.length);
 
     if (!connectResponse.ok) {
       console.error('Connect failed:', responseText);
@@ -396,7 +237,7 @@ async function connectInstance(supabase: any, params: any) {
       throw new Error('Resposta inválida da EvolutionAPI');
     }
 
-    console.log('Connect result keys:', Object.keys(connectResult));
+    console.log('Connect result received:', Object.keys(connectResult));
 
     // Update status to connecting
     await supabase
@@ -404,7 +245,7 @@ async function connectInstance(supabase: any, params: any) {
       .update({ 
         status: 'connecting',
         qr_code: connectResult.base64 || connectResult.qrcode || connectResult.qr,
-        qr_code_expires_at: new Date(Date.now() + 2 * 60 * 1000).toISOString() // 2 minutes
+        qr_code_expires_at: new Date(Date.now() + 2 * 60 * 1000).toISOString()
       })
       .eq('id', configId);
 
@@ -416,7 +257,7 @@ async function connectInstance(supabase: any, params: any) {
       throw new Error('QR code não encontrado na resposta da EvolutionAPI');
     }
 
-    console.log('QR code generated successfully, length:', qrCode.length);
+    console.log('QR code generated successfully');
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -429,7 +270,6 @@ async function connectInstance(supabase: any, params: any) {
   } catch (error) {
     console.error('Erro ao conectar instância:', error);
     
-    // Update status to error
     await supabase
       .from('evolution_api_configs')
       .update({ status: 'error' })
@@ -603,22 +443,53 @@ async function updateAIAgent(supabase: any, params: any) {
   });
 }
 
-async function testConnection(supabase: any, params: any) {
-  const { apiUrl, apiKey, globalApiKey } = params;
+async function testConnectionGlobal(supabase: any, params: any) {
+  const { globalConfigId } = params;
+  console.log('Testing global connection for config:', globalConfigId);
+
+  let globalConfig;
+  
+  if (globalConfigId) {
+    const { data, error } = await supabase
+      .from('evolution_global_configs')
+      .select('*')
+      .eq('id', globalConfigId)
+      .eq('is_active', true)
+      .single();
+
+    if (error || !data) {
+      console.error('Specific global config not found:', error);
+      throw new Error('Configuração global específica não encontrada');
+    }
+    globalConfig = data;
+  } else {
+    // Get any active global config
+    globalConfig = await getActiveGlobalConfig(supabase);
+  }
 
   try {
-    const testResponse = await fetch(`${apiUrl}/instance/fetchInstances`, {
+    console.log('Testing connection to:', globalConfig.api_url);
+    
+    const testResponse = await fetch(`${globalConfig.api_url}/instance/fetchInstances`, {
       method: 'GET',
       headers: {
-        'apikey': globalApiKey || apiKey
+        'apikey': globalConfig.global_api_key || globalConfig.api_key
       }
     });
 
+    const responseText = await testResponse.text();
+    console.log('Test connection response status:', testResponse.status);
+
     if (!testResponse.ok) {
-      throw new Error(`Falha na conexão: ${testResponse.statusText}`);
+      throw new Error(`Falha na conexão: ${testResponse.status} - ${responseText}`);
     }
 
-    const result = await testResponse.json();
+    let result;
+    try {
+      result = JSON.parse(responseText);
+    } catch (parseError) {
+      result = { raw_response: responseText };
+    }
 
     return new Response(JSON.stringify({ 
       success: true, 

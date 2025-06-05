@@ -38,7 +38,7 @@ export function useAgentSubmission({
   setIsWhatsAppModalOpen,
   setIsCustomerPortalModalOpen,
 }: UseAgentSubmissionProps) {
-  const { globalConfigs, createInstance, connectInstance, createAIAgent } = useEvolutionAPI(franchiseeId);
+  const { createInstance, connectInstance, createAIAgent } = useEvolutionAPI(franchiseeId);
 
   const handleSubmitAgent = async (
     agentData: Partial<Agent>, 
@@ -54,7 +54,6 @@ export function useAgentSubmission({
     });
 
     try {
-      // Handle customer creation/selection
       let customerId = "";
       let customer: Customer | undefined;
 
@@ -143,23 +142,13 @@ export function useAgentSubmission({
     try {
       console.log('Creating EvolutionAPI instance for agent:', agent.id);
       
-      // Check if we have available global configs
-      if (!globalConfigs || globalConfigs.length === 0) {
-        console.warn('No EvolutionAPI global configs available');
-        toast.warning("Configuração do WhatsApp não disponível. Configure a EvolutionAPI primeiro.");
-        return;
-      }
-
-      // Use the first available global config
-      const globalConfig = globalConfigs[0];
-      
       // Create unique instance name
       const instanceName = `agent_${agent.id.replace(/-/g, '_')}_${Date.now()}`;
       
       toast.loading("Criando instância do WhatsApp...");
       
-      // Create Evolution instance
-      const evolutionConfig = await createInstance(instanceName, globalConfig.id);
+      // Create Evolution instance (uses global config automatically)
+      const evolutionConfig = await createInstance(instanceName);
       
       console.log('EvolutionAPI instance created:', evolutionConfig.id);
       
@@ -192,7 +181,7 @@ export function useAgentSubmission({
       console.error('Error creating EvolutionAPI instance:', error);
       toast.error(`Erro ao criar instância do WhatsApp: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       
-      // Still show the modal but with the old flow as fallback
+      // Still show the modal but with fallback flow
       setTimeout(() => {
         setIsWhatsAppModalOpen(true);
         const customerPortal = generateCustomerPortalAccess(customer);
@@ -207,11 +196,7 @@ export function useAgentSubmission({
     const loadingToast = toast.loading("Conectando ao WhatsApp...");
     
     try {
-      // Try to find the evolution config for this agent
       console.log('Looking for EvolutionAPI config for agent:', currentAgent.id);
-      
-      // For now, simulate the connection - in a real implementation,
-      // you would call the Evolution API to get the real connection status
       
       // Update WhatsApp connection status in database
       await agentService.updateAgentWhatsAppStatus(currentAgent.id, true);

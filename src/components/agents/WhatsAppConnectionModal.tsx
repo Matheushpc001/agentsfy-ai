@@ -39,7 +39,7 @@ export default function WhatsAppConnectionModal({
       if (aiAgent && aiAgent.evolution_config_id) {
         setEvolutionConfigId(aiAgent.evolution_config_id);
       } else {
-        // Find any available config for this franchisee
+        // Find any available config
         const config = configs.find(c => c.status === 'disconnected') || configs[0];
         if (config) {
           setEvolutionConfigId(config.id);
@@ -50,7 +50,7 @@ export default function WhatsAppConnectionModal({
 
   const handleGenerateQrCode = async () => {
     if (!evolutionConfigId) {
-      setQrError('Nenhuma configuração da EvolutionAPI encontrada. Configure primeiro uma instância.');
+      setQrError('Nenhuma configuração da EvolutionAPI encontrada. A instância foi criada automaticamente?');
       return;
     }
 
@@ -109,7 +109,7 @@ export default function WhatsAppConnectionModal({
               <AlertDescription>
                 {evolutionConfigId 
                   ? "Conecte seu WhatsApp usando nossa integração com EvolutionAPI."
-                  : "Configure primeiro uma instância da EvolutionAPI para conectar o WhatsApp."
+                  : "Instância EvolutionAPI não encontrada. Entre em contato com o suporte."
                 }
               </AlertDescription>
             </Alert>
@@ -156,7 +156,7 @@ export default function WhatsAppConnectionModal({
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">4</span>
-                    <span>Escaneie o código QR</span>
+                    <span>Escaneie o código QR real da EvolutionAPI</span>
                   </li>
                 </ol>
               </div>
@@ -172,7 +172,7 @@ export default function WhatsAppConnectionModal({
               <AlertDescription>
                 {qrError 
                   ? "Erro ao conectar com EvolutionAPI. Verifique a configuração."
-                  : "Escaneie o código QR gerado pela EvolutionAPI com o WhatsApp."
+                  : "Escaneie o código QR real da EvolutionAPI com o WhatsApp."
                 }
               </AlertDescription>
             </Alert>
@@ -222,9 +222,9 @@ export default function WhatsAppConnectionModal({
   const getDialogDescription = () => {
     switch (connectionStep) {
       case 'instructions':
-        return 'Usando integração com EvolutionAPI para conectar seu agente ao WhatsApp.';
+        return 'Usando integração automática com EvolutionAPI para conectar seu agente ao WhatsApp.';
       case 'qr':
-        return 'QR Code gerado pela EvolutionAPI. Use o WhatsApp do celular para escanear.';
+        return 'QR Code real gerado pela EvolutionAPI. Use o WhatsApp do celular para escanear.';
       case 'connecting':
         return 'Estabelecendo conexão com o WhatsApp...';
       default:

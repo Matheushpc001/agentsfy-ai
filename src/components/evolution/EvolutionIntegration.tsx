@@ -3,9 +3,8 @@ import { useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bot, Settings, Zap, AlertCircle, BarChart3, FileText, Brain } from "lucide-react";
+import { Bot, Zap, AlertCircle, BarChart3, FileText, Brain, CheckCircle } from "lucide-react";
 import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
-import EvolutionAPISetup from "./EvolutionAPISetup";
 import EvolutionInstanceCard from "./EvolutionInstanceCard";
 import AIAgentSetup from "./AIAgentSetup";
 import EvolutionAnalytics from "./EvolutionAnalytics";
@@ -17,7 +16,7 @@ interface EvolutionIntegrationProps {
 }
 
 export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrationProps) {
-  const [activeTab, setActiveTab] = useState("setup");
+  const [activeTab, setActiveTab] = useState("instances");
   const [selectedAgent, setSelectedAgent] = useState<any>(null);
   
   const {
@@ -56,35 +55,62 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
     setActiveTab("advanced-config");
   };
 
+  const handleCreateInstance = async () => {
+    const instanceName = `whatsapp_${Date.now()}`;
+    try {
+      await createInstance(instanceName);
+    } catch (error) {
+      console.error('Erro ao criar instância:', error);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      {/* Header com informações importantes */}
-      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
+      {/* Header simplificado */}
+      <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Zap className="h-5 w-5" />
-            Integração Evolution API - Versão Avançada
+            WhatsApp com IA - EvolutionAPI
           </CardTitle>
           <CardDescription>
-            Sistema completo de WhatsApp com IA. Configure instâncias, conecte ao WhatsApp, crie agentes inteligentes e monitore performance em tempo real.
+            Sistema automático de WhatsApp com inteligência artificial. As configurações são gerenciadas automaticamente.
           </CardDescription>
         </CardHeader>
       </Card>
 
-      {/* Estatísticas principais */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Configurações Globais
+      {/* Status das configurações globais */}
+      {globalConfigs.length === 0 && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-orange-800">
+              <AlertCircle className="h-5 w-5" />
+              Configuração Pendente
             </CardTitle>
+            <CardDescription className="text-orange-700">
+              O sistema EvolutionAPI não está configurado. Entre em contato com o administrador para ativar a integração.
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{globalConfigs.length}</div>
-            <p className="text-xs text-muted-foreground">Servidores disponíveis</p>
-          </CardContent>
         </Card>
+      )}
 
+      {/* Confirmação de configuração ativa */}
+      {globalConfigs.length > 0 && (
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <CheckCircle className="h-5 w-5" />
+              Sistema Configurado
+            </CardTitle>
+            <CardDescription className="text-green-700">
+              EvolutionAPI configurada e ativa. Você pode criar instâncias e agentes IA automaticamente.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      )}
+
+      {/* Estatísticas principais */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -117,10 +143,15 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
-              {connectedConfigs.length > 0 ? (
+              {globalConfigs.length > 0 && connectedConfigs.length > 0 ? (
                 <>
                   <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                   <span className="text-sm font-medium text-green-600">Operacional</span>
+                </>
+              ) : globalConfigs.length > 0 ? (
+                <>
+                  <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                  <span className="text-sm font-medium text-yellow-600">Pronto</span>
                 </>
               ) : (
                 <>
@@ -134,11 +165,7 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-6">
-          <TabsTrigger value="setup" className="flex items-center gap-2">
-            <Settings className="h-4 w-4" />
-            Configuração
-          </TabsTrigger>
+        <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="instances" className="flex items-center gap-2">
             <Zap className="h-4 w-4" />
             Instâncias
@@ -161,41 +188,27 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="setup" className="space-y-6">
-          {globalConfigs.length === 0 ? (
-            <Card className="border-orange-200 bg-orange-50">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-orange-800">
-                  <AlertCircle className="h-5 w-5" />
-                  Configuração Pendente
-                </CardTitle>
-                <CardDescription className="text-orange-700">
-                  Nenhuma configuração global disponível. Entre em contato com o administrador para configurar os servidores Evolution API.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ) : (
-            <EvolutionAPISetup
-              globalConfigs={globalConfigs}
-              onTestConnection={testConnection}
-              onCreateInstance={createInstance}
-              isCreating={isCreating}
-            />
-          )}
-        </TabsContent>
-
         <TabsContent value="instances" className="space-y-6">
           {isLoading ? (
             <div className="text-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
               <p className="mt-2 text-muted-foreground">Carregando instâncias...</p>
             </div>
+          ) : globalConfigs.length === 0 ? (
+            <Card>
+              <CardHeader className="text-center">
+                <CardTitle>Sistema não configurado</CardTitle>
+                <CardDescription>
+                  Entre em contato com o administrador para configurar o EvolutionAPI
+                </CardDescription>
+              </CardHeader>
+            </Card>
           ) : transformedConfigs.length === 0 ? (
             <Card>
               <CardHeader className="text-center">
                 <CardTitle>Nenhuma instância configurada</CardTitle>
                 <CardDescription>
-                  Configure sua primeira instância na aba "Configuração" para começar a usar o WhatsApp com IA
+                  As instâncias são criadas automaticamente quando você cria agentes no painel principal
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -221,8 +234,8 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
               <CardHeader className="text-center">
                 <CardTitle className="text-blue-800">Conecte uma instância primeiro</CardTitle>
                 <CardDescription className="text-blue-700">
-                  Você precisa ter pelo menos uma instância do WhatsApp conectada para configurar agentes IA.
-                  Vá para a aba "Instâncias" e conecte uma instância.
+                  Os agentes IA são criados automaticamente quando você cria agentes no painel principal.
+                  Primeiro conecte uma instância ao WhatsApp.
                 </CardDescription>
               </CardHeader>
             </Card>
@@ -245,7 +258,7 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
                             </Badge>
                           </CardTitle>
                           <CardDescription>
-                            Configure agentes IA para responder automaticamente no WhatsApp
+                            Agentes IA conectados a esta instância do WhatsApp
                           </CardDescription>
                         </div>
                         <div className="flex items-center gap-2">
@@ -256,15 +269,8 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
                     </CardHeader>
 
                     <CardContent>
-                      <AIAgentSetup
-                        evolutionConfigId={config.id}
-                        onCreateAgent={createAIAgent}
-                        onUpdateAgent={updateAIAgent}
-                        agents={configAgents}
-                      />
-
-                      {configAgents.length > 0 && (
-                        <div className="mt-6 space-y-3">
+                      {configAgents.length > 0 ? (
+                        <div className="space-y-3">
                           <h4 className="font-medium text-sm">Agentes Ativos:</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             {configAgents.map((agent) => (
@@ -298,6 +304,11 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
                               </Card>
                             ))}
                           </div>
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <p className="text-sm">Nenhum agente IA configurado para esta instância</p>
+                          <p className="text-xs mt-1">Agentes são criados automaticamente no painel principal</p>
                         </div>
                       )}
                     </CardContent>
