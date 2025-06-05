@@ -1,7 +1,7 @@
-
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 
 interface EvolutionConfig {
   id: string;
@@ -48,14 +48,23 @@ interface GlobalConfig {
   is_active: boolean;
 }
 
-export function useEvolutionAPI(franchiseeId: string) {
+export function useEvolutionAPI(franchiseeId?: string) {
+  const { user } = useAuth();
   const [configs, setConfigs] = useState<EvolutionConfig[]>([]);
   const [globalConfigs, setGlobalConfigs] = useState<GlobalConfig[]>([]);
   const [aiAgents, setAIAgents] = useState<AIAgent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
 
+  // Use the franchiseeId parameter or fallback to current user ID
+  const effectiveFranchiseeId = franchiseeId || user?.id;
+
   useEffect(() => {
+    if (!effectiveFranchiseeId) {
+      setIsLoading(false);
+      return;
+    }
+
     loadConfigs();
     loadGlobalConfigs();
     loadAIAgents();
@@ -81,9 +90,11 @@ export function useEvolutionAPI(franchiseeId: string) {
       supabase.removeChannel(configsSubscription);
       supabase.removeChannel(agentsSubscription);
     };
-  }, [franchiseeId]);
+  }, [effectiveFranchiseeId]);
 
   const loadConfigs = async () => {
+    if (!effectiveFranchiseeId) return;
+    
     try {
       const { data, error } = await supabase
         .from('evolution_api_configs')
@@ -96,7 +107,7 @@ export function useEvolutionAPI(franchiseeId: string) {
             global_api_key
           )
         `)
-        .eq('franchisee_id', franchiseeId)
+        .eq('franchisee_id', effectiveFranchiseeId)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -132,6 +143,8 @@ export function useEvolutionAPI(franchiseeId: string) {
   };
 
   const loadAIAgents = async () => {
+    if (!effectiveFranchiseeId) return;
+    
     try {
       const { data, error } = await supabase
         .from('ai_whatsapp_agents')
@@ -139,7 +152,7 @@ export function useEvolutionAPI(franchiseeId: string) {
           *,
           evolution_api_configs!inner(franchisee_id)
         `)
-        .eq('evolution_api_configs.franchisee_id', franchiseeId);
+        .eq('evolution_api_configs.franchisee_id', effectiveFranchiseeId);
 
       if (error) throw error;
       setAIAgents(data || []);
@@ -173,12 +186,16 @@ export function useEvolutionAPI(franchiseeId: string) {
     instanceName: string, 
     globalConfigId: string
   ) => {
+    if (!effectiveFranchiseeId) {
+      throw new Error('User ID not available');
+    }
+
     setIsCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
           action: 'create_instance_with_global',
-          franchiseeId,
+          franchiseeId: effectiveFranchiseeId,
           instanceName,
           globalConfigId
         }

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +16,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
 
 interface AnalyticsData {
   totalMessages: number;
@@ -30,21 +30,32 @@ interface AnalyticsData {
 }
 
 interface EvolutionAnalyticsProps {
-  franchiseeId: string;
+  franchiseeId?: string;
 }
 
 export default function EvolutionAnalytics({ franchiseeId }: EvolutionAnalyticsProps) {
+  const { user } = useAuth();
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState('24h');
 
+  // Use the franchiseeId parameter or fallback to current user ID
+  const effectiveFranchiseeId = franchiseeId || user?.id;
+
   useEffect(() => {
+    if (!effectiveFranchiseeId) {
+      setIsLoading(false);
+      return;
+    }
+
     loadAnalytics();
     const interval = setInterval(loadAnalytics, 30000); // Atualiza a cada 30 segundos
     return () => clearInterval(interval);
-  }, [franchiseeId, selectedPeriod]);
+  }, [effectiveFranchiseeId, selectedPeriod]);
 
   const loadAnalytics = async () => {
+    if (!effectiveFranchiseeId) return;
+
     try {
       setIsLoading(true);
       
@@ -52,7 +63,7 @@ export default function EvolutionAnalytics({ franchiseeId }: EvolutionAnalyticsP
       const { data: configs, error: configError } = await supabase
         .from('evolution_api_configs')
         .select('id')
-        .eq('franchisee_id', franchiseeId);
+        .eq('franchisee_id', effectiveFranchiseeId);
 
       if (configError) throw configError;
       

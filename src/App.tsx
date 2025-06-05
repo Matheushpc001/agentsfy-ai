@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -8,6 +7,7 @@ import { AuthProvider, useAuth } from "@/context/AuthContext";
 import { useMemo } from "react";
 
 // Import pages
+import Auth from "./pages/Auth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
@@ -46,8 +46,8 @@ const ProtectedRoute = ({ element, allowedRoles }: ProtectedRouteProps) => {
   // Show nothing while loading
   if (loading) return null;
   
-  // If user is not logged in, redirect to login page
-  if (!user) return <Navigate to="/login" replace />;
+  // If user is not logged in, redirect to auth page
+  if (!user) return <Navigate to="/auth" replace />;
   
   // If user role is not allowed, redirect to dashboard
   if (!allowedRoles.includes(user.role)) return <Navigate to="/dashboard" replace />;
@@ -63,7 +63,8 @@ const AppRoutes = () => {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
+      <Route path="/login" element={<Navigate to="/auth" replace />} />
 
       {/* Protected routes */}
       <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} allowedRoles={["admin", "franchisee", "customer"]} />} />
@@ -90,8 +91,8 @@ const AppRoutes = () => {
       <Route path="/customer/ai-agents" element={<ProtectedRoute element={<AIAgentConfig />} allowedRoles={["customer"]} />} />
       <Route path="/customer/schedule" element={<ProtectedRoute element={<CustomerSchedule />} allowedRoles={["customer"]} />} />
       
-      {/* Redirect root to login or dashboard */}
-      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />} />
+      {/* Redirect root to auth or dashboard */}
+      <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />} />
       
       {/* Catch-all route */}
       <Route path="*" element={<NotFound />} />
