@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -69,24 +70,36 @@ export function useEvolutionAPI(franchiseeId?: string) {
     loadGlobalConfigs();
     loadAIAgents();
     
-    // Subscribe to real-time updates
+    // Create unique channel names using franchiseeId and timestamp to avoid conflicts
+    const timestamp = Date.now();
+    const configChannelName = `evolution_configs_${effectiveFranchiseeId}_${timestamp}`;
+    const agentsChannelName = `ai_agents_${effectiveFranchiseeId}_${timestamp}`;
+    
+    // Subscribe to real-time updates with unique channel names
     const configsSubscription = supabase
-      .channel('evolution_configs_changes')
+      .channel(configChannelName)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'evolution_api_configs' },
-        () => loadConfigs()
+        () => {
+          console.log('Evolution configs changed, reloading...');
+          loadConfigs();
+        }
       )
       .subscribe();
 
     const agentsSubscription = supabase
-      .channel('ai_agents_changes')
+      .channel(agentsChannelName)
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'ai_whatsapp_agents' },
-        () => loadAIAgents()
+        () => {
+          console.log('AI agents changed, reloading...');
+          loadAIAgents();
+        }
       )
       .subscribe();
 
     return () => {
+      console.log('Cleaning up Evolution API subscriptions');
       supabase.removeChannel(configsSubscription);
       supabase.removeChannel(agentsSubscription);
     };
