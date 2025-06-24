@@ -1,10 +1,11 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, MessageSquare, Settings, Smartphone } from "lucide-react";
+import { Bot, MessageSquare, Settings, Smartphone, BarChart3 } from "lucide-react";
 import EvolutionManagement from "./EvolutionManagement";
 import EvolutionAgents from "./EvolutionAgents";
 import EvolutionMessages from "./EvolutionMessages";
+import EvolutionDashboard from "./EvolutionDashboard";
 
 interface EvolutionIntegrationProps {
   franchiseeId: string;
@@ -25,8 +26,12 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
         </CardHeader>
       </Card>
 
-      <Tabs defaultValue="management" className="w-full">
-        <TabsList className="grid w-full grid-cols-3">
+      <Tabs defaultValue="dashboard" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="dashboard" className="flex items-center gap-2">
+            <BarChart3 className="h-4 w-4" />
+            Dashboard
+          </TabsTrigger>
           <TabsTrigger value="management" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Gerenciamento
@@ -40,6 +45,10 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
             Mensagens
           </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="dashboard">
+          <EvolutionDashboard franchiseeId={franchiseeId} />
+        </TabsContent>
 
         <TabsContent value="management">
           <EvolutionManagement franchiseeId={franchiseeId} />
