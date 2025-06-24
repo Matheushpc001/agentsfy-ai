@@ -38,7 +38,7 @@ export function useAgentSubmission({
   setIsWhatsAppModalOpen,
   setIsCustomerPortalModalOpen,
 }: UseAgentSubmissionProps) {
-  const { createInstance, connectInstance, createAIAgent } = useEvolutionAPI(franchiseeId);
+  const { createInstance, connectInstance, createAIAgent, globalConfigs } = useEvolutionAPI(franchiseeId);
 
   const handleSubmitAgent = async (
     agentData: Partial<Agent>, 
@@ -78,7 +78,7 @@ export function useAgentSubmission({
       }
 
       if (!customerId) {
-        throw new Error('Customer ID is required');
+        throw new Error('Customer ID é obrigatório');
       }
 
       if (isEditModalOpen && currentAgent) {
@@ -128,8 +128,19 @@ export function useAgentSubmission({
           
           toast.success("Agente criado com sucesso!");
           
-          // Automatically create EvolutionAPI instance for WhatsApp integration
-          await handleCreateEvolutionInstance(newAgent, customer);
+          // Verificar se EvolutionAPI está configurada
+          if (globalConfigs.length > 0) {
+            console.log('EvolutionAPI disponível, criando instância...');
+            await handleCreateEvolutionInstance(newAgent, customer);
+          } else {
+            console.log('EvolutionAPI não configurada, pulando integração automática');
+            toast.info("Agente criado! Configure a EvolutionAPI para usar WhatsApp.");
+            
+            // Gerar portal do cliente mesmo sem WhatsApp
+            const customerPortal = generateCustomerPortalAccess(customer);
+            setCurrentCustomerPortal(customerPortal);
+            setIsCustomerPortalModalOpen(true);
+          }
         }
       }
     } catch (error) {
@@ -142,17 +153,25 @@ export function useAgentSubmission({
     try {
       console.log('Creating EvolutionAPI instance for agent:', agent.id);
       
-      // Create unique instance name
+      // Verificar se já existe uma instância para este agente
+      const existingInstance = await checkExistingInstance(agent.id);
+      if (existingInstance) {
+        console.log('Instance already exists, skipping creation');
+        setIsWhatsAppModalOpen(true);
+        return;
+      }
+      
+      // Criar nome único para a instância
       const instanceName = `agent_${agent.id.replace(/-/g, '_')}_${Date.now()}`;
       
       toast.loading("Criando instância do WhatsApp...");
       
-      // Create Evolution instance (uses global config automatically)
+      // Criar instância Evolution (usa configuração global automaticamente)
       const evolutionConfig = await createInstance(instanceName);
       
       console.log('EvolutionAPI instance created:', evolutionConfig.id);
       
-      // Create AI Agent integration
+      // Criar integração AI Agent
       await createAIAgent({
         agent_id: agent.id,
         evolution_config_id: evolutionConfig.id,
@@ -164,15 +183,15 @@ export function useAgentSubmission({
         response_delay_seconds: 2
       });
 
-      console.log('AI Agent integration created');
+      console.log('AI Agent integration created successfully');
       
       toast.success("Instância do WhatsApp criada com sucesso!");
       
-      // Show WhatsApp connection modal with real QR code
+      // Mostrar modal de conexão WhatsApp
       setTimeout(() => {
         setIsWhatsAppModalOpen(true);
         
-        // Generate customer portal access
+        // Gerar acesso ao portal do cliente
         const customerPortal = generateCustomerPortalAccess(customer);
         setCurrentCustomerPortal(customerPortal);
       }, 1000);
@@ -181,7 +200,7 @@ export function useAgentSubmission({
       console.error('Error creating EvolutionAPI instance:', error);
       toast.error(`Erro ao criar instância do WhatsApp: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       
-      // Still show the modal but with fallback flow
+      // Ainda mostrar o modal, mas com fluxo de fallback
       setTimeout(() => {
         setIsWhatsAppModalOpen(true);
         const customerPortal = generateCustomerPortalAccess(customer);
@@ -190,18 +209,24 @@ export function useAgentSubmission({
     }
   };
 
+  const checkExistingInstance = async (agentId: string) => {
+    // Esta funcionalidade será implementada quando tivermos a consulta adequada
+    // Por enquanto, assumir que não existe
+    return null;
+  };
+
   const handleConnectWhatsApp = async () => {
     if (!currentAgent) return;
     
     const loadingToast = toast.loading("Conectando ao WhatsApp...");
     
     try {
-      console.log('Looking for EvolutionAPI config for agent:', currentAgent.id);
+      console.log('Conectando WhatsApp para o agente:', currentAgent.id);
       
-      // Update WhatsApp connection status in database
+      // Atualizar status de conexão WhatsApp no banco
       await agentService.updateAgentWhatsAppStatus(currentAgent.id, true);
       
-      // Update local state
+      // Atualizar estado local
       const updatedAgents = agents.map(agent =>
         agent.id === currentAgent.id ? { ...agent, whatsappConnected: true } : agent
       );
@@ -210,7 +235,7 @@ export function useAgentSubmission({
       
       toast.dismiss(loadingToast);
       
-      // Show customer portal access after WhatsApp connection
+      // Mostrar portal do cliente após conexão do WhatsApp
       setIsCustomerPortalModalOpen(true);
       
       toast.success("WhatsApp conectado com sucesso!");
