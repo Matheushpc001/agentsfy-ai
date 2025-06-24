@@ -125,51 +125,88 @@ export function useEvolutionAPI(franchiseeId?: string) {
     }
   };
 
-  const createInstance = async (instanceName: string) => {
+  const createInstanceWithAutoConfig = async (instanceName: string, agentId?: string) => {
     if (!franchiseeId) {
       throw new Error('FranchiseeId é obrigatório');
     }
     
+    if (globalConfigs.length === 0) {
+      throw new Error('EvolutionAPI não configurada globalmente');
+    }
+    
     setIsCreating(true);
     try {
+      console.log('Criando instância automática:', { instanceName, franchiseeId, agentId });
+      
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
           action: 'create_instance',
           franchisee_id: franchiseeId,
-          instance_name: instanceName
+          instance_name: instanceName,
+          agent_id: agentId,
+          auto_config: true, // Flag para configuração automática
+          global_config: globalConfigs[0] // Usa a primeira configuração global ativa
         }
       });
 
       if (error) throw error;
       
       await loadConfigs();
-      toast.success('Instância criada com sucesso');
+      toast.success('Instância criada e configurada automaticamente');
       return data;
     } catch (error) {
       console.error('Erro ao criar instância:', error);
-      toast.error('Erro ao criar instância');
+      toast.error('Erro ao criar instância automática');
       throw error;
     } finally {
       setIsCreating(false);
     }
   };
 
+  const createInstance = async (instanceName: string) => {
+    return createInstanceWithAutoConfig(instanceName);
+  };
+
   const connectInstance = async (configId: string) => {
     try {
+      console.log('Conectando instância:', configId);
+      
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
           action: 'connect_instance',
-          config_id: configId
+          config_id: configId,
+          generate_qr: true // Garantir que o QR seja gerado
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro da API:', error);
+        throw error;
+      }
+      
+      if (!data) {
+        throw new Error('Nenhum dado retornado pela API');
+      }
+
+      console.log('Resposta da API connectInstance:', data);
       
       await loadConfigs();
-      return data;
+      
+      // Retornar o QR code se disponível
+      if (data.qr_code || data.qrCode || data.base64) {
+        return data.qr_code || data.qrCode || data.base64;
+      }
+      
+      if (data.message && data.message.includes('connected')) {
+        toast.success('WhatsApp já conectado');
+        return null;
+      }
+      
+      throw new Error('QR code não foi gerado pela EvolutionAPI');
     } catch (error) {
       console.error('Erro ao conectar instância:', error);
-      toast.error('Erro ao conectar instância');
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast.error(`Erro ao conectar: ${errorMessage}`);
       throw error;
     }
   };
@@ -263,6 +300,25 @@ export function useEvolutionAPI(franchiseeId?: string) {
     }
   };
 
+  const createAgentWithAutoInstance = async (agentId: string, agentName: string, phoneNumber?: string) => {
+    try {
+      console.log('Criando instância automática para agente:', agentId);
+      
+      // Criar nome único para a instância
+      const instanceName = `agent_${agentId.replace(/-/g, '_')}_${Date.now()}`;
+      
+      // Criar instância com configuração automática
+      const evolutionConfig = await createInstanceWithAutoConfig(instanceName, agentId);
+      
+      console.log('Instância criada para agente:', evolutionConfig);
+      
+      return evolutionConfig;
+    } catch (error) {
+      console.error('Erro ao criar instância automática para agente:', error);
+      throw error;
+    }
+  };
+
   const sendTestMessage = async (configId: string, phoneNumber: string, message: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
@@ -288,7 +344,6 @@ export function useEvolutionAPI(franchiseeId?: string) {
         throw new Error('Nenhuma configuração global encontrada');
       }
 
-      // Test connection with the first available global config
       const config = globalConfigs[0];
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
@@ -324,6 +379,8 @@ export function useEvolutionAPI(franchiseeId?: string) {
     isCreating,
     error,
     createInstance,
+    createInstanceWithAutoConfig,
+    createAgentWithAutoInstance,
     connectInstance,
     disconnectInstance,
     deleteInstance,

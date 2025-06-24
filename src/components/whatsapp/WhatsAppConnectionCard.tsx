@@ -22,23 +22,51 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
   
-  const { configs, aiAgents, connectInstance } = useEvolutionAPI(user?.id);
+  const { configs, aiAgents, connectInstance, globalConfigs, createAgentWithAutoInstance } = useEvolutionAPI(user?.id);
 
   const handleGenerateQR = async () => {
-    // Find the AI agent configuration for this agent
-    const aiAgent = aiAgents.find(ai => ai.agent_id === agent.id);
-    const evolutionConfigId = aiAgent?.evolution_config_id;
+    if (!user?.id) {
+      setQrError('Usuário não autenticado');
+      return;
+    }
+
+    // Verificar se há configuração global
+    if (globalConfigs.length === 0) {
+      setQrError('EvolutionAPI não configurada. Entre em contato com o administrador.');
+      return;
+    }
+
+    // Encontrar ou criar configuração para este agente
+    let aiAgent = aiAgents.find(ai => ai.agent_id === agent.id);
+    let evolutionConfigId = aiAgent?.evolution_config_id;
 
     if (!evolutionConfigId) {
-      setQrError('Agente não possui instância EvolutionAPI configurada');
-      return;
+      try {
+        console.log('Criando instância automática para agente:', agent.id);
+        toast.loading('Criando instância WhatsApp...');
+        
+        const evolutionConfig = await createAgentWithAutoInstance(
+          agent.id, 
+          agent.name, 
+          agent.phoneNumber
+        );
+        
+        evolutionConfigId = evolutionConfig.id;
+        toast.dismiss();
+        toast.success('Instância WhatsApp criada automaticamente');
+      } catch (error) {
+        console.error('Erro ao criar instância automática:', error);
+        toast.dismiss();
+        setQrError('Erro ao criar instância automática. Tente novamente.');
+        return;
+      }
     }
 
     setIsGenerating(true);
     setQrError(null);
     
     try {
-      console.log('Generating QR for agent:', agent.id, 'with config:', evolutionConfigId);
+      console.log('Gerando QR para agente:', agent.id, 'com config:', evolutionConfigId);
       
       const qrCodeData = await connectInstance(evolutionConfigId);
       
@@ -49,6 +77,7 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
           qrCodeUrl = `data:image/png;base64,${qrCodeData}`;
         }
         setQrCodeUrl(qrCodeUrl);
+        toast.success('QR code gerado! Escaneie com o WhatsApp.');
       } else {
         throw new Error('QR code não foi retornado pela EvolutionAPI');
       }
@@ -104,6 +133,7 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
             variant={agent.whatsappConnected ? "outline" : "default"}
             className="w-full"
             onClick={() => setIsModalOpen(true)}
+            disabled={globalConfigs.length === 0}
           >
             {agent.whatsappConnected ? (
               <>
@@ -113,7 +143,7 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
             ) : (
               <>
                 <QrCode className="mr-2 h-4 w-4" />
-                Conectar WhatsApp
+                {globalConfigs.length === 0 ? 'EvolutionAPI não configurada' : 'Conectar WhatsApp'}
               </>
             )}
           </Button>
@@ -125,18 +155,35 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
           <DialogHeader>
             <DialogTitle>Conectar WhatsApp</DialogTitle>
             <DialogDescription>
-              Conecte usando a EvolutionAPI para WhatsApp real.
+              {globalConfigs.length === 0 
+                ? "EvolutionAPI não configurada. Entre em contato com o administrador."
+                : "Conecte usando a EvolutionAPI para WhatsApp real."
+              }
             </DialogDescription>
           </DialogHeader>
           
-          <WhatsAppQRCode
-            isGenerating={isGenerating}
-            qrCodeUrl={qrCodeUrl || undefined}
-            error={qrError || undefined}
-            onRefresh={handleGenerateQR}
-            onConnect={handleConnect}
-            className="my-4"
-          />
+          {globalConfigs.length > 0 && (
+            <WhatsAppQRCode
+              isGenerating={isGenerating}
+              qrCodeUrl={qrCodeUrl || undefined}
+              error={qrError || undefined}
+              onRefresh={handleGenerateQR}
+              onConnect={handleConnect}
+              className="my-4"
+            />
+          )}
+          
+          {globalConfigs.length === 0 && (
+            <div className="text-center py-8">
+              <AlertCircle className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                EvolutionAPI não configurada globalmente.
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                Entre em contato com o administrador para ativar a integração.
+              </p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </>

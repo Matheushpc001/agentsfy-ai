@@ -38,7 +38,7 @@ export function useAgentSubmission({
   setIsWhatsAppModalOpen,
   setIsCustomerPortalModalOpen,
 }: UseAgentSubmissionProps) {
-  const { createInstance, connectInstance, createAIAgent, globalConfigs } = useEvolutionAPI(franchiseeId);
+  const { createAgentWithAutoInstance, createAIAgent, globalConfigs } = useEvolutionAPI(franchiseeId);
 
   const handleSubmitAgent = async (
     agentData: Partial<Agent>, 
@@ -130,7 +130,7 @@ export function useAgentSubmission({
           
           // Verificar se EvolutionAPI está configurada
           if (globalConfigs.length > 0) {
-            console.log('EvolutionAPI disponível, criando instância...');
+            console.log('EvolutionAPI disponível, criando instância automática...');
             await handleCreateEvolutionInstance(newAgent, customer);
           } else {
             console.log('EvolutionAPI não configurada, pulando integração automática');
@@ -151,25 +151,18 @@ export function useAgentSubmission({
 
   const handleCreateEvolutionInstance = async (agent: Agent, customer: Customer) => {
     try {
-      console.log('Creating EvolutionAPI instance for agent:', agent.id);
+      console.log('Criando instância automática EvolutionAPI para agente:', agent.id);
       
-      // Verificar se já existe uma instância para este agente
-      const existingInstance = await checkExistingInstance(agent.id);
-      if (existingInstance) {
-        console.log('Instance already exists, skipping creation');
-        setIsWhatsAppModalOpen(true);
-        return;
-      }
+      toast.loading("Configurando WhatsApp automático...");
       
-      // Criar nome único para a instância
-      const instanceName = `agent_${agent.id.replace(/-/g, '_')}_${Date.now()}`;
+      // Criar instância Evolution automática (usa configuração global automaticamente)
+      const evolutionConfig = await createAgentWithAutoInstance(
+        agent.id,
+        agent.name,
+        agent.phoneNumber
+      );
       
-      toast.loading("Criando instância do WhatsApp...");
-      
-      // Criar instância Evolution (usa configuração global automaticamente)
-      const evolutionConfig = await createInstance(instanceName);
-      
-      console.log('EvolutionAPI instance created:', evolutionConfig.id);
+      console.log('Instância EvolutionAPI criada:', evolutionConfig.id);
       
       // Criar integração AI Agent
       await createAIAgent({
@@ -183,9 +176,10 @@ export function useAgentSubmission({
         response_delay_seconds: 2
       });
 
-      console.log('AI Agent integration created successfully');
+      console.log('Integração AI Agent criada com sucesso');
       
-      toast.success("Instância do WhatsApp criada com sucesso!");
+      toast.dismiss();
+      toast.success("WhatsApp configurado automaticamente!");
       
       // Mostrar modal de conexão WhatsApp
       setTimeout(() => {
@@ -197,8 +191,9 @@ export function useAgentSubmission({
       }, 1000);
       
     } catch (error) {
-      console.error('Error creating EvolutionAPI instance:', error);
-      toast.error(`Erro ao criar instância do WhatsApp: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
+      console.error('Erro ao criar instância EvolutionAPI automática:', error);
+      toast.dismiss();
+      toast.error(`Erro ao configurar WhatsApp automático: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
       
       // Ainda mostrar o modal, mas com fluxo de fallback
       setTimeout(() => {
@@ -207,12 +202,6 @@ export function useAgentSubmission({
         setCurrentCustomerPortal(customerPortal);
       }, 1000);
     }
-  };
-
-  const checkExistingInstance = async (agentId: string) => {
-    // Esta funcionalidade será implementada quando tivermos a consulta adequada
-    // Por enquanto, assumir que não existe
-    return null;
   };
 
   const handleConnectWhatsApp = async () => {
