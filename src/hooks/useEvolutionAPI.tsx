@@ -27,20 +27,66 @@ export interface AIAgent {
   updated_at: string;
 }
 
-export function useEvolutionAPI(franchiseeId: string) {
+export interface GlobalConfig {
+  id: string;
+  name: string;
+  api_url: string;
+  api_key: string;
+  manager_url?: string;
+  global_api_key?: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateAIAgentRequest {
+  agent_id: string;
+  evolution_config_id: string;
+  phone_number: string;
+  openai_api_key?: string;
+  model: string;
+  system_prompt: string;
+  auto_response: boolean;
+  response_delay_seconds: number;
+}
+
+export function useEvolutionAPI(franchiseeId?: string) {
   const [configs, setConfigs] = useState<EvolutionConfig[]>([]);
   const [aiAgents, setAiAgents] = useState<AIAgent[]>([]);
+  const [globalConfigs, setGlobalConfigs] = useState<GlobalConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!franchiseeId) return;
-    
-    loadConfigs();
-    loadAIAgents();
+    loadGlobalConfigs();
+    if (franchiseeId) {
+      loadConfigs();
+      loadAIAgents();
+    } else {
+      setIsLoading(false);
+    }
   }, [franchiseeId]);
 
+  const loadGlobalConfigs = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('evolution_global_configs')
+        .select('*')
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setGlobalConfigs(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar configurações globais:', error);
+      setError('Erro ao carregar configurações globais');
+    }
+  };
+
   const loadConfigs = async () => {
+    if (!franchiseeId) return;
+    
     try {
       const { data, error } = await supabase
         .from('evolution_api_configs')
@@ -57,6 +103,8 @@ export function useEvolutionAPI(franchiseeId: string) {
   };
 
   const loadAIAgents = async () => {
+    if (!franchiseeId) return;
+    
     try {
       const { data, error } = await supabase
         .from('ai_whatsapp_agents')
@@ -78,6 +126,11 @@ export function useEvolutionAPI(franchiseeId: string) {
   };
 
   const createInstance = async (instanceName: string) => {
+    if (!franchiseeId) {
+      throw new Error('FranchiseeId é obrigatório');
+    }
+    
+    setIsCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
@@ -96,6 +149,8 @@ export function useEvolutionAPI(franchiseeId: string) {
       console.error('Erro ao criar instância:', error);
       toast.error('Erro ao criar instância');
       throw error;
+    } finally {
+      setIsCreating(false);
     }
   };
 
@@ -180,6 +235,34 @@ export function useEvolutionAPI(franchiseeId: string) {
     }
   };
 
+  const createAIAgent = async (agentData: CreateAIAgentRequest) => {
+    try {
+      const { data, error } = await supabase
+        .from('ai_whatsapp_agents')
+        .insert([{
+          agent_id: agentData.agent_id,
+          evolution_config_id: agentData.evolution_config_id,
+          phone_number: agentData.phone_number,
+          openai_api_key: agentData.openai_api_key,
+          model: agentData.model,
+          system_prompt: agentData.system_prompt,
+          auto_response: agentData.auto_response,
+          response_delay_seconds: agentData.response_delay_seconds,
+          is_active: true
+        }])
+        .select()
+        .single();
+
+      if (error) throw error;
+      
+      await loadAIAgents();
+      return data;
+    } catch (error) {
+      console.error('Erro ao criar agente IA:', error);
+      throw error;
+    }
+  };
+
   const sendTestMessage = async (configId: string, phoneNumber: string, message: string) => {
     try {
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
@@ -199,23 +282,56 @@ export function useEvolutionAPI(franchiseeId: string) {
     }
   };
 
+  const testConnection = async () => {
+    try {
+      if (globalConfigs.length === 0) {
+        throw new Error('Nenhuma configuração global encontrada');
+      }
+
+      // Test connection with the first available global config
+      const config = globalConfigs[0];
+      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
+        body: {
+          action: 'test_connection',
+          api_url: config.api_url,
+          api_key: config.api_key
+        }
+      });
+
+      if (error) throw error;
+      return data;
+    } catch (error) {
+      console.error('Erro ao testar conexão:', error);
+      throw error;
+    }
+  };
+
   const refreshData = async () => {
     setIsLoading(true);
-    await Promise.all([loadConfigs(), loadAIAgents()]);
+    await Promise.all([
+      loadGlobalConfigs(),
+      franchiseeId ? loadConfigs() : Promise.resolve(),
+      franchiseeId ? loadAIAgents() : Promise.resolve()
+    ]);
     setIsLoading(false);
   };
 
   return {
     configs,
     aiAgents,
+    globalConfigs,
     isLoading,
+    isCreating,
     error,
     createInstance,
     connectInstance,
     disconnectInstance,
     deleteInstance,
     updateAIAgent,
+    createAIAgent,
     sendTestMessage,
+    testConnection,
+    loadConfigs,
     refreshData
   };
 }

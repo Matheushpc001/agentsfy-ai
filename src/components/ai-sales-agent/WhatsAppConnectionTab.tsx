@@ -7,6 +7,7 @@ import { CheckCircle, AlertCircle, Info } from "lucide-react";
 import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
 import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
 import { toast } from "sonner";
+import { useAuthCheck } from "@/hooks/useAuthCheck";
 
 interface WhatsAppConnectionTabProps {
   isWhatsAppConnected: boolean;
@@ -19,11 +20,12 @@ export default function WhatsAppConnectionTab({
   setIsWhatsAppConnected,
   setActiveTab
 }: WhatsAppConnectionTabProps) {
+  const { user } = useAuthCheck();
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
 
-  const { globalConfigs, testConnection } = useEvolutionAPI();
+  const { globalConfigs, testConnection } = useEvolutionAPI(user?.id);
 
   const connectWhatsApp = () => {
     setTimeout(() => {

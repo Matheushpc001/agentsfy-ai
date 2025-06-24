@@ -8,6 +8,7 @@ import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
 import { Agent } from "@/types";
 import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
 import { toast } from "sonner";
+import { useAuthCheck } from "@/hooks/useAuthCheck";
 
 interface WhatsAppConnectionCardProps {
   agent: Agent;
@@ -15,12 +16,13 @@ interface WhatsAppConnectionCardProps {
 }
 
 export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppConnectionCardProps) {
+  const { user } = useAuthCheck();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
   
-  const { configs, aiAgents, connectInstance } = useEvolutionAPI();
+  const { configs, aiAgents, connectInstance } = useEvolutionAPI(user?.id);
 
   const handleGenerateQR = async () => {
     // Find the AI agent configuration for this agent
