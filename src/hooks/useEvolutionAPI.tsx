@@ -140,7 +140,14 @@ export function useEvolutionAPI(franchiseeId?: string) {
 
       if (error) throw error;
       
-      console.log('Status da instância:', data);
+      console.log('Status da instância retornado:', data);
+      
+      // Se o status mudou para connected, recarregar dados
+      if (data?.status === 'connected') {
+        console.log('WhatsApp conectado! Recarregando dados...');
+        await loadConfigs();
+      }
+      
       return data;
     } catch (error) {
       console.error('Erro ao verificar status da instância:', error);

@@ -1,4 +1,3 @@
-
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0"
 
@@ -305,33 +304,80 @@ async function handleCheckStatus(supabase: any, params: any) {
     });
 
     if (!statusResponse.ok) {
+      console.log('Instance not found or error checking status:', statusResponse.status);
+      // Se a instância não for encontrada, pode estar sendo criada
+      if (statusResponse.status === 404) {
+        return new Response(
+          JSON.stringify({ 
+            success: true, 
+            status: 'disconnected',
+            message: 'Instance not found, might be creating'
+          }),
+          { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+          }
+        );
+      }
       throw new Error(`Erro ao verificar status: ${statusResponse.status}`);
     }
 
     const statusResult = await statusResponse.json();
-    console.log('Status result:', statusResult);
+    console.log('Status result from EvolutionAPI:', statusResult);
 
     let currentStatus = 'disconnected';
+    let instanceData = null;
+    
     if (statusResult && statusResult.length > 0) {
-      const instance = statusResult[0];
-      currentStatus = instance.status || 'disconnected';
+      instanceData = statusResult[0];
+      const evolutionStatus = instanceData.status;
+      
+      console.log('Evolution status received:', evolutionStatus);
+      
+      // Mapear status da EvolutionAPI para nosso sistema
+      if (evolutionStatus === 'open' || evolutionStatus === 'connected') {
+        currentStatus = 'connected';
+        console.log('WhatsApp is connected!');
+      } else if (evolutionStatus === 'connecting' || evolutionStatus === 'qr') {
+        currentStatus = 'connecting';
+      } else if (evolutionStatus === 'close' || evolutionStatus === 'closed') {
+        currentStatus = 'disconnected';
+      } else {
+        // Para qualquer outro status, manter como connecting se tiver QR code ativo
+        currentStatus = config.qr_code ? 'connecting' : 'disconnected';
+      }
+    } else {
+      console.log('No instance data found');
     }
 
-    console.log('Current status:', currentStatus);
+    console.log('Mapped status:', currentStatus);
 
     // Atualizar status no banco se mudou
     if (currentStatus !== config.status) {
+      console.log('Updating status in database from', config.status, 'to', currentStatus);
+      
+      const updateData: any = { status: currentStatus };
+      
+      // Se conectado, limpar QR code
+      if (currentStatus === 'connected') {
+        updateData.qr_code = null;
+        updateData.qr_code_expires_at = null;
+      }
+      
       await supabase
         .from('evolution_api_configs')
-        .update({ status: currentStatus })
+        .update(updateData)
         .eq('id', config_id);
+      
+      console.log('Status updated in database');
     }
 
     return new Response(
       JSON.stringify({ 
         success: true, 
         status: currentStatus,
-        instance_data: statusResult
+        instance_data: instanceData,
+        previous_status: config.status
       }),
       { 
         status: 200, 
