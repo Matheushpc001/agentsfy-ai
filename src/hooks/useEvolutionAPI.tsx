@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -143,9 +142,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
           action: 'create_instance',
           franchisee_id: franchiseeId,
           instance_name: instanceName,
-          agent_id: agentId,
-          auto_config: true, // Flag para configuração automática
-          global_config: globalConfigs[0] // Usa a primeira configuração global ativa
+          agent_id: agentId
         }
       });
 
@@ -153,7 +150,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
       
       await loadConfigs();
       toast.success('Instância criada e configurada automaticamente');
-      return data;
+      return data.config;
     } catch (error) {
       console.error('Erro ao criar instância:', error);
       toast.error('Erro ao criar instância automática');
@@ -174,8 +171,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
           action: 'connect_instance',
-          config_id: configId,
-          generate_qr: true // Garantir que o QR seja gerado
+          config_id: configId
         }
       });
 

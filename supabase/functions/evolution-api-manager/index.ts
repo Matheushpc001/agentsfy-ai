@@ -1,4 +1,3 @@
-
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -23,6 +22,8 @@ serve(async (req) => {
     console.log('Evolution API Manager - Action:', action, 'Params keys:', Object.keys(params));
 
     switch (action) {
+      case 'create_instance':
+        return await createInstanceWithGlobal(supabase, params);
       case 'create_instance_with_global':
         return await createInstanceWithGlobal(supabase, params);
       case 'connect_instance':
@@ -35,6 +36,8 @@ serve(async (req) => {
         return await createAIAgent(supabase, params);
       case 'update_ai_agent':
         return await updateAIAgent(supabase, params);
+      case 'test_connection':
+        return await testConnectionGlobal(supabase, params);
       case 'test_connection_global':
         return await testConnectionGlobal(supabase, params);
       default:
@@ -69,8 +72,8 @@ async function getActiveGlobalConfig(supabase: any) {
 }
 
 async function createInstanceWithGlobal(supabase: any, params: any) {
-  const { franchiseeId, instanceName } = params;
-  console.log('Creating instance for franchisee:', franchiseeId, 'with name:', instanceName);
+  const { franchisee_id, instance_name, agent_id } = params;
+  console.log('Creating instance for franchisee:', franchisee_id, 'with name:', instance_name);
 
   // Get active global config automatically
   const globalConfig = await getActiveGlobalConfig(supabase);
@@ -80,12 +83,19 @@ async function createInstanceWithGlobal(supabase: any, params: any) {
   const { data: existing } = await supabase
     .from('evolution_api_configs')
     .select('id')
-    .eq('franchisee_id', franchiseeId)
-    .eq('instance_name', instanceName)
+    .eq('franchisee_id', franchisee_id)
+    .eq('instance_name', instance_name)
     .single();
 
   if (existing) {
-    throw new Error('Uma instância com este nome já existe');
+    console.log('Instance already exists, returning existing config:', existing.id);
+    return new Response(JSON.stringify({ 
+      success: true, 
+      config: existing,
+      message: 'Instance already exists'
+    }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
   }
 
   // Configure webhook URL
@@ -95,8 +105,8 @@ async function createInstanceWithGlobal(supabase: any, params: any) {
   const { data: config, error } = await supabase
     .from('evolution_api_configs')
     .insert({
-      franchisee_id: franchiseeId,
-      instance_name: instanceName,
+      franchisee_id: franchisee_id,
+      instance_name: instance_name,
       global_config_id: globalConfig.id,
       webhook_url: webhookUrl,
       status: 'disconnected'
@@ -114,7 +124,7 @@ async function createInstanceWithGlobal(supabase: any, params: any) {
   try {
     // Create instance in EvolutionAPI
     const createPayload = {
-      instanceName,
+      instanceName: instance_name,
       integration: 'WHATSAPP-BAILEYS',
       webhook: webhookUrl,
       webhook_by_events: true,
@@ -179,8 +189,8 @@ async function createInstanceWithGlobal(supabase: any, params: any) {
 }
 
 async function connectInstance(supabase: any, params: any) {
-  const { configId } = params;
-  console.log('Connecting instance for config:', configId);
+  const { config_id } = params;
+  console.log('Connecting instance for config:', config_id);
 
   // Get config with global config joined
   const { data: config, error } = await supabase
@@ -193,7 +203,7 @@ async function connectInstance(supabase: any, params: any) {
         global_api_key
       )
     `)
-    .eq('id', configId)
+    .eq('id', config_id)
     .single();
 
   if (error || !config) {
@@ -223,6 +233,7 @@ async function connectInstance(supabase: any, params: any) {
 
     const responseText = await connectResponse.text();
     console.log('Connect response status:', connectResponse.status);
+    console.log('Connect response text:', responseText);
 
     if (!connectResponse.ok) {
       console.error('Connect failed:', responseText);
@@ -237,7 +248,7 @@ async function connectInstance(supabase: any, params: any) {
       throw new Error('Resposta inválida da EvolutionAPI');
     }
 
-    console.log('Connect result received:', Object.keys(connectResult));
+    console.log('Connect result received:', Object.keys(connectResult || {}));
 
     // Update status to connecting
     await supabase
@@ -247,7 +258,7 @@ async function connectInstance(supabase: any, params: any) {
         qr_code: connectResult.base64 || connectResult.qrcode || connectResult.qr,
         qr_code_expires_at: new Date(Date.now() + 2 * 60 * 1000).toISOString()
       })
-      .eq('id', configId);
+      .eq('id', config_id);
 
     // Return QR code in base64 format
     const qrCode = connectResult.base64 || connectResult.qrcode || connectResult.qr;
@@ -257,10 +268,12 @@ async function connectInstance(supabase: any, params: any) {
       throw new Error('QR code não encontrado na resposta da EvolutionAPI');
     }
 
-    console.log('QR code generated successfully');
+    console.log('QR code generated successfully, length:', qrCode.length);
 
     return new Response(JSON.stringify({ 
       success: true, 
+      qr_code: qrCode,
+      base64: qrCode,
       qrCode: qrCode,
       result: connectResult 
     }), {
@@ -273,7 +286,7 @@ async function connectInstance(supabase: any, params: any) {
     await supabase
       .from('evolution_api_configs')
       .update({ status: 'error' })
-      .eq('id', configId);
+      .eq('id', config_id);
       
     throw error;
   }
