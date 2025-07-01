@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -58,14 +59,19 @@ export function useEvolutionAPI(franchiseeId?: string) {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadGlobalConfigs();
-    if (franchiseeId) {
-      loadConfigs();
-      loadAIAgents();
-    } else {
-      setIsLoading(false);
-    }
+    loadInitialData();
   }, [franchiseeId]);
+
+  const loadInitialData = async () => {
+    await loadGlobalConfigs();
+    if (franchiseeId) {
+      await Promise.all([
+        loadConfigs(),
+        loadAIAgents()
+      ]);
+    }
+    setIsLoading(false);
+  };
 
   const loadGlobalConfigs = async () => {
     try {
@@ -119,8 +125,6 @@ export function useEvolutionAPI(franchiseeId?: string) {
     } catch (error) {
       console.error('Erro ao carregar agentes IA:', error);
       setError('Erro ao carregar agentes IA');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -148,7 +152,10 @@ export function useEvolutionAPI(franchiseeId?: string) {
 
       if (error) throw error;
       
+      // Aguardar um pouco e recarregar os dados
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await loadConfigs();
+      
       toast.success('Instância criada e configurada automaticamente');
       return data.config;
     } catch (error) {
@@ -186,6 +193,8 @@ export function useEvolutionAPI(franchiseeId?: string) {
 
       console.log('Resposta da API connectInstance:', data);
       
+      // Aguardar um pouco e recarregar os dados
+      await new Promise(resolve => setTimeout(resolve, 500));
       await loadConfigs();
       
       // Retornar o QR code se disponível
@@ -300,6 +309,14 @@ export function useEvolutionAPI(franchiseeId?: string) {
     try {
       console.log('Criando instância automática para agente:', agentId);
       
+      // Verificar se já existe uma instância para este agente
+      const existingConfig = configs.find(c => c.instance_name.includes(agentId));
+      
+      if (existingConfig) {
+        console.log('Using existing configuration:', existingConfig.id);
+        return existingConfig;
+      }
+      
       // Criar nome único para a instância
       const instanceName = `agent_${agentId.replace(/-/g, '_')}_${Date.now()}`;
       
@@ -359,12 +376,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
 
   const refreshData = async () => {
     setIsLoading(true);
-    await Promise.all([
-      loadGlobalConfigs(),
-      franchiseeId ? loadConfigs() : Promise.resolve(),
-      franchiseeId ? loadAIAgents() : Promise.resolve()
-    ]);
-    setIsLoading(false);
+    await loadInitialData();
   };
 
   return {

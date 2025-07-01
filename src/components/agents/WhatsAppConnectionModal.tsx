@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -31,75 +32,106 @@ export default function WhatsAppConnectionModal({
   const [connectionStep, setConnectionStep] = useState<'loading' | 'instructions' | 'qr' | 'connecting' | 'error'>('loading');
   const [evolutionConfigId, setEvolutionConfigId] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const [isCreatingInstance, setIsCreatingInstance] = useState(false);
   
-  const { configs, aiAgents, connectInstance, globalConfigs, createAgentWithAutoInstance } = useEvolutionAPI(user?.id);
+  const { configs, aiAgents, connectInstance, globalConfigs, createAgentWithAutoInstance, refreshData } = useEvolutionAPI(user?.id);
 
-  // Inicializar configuração da EvolutionAPI
+  // Reset state when modal opens
   useEffect(() => {
-    if (isOpen && agent && user?.id) {
-      initializeEvolutionConfig();
+    if (isOpen && agent) {
+      console.log('Modal opened for agent:', agent.id);
+      setConnectionStep('loading');
+      setQrError(null);
+      setCurrentQrCode(null);
+      setEvolutionConfigId(null);
+      setRetryCount(0);
+      setIsCreatingInstance(false);
+      
+      // Small delay to allow data to load
+      setTimeout(() => {
+        initializeEvolutionConfig();
+      }, 500);
     }
-  }, [isOpen, agent, user?.id, configs, aiAgents]);
+  }, [isOpen, agent?.id]);
 
   const initializeEvolutionConfig = async () => {
+    if (!agent || !user?.id || isCreatingInstance) {
+      console.log('Cannot initialize - missing data or already creating');
+      return;
+    }
+
+    console.log('Initializing Evolution config for agent:', agent.id);
     setConnectionStep('loading');
     setQrError(null);
     
     try {
-      console.log('Inicializando configuração Evolution para agente:', agent?.id);
-      
       // Verificar se há configuração global
       if (globalConfigs.length === 0) {
+        console.log('No global configs found');
         setQrError('EvolutionAPI não configurada. Entre em contato com o administrador.');
         setConnectionStep('error');
         return;
       }
 
-      // Encontrar configuração AI Agent para este agente
-      const aiAgent = aiAgents.find(ai => ai.agent_id === agent!.id);
+      // Primeiro, refresh dos dados para garantir estado atualizado
+      await refreshData();
+
+      // Encontrar configuração AI Agent existente para este agente
+      const aiAgent = aiAgents.find(ai => ai.agent_id === agent.id);
       
       if (aiAgent && aiAgent.evolution_config_id) {
-        console.log('Configuração AI Agent encontrada:', aiAgent.evolution_config_id);
+        console.log('Found existing AI Agent configuration:', aiAgent.evolution_config_id);
         setEvolutionConfigId(aiAgent.evolution_config_id);
         setConnectionStep('instructions');
-      } else {
-        console.log('Criando instância automática para o agente');
+        return;
+      }
+
+      // Procurar por configuração Evolution existente para este usuário
+      const existingConfig = configs.find(c => c.instance_name.includes(agent.id));
+      
+      if (existingConfig) {
+        console.log('Found existing Evolution config:', existingConfig.id);
+        setEvolutionConfigId(existingConfig.id);
+        setConnectionStep('instructions');
+        return;
+      }
+
+      // Se não existe, criar nova instância (apenas uma vez)
+      if (!isCreatingInstance) {
+        console.log('Creating new Evolution instance for agent:', agent.id);
+        setIsCreatingInstance(true);
         
         try {
-          // Criar instância automática para o agente
           const evolutionConfig = await createAgentWithAutoInstance(
-            agent!.id, 
-            agent!.name, 
-            agent!.phoneNumber
+            agent.id, 
+            agent.name, 
+            agent.phoneNumber
           );
           
           if (evolutionConfig && evolutionConfig.id) {
+            console.log('Successfully created Evolution config:', evolutionConfig.id);
             setEvolutionConfigId(evolutionConfig.id);
             setConnectionStep('instructions');
             toast.success('Instância WhatsApp criada automaticamente');
+            
+            // Refresh data after creation
+            await refreshData();
           } else {
             throw new Error('Falha ao criar instância automática');
           }
         } catch (error) {
-          console.error('Erro ao criar instância automática:', error);
-          
-          // Fallback: procurar por qualquer configuração disponível
-          const availableConfig = configs.find(c => c.status === 'disconnected') || configs[0];
-          
-          if (availableConfig) {
-            console.log('Usando configuração disponível:', availableConfig.id);
-            setEvolutionConfigId(availableConfig.id);
-            setConnectionStep('instructions');
-          } else {
-            setQrError('Erro ao criar instância automática. Tente novamente ou entre em contato com o suporte.');
-            setConnectionStep('error');
-          }
+          console.error('Error creating automatic instance:', error);
+          setQrError('Erro ao criar instância automática. Tente novamente ou entre em contato com o suporte.');
+          setConnectionStep('error');
+        } finally {
+          setIsCreatingInstance(false);
         }
       }
     } catch (error) {
-      console.error('Erro ao inicializar configuração Evolution:', error);
+      console.error('Error initializing Evolution config:', error);
       setQrError('Erro ao inicializar configuração EvolutionAPI');
       setConnectionStep('error');
+      setIsCreatingInstance(false);
     }
   };
 
@@ -115,7 +147,7 @@ export default function WhatsAppConnectionModal({
     setCurrentQrCode(null);
     
     try {
-      console.log('Gerando QR code com EvolutionAPI para config:', evolutionConfigId);
+      console.log('Generating QR code with EvolutionAPI for config:', evolutionConfigId);
       
       const qrCodeData = await connectInstance(evolutionConfigId);
       
@@ -130,13 +162,13 @@ export default function WhatsAppConnectionModal({
         
         setCurrentQrCode(qrCodeUrl);
         setRetryCount(0);
-        console.log('QR code gerado com sucesso');
+        console.log('QR code generated successfully');
         toast.success('QR code gerado! Escaneie com o WhatsApp.');
       } else {
         throw new Error('QR code não foi retornado pela EvolutionAPI');
       }
     } catch (error) {
-      console.error('Erro ao gerar QR code:', error);
+      console.error('Error generating QR code:', error);
       const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
       setQrError(`Erro ao gerar QR code: ${errorMessage}`);
       setRetryCount(prev => prev + 1);
@@ -163,6 +195,8 @@ export default function WhatsAppConnectionModal({
     setQrError(null);
     setCurrentQrCode(null);
     setRetryCount(0);
+    setEvolutionConfigId(null);
+    setIsCreatingInstance(false);
     initializeEvolutionConfig();
   };
 
@@ -173,9 +207,14 @@ export default function WhatsAppConnectionModal({
           <div className="space-y-4 text-center">
             <Clock className="h-12 w-12 text-blue-500 mx-auto animate-spin" />
             <div>
-              <h4 className="font-medium">Configurando...</h4>
+              <h4 className="font-medium">
+                {isCreatingInstance ? 'Criando instância...' : 'Configurando...'}
+              </h4>
               <p className="text-sm text-muted-foreground mt-1">
-                Criando instância automática para o agente
+                {isCreatingInstance 
+                  ? 'Criando instância automática para o agente' 
+                  : 'Verificando configurações existentes'
+                }
               </p>
             </div>
           </div>
@@ -312,7 +351,7 @@ export default function WhatsAppConnectionModal({
   const getDialogTitle = () => {
     switch (connectionStep) {
       case 'loading':
-        return 'Configurando Instância';
+        return isCreatingInstance ? 'Criando Instância' : 'Configurando Instância';
       case 'error':
         return 'Erro na Configuração';
       case 'instructions':
@@ -329,7 +368,9 @@ export default function WhatsAppConnectionModal({
   const getDialogDescription = () => {
     switch (connectionStep) {
       case 'loading':
-        return 'Criando instância automática da EvolutionAPI para o agente...';
+        return isCreatingInstance 
+          ? 'Criando instância automática da EvolutionAPI para o agente...'
+          : 'Verificando configurações existentes...';
       case 'error':
         return 'Erro na configuração. Verifique se a EvolutionAPI está configurada corretamente.';
       case 'instructions':
