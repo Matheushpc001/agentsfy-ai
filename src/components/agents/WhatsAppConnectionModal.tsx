@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -29,12 +29,14 @@ export default function WhatsAppConnectionModal({
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [currentQrCode, setCurrentQrCode] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
-  const [connectionStep, setConnectionStep] = useState<'loading' | 'instructions' | 'qr' | 'connecting' | 'error'>('loading');
+  const [connectionStep, setConnectionStep] = useState<'loading' | 'instructions' | 'qr' | 'connecting' | 'connected' | 'error'>('loading');
   const [evolutionConfigId, setEvolutionConfigId] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
   
-  const { configs, aiAgents, connectInstance, globalConfigs, createAgentWithAutoInstance, refreshData } = useEvolutionAPI(user?.id);
+  const statusCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  const { configs, aiAgents, connectInstance, checkInstanceStatus, globalConfigs, createAgentWithAutoInstance, refreshData } = useEvolutionAPI(user?.id);
 
   // Reset state when modal opens
   useEffect(() => {
@@ -46,6 +48,13 @@ export default function WhatsAppConnectionModal({
       setEvolutionConfigId(null);
       setRetryCount(0);
       setIsCreatingInstance(false);
+      setIsCheckingStatus(false);
+      
+      // Clear any existing interval
+      if (statusCheckInterval.current) {
+        clearInterval(statusCheckInterval.current);
+        statusCheckInterval.current = null;
+      }
       
       // Small delay to allow data to load
       setTimeout(() => {
@@ -53,6 +62,58 @@ export default function WhatsAppConnectionModal({
       }, 500);
     }
   }, [isOpen, agent?.id]);
+
+  // Cleanup interval on unmount or modal close
+  useEffect(() => {
+    return () => {
+      if (statusCheckInterval.current) {
+        clearInterval(statusCheckInterval.current);
+        statusCheckInterval.current = null;
+      }
+    };
+  }, []);
+
+  const startStatusChecking = (configId: string) => {
+    if (statusCheckInterval.current) {
+      clearInterval(statusCheckInterval.current);
+    }
+
+    console.log('Iniciando verificação de status para:', configId);
+    setIsCheckingStatus(true);
+
+    statusCheckInterval.current = setInterval(async () => {
+      try {
+        const status = await checkInstanceStatus(configId);
+        
+        if (status && (status.status === 'open' || status.status === 'connected')) {
+          console.log('WhatsApp conectado com sucesso!');
+          
+          // Parar o polling
+          if (statusCheckInterval.current) {
+            clearInterval(statusCheckInterval.current);
+            statusCheckInterval.current = null;
+          }
+          
+          setIsCheckingStatus(false);
+          setConnectionStep('connected');
+          
+          // Recarregar dados
+          await refreshData();
+          
+          toast.success('WhatsApp conectado com sucesso!');
+          
+          // Fechar modal após 2 segundos e chamar onConnect
+          setTimeout(() => {
+            onConnect();
+            onClose();
+          }, 2000);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar status:', error);
+        // Continuar tentando...
+      }
+    }, 3000); // Verificar a cada 3 segundos
+  };
 
   const initializeEvolutionConfig = async () => {
     if (!agent || !user?.id || isCreatingInstance) {
@@ -164,6 +225,9 @@ export default function WhatsAppConnectionModal({
         setRetryCount(0);
         console.log('QR code generated successfully');
         toast.success('QR code gerado! Escaneie com o WhatsApp.');
+        
+        // Iniciar verificação de status
+        startStatusChecking(evolutionConfigId);
       } else {
         throw new Error('QR code não foi retornado pela EvolutionAPI');
       }
@@ -197,7 +261,26 @@ export default function WhatsAppConnectionModal({
     setRetryCount(0);
     setEvolutionConfigId(null);
     setIsCreatingInstance(false);
+    setIsCheckingStatus(false);
+    
+    // Parar verificação de status
+    if (statusCheckInterval.current) {
+      clearInterval(statusCheckInterval.current);
+      statusCheckInterval.current = null;
+    }
+    
     initializeEvolutionConfig();
+  };
+
+  const handleClose = () => {
+    // Parar verificação de status
+    if (statusCheckInterval.current) {
+      clearInterval(statusCheckInterval.current);
+      statusCheckInterval.current = null;
+    }
+    
+    setIsCheckingStatus(false);
+    onClose();
   };
 
   const renderStepContent = () => {
@@ -299,7 +382,11 @@ export default function WhatsAppConnectionModal({
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">4</span>
-                  <span>Escaneie o código QR real da EvolutionAPI</span>
+                  <span>Escaneie o código QR</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="bg-primary text-primary-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs font-medium mt-0.5">5</span>
+                  <span>Aguarde a confirmação automática</span>
                 </li>
               </ol>
             </div>
@@ -314,10 +401,23 @@ export default function WhatsAppConnectionModal({
               <AlertDescription>
                 {qrError 
                   ? "Erro ao conectar com EvolutionAPI. Verifique a configuração."
-                  : "Escaneie o código QR real da EvolutionAPI com o WhatsApp."
+                  : isCheckingStatus 
+                    ? "Escaneie o código QR com o WhatsApp. Verificando conexão..."
+                    : "Escaneie o código QR com o WhatsApp."
                 }
               </AlertDescription>
             </Alert>
+            
+            {isCheckingStatus && (
+              <div className="text-center">
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <Clock className="h-4 w-4 text-blue-600 animate-spin" />
+                  <span className="text-sm font-medium text-blue-800">
+                    Verificando conexão...
+                  </span>
+                </div>
+              </div>
+            )}
             
             <WhatsAppQRCode
               isGenerating={isGeneratingQr}
@@ -342,6 +442,19 @@ export default function WhatsAppConnectionModal({
             </div>
           </div>
         );
+
+      case 'connected':
+        return (
+          <div className="space-y-4 text-center">
+            <CheckCircle2 className="h-12 w-12 text-green-500 mx-auto" />
+            <div>
+              <h4 className="font-medium text-green-600">WhatsApp Conectado!</h4>
+              <p className="text-sm text-muted-foreground mt-1">
+                Conexão estabelecida com sucesso. Fechando automaticamente...
+              </p>
+            </div>
+          </div>
+        );
       
       default:
         return null;
@@ -357,9 +470,11 @@ export default function WhatsAppConnectionModal({
       case 'instructions':
         return 'Conectar Agente ao WhatsApp';
       case 'qr':
-        return 'Escaneie o QR Code (EvolutionAPI)';
+        return 'Escaneie o QR Code';
       case 'connecting':
         return 'Conectando WhatsApp';
+      case 'connected':
+        return 'Conectado com Sucesso!';
       default:
         return 'Conectar WhatsApp';
     }
@@ -376,16 +491,20 @@ export default function WhatsAppConnectionModal({
       case 'instructions':
         return 'Instância configurada automaticamente. Pronto para conectar ao WhatsApp.';
       case 'qr':
-        return 'QR Code real gerado pela EvolutionAPI. Use o WhatsApp do celular para escanear.';
+        return isCheckingStatus 
+          ? 'QR Code gerado. Escaneie e aguarde a verificação automática da conexão.'
+          : 'QR Code gerado. Use o WhatsApp do celular para escanear.';
       case 'connecting':
         return 'Estabelecendo conexão com o WhatsApp...';
+      case 'connected':
+        return 'WhatsApp conectado com sucesso! O modal será fechado automaticamente.';
       default:
         return '';
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{getDialogTitle()}</DialogTitle>
@@ -401,7 +520,7 @@ export default function WhatsAppConnectionModal({
         <DialogFooter className="flex-col sm:flex-row gap-2">
           {connectionStep === 'error' && (
             <>
-              <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
+              <Button variant="outline" onClick={handleClose} className="w-full sm:w-auto">
                 Fechar
               </Button>
               <Button onClick={handleRetryConnection} className="w-full sm:w-auto">
@@ -412,7 +531,7 @@ export default function WhatsAppConnectionModal({
 
           {connectionStep === 'instructions' && (
             <>
-              <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
+              <Button variant="outline" onClick={handleClose} className="w-full sm:w-auto">
                 Configurar depois
               </Button>
               <Button onClick={handleGenerateQrCode} className="w-full sm:w-auto">
@@ -431,20 +550,20 @@ export default function WhatsAppConnectionModal({
                   Tentar Novamente
                 </Button>
               )}
-              <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
+              <Button variant="outline" onClick={handleClose} className="w-full sm:w-auto">
                 Configurar depois
               </Button>
             </>
           )}
           
-          {connectionStep === 'connecting' && (
-            <Button variant="outline" onClick={onClose} disabled className="w-full sm:w-auto">
-              Conectando...
+          {(connectionStep === 'connecting' || connectionStep === 'connected') && (
+            <Button variant="outline" onClick={handleClose} disabled={connectionStep === 'connected'} className="w-full sm:w-auto">
+              {connectionStep === 'connected' ? 'Fechando...' : 'Conectando...'}
             </Button>
           )}
 
           {connectionStep === 'loading' && (
-            <Button variant="outline" onClick={onClose} className="w-full sm:w-auto">
+            <Button variant="outline" onClick={handleClose} className="w-full sm:w-auto">
               Cancelar
             </Button>
           )}

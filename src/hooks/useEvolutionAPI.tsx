@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -125,6 +124,27 @@ export function useEvolutionAPI(franchiseeId?: string) {
     } catch (error) {
       console.error('Erro ao carregar agentes IA:', error);
       setError('Erro ao carregar agentes IA');
+    }
+  };
+
+  const checkInstanceStatus = async (configId: string) => {
+    try {
+      console.log('Verificando status da instância:', configId);
+      
+      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
+        body: {
+          action: 'check_status',
+          config_id: configId
+        }
+      });
+
+      if (error) throw error;
+      
+      console.log('Status da instância:', data);
+      return data;
+    } catch (error) {
+      console.error('Erro ao verificar status da instância:', error);
+      throw error;
     }
   };
 
@@ -390,6 +410,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
     createInstanceWithAutoConfig,
     createAgentWithAutoInstance,
     connectInstance,
+    checkInstanceStatus,
     disconnectInstance,
     deleteInstance,
     updateAIAgent,
