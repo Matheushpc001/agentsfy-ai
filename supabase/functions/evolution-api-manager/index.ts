@@ -95,14 +95,16 @@ async function handleCreateInstance(supabase: any, params: any) {
       throw new Error('Configuração global inválida: URL ou chave da API ausente');
     }
 
-    // Criar configuração local primeiro
+    // Criar configuração local primeiro - USANDO APENAS STATUS VÁLIDOS
     const configData = {
       franchisee_id,
       instance_name,
       global_config_id: globalConfig.id,
-      status: 'created',
+      status: 'disconnected', // Mudando de 'created' para 'disconnected' - valor válido
       webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/evolution-webhook`
     };
+
+    console.log('Inserting config with data:', configData);
 
     const { data: config, error: configError } = await supabase
       .from('evolution_api_configs')
@@ -293,11 +295,11 @@ async function handleConnectInstance(supabase: any, params: any) {
     if (qrCode) {
       console.log('QR code generated successfully');
       
-      // Atualizar status no banco para 'qr_ready'
+      // Atualizar status no banco para 'qr_ready' - STATUS VÁLIDO
       await supabase
         .from('evolution_api_configs')
         .update({ 
-          status: 'qr_ready',
+          status: 'qr_ready', // Usando status válido
           qr_code: qrCode,
           qr_code_expires_at: new Date(Date.now() + 2 * 60 * 1000).toISOString()
         })
@@ -403,7 +405,7 @@ async function handleCheckStatus(supabase: any, params: any) {
 
     console.log('📊 Parsed status result:', JSON.stringify(statusResult, null, 2));
 
-    let currentStatus = 'created';
+    let currentStatus = 'disconnected'; // Mudando default para 'disconnected'
     let instanceData = null;
     
     if (statusResult && Array.isArray(statusResult) && statusResult.length > 0) {
@@ -413,7 +415,7 @@ async function handleCheckStatus(supabase: any, params: any) {
       console.log('🚦 Evolution status from API:', evolutionStatus);
       console.log('📋 Full instance data:', JSON.stringify(instanceData, null, 2));
       
-      // Mapear status da EvolutionAPI para nosso sistema com logs detalhados
+      // Mapear status da EvolutionAPI para nosso sistema com status válidos
       if (evolutionStatus === 'open' || evolutionStatus === 'connected') {
         currentStatus = 'connected';
         console.log('✅ STATUS MAPPED TO: CONNECTED - WhatsApp is online!');
@@ -421,17 +423,17 @@ async function handleCheckStatus(supabase: any, params: any) {
         currentStatus = 'qr_ready';
         console.log('🔄 STATUS MAPPED TO: QR_READY - Waiting for QR scan');
       } else if (evolutionStatus === 'close' || evolutionStatus === 'closed' || evolutionStatus === 'disconnected') {
-        currentStatus = 'created';
-        console.log('❌ STATUS MAPPED TO: CREATED - WhatsApp is disconnected');
+        currentStatus = 'disconnected';
+        console.log('❌ STATUS MAPPED TO: DISCONNECTED - WhatsApp is disconnected');
       } else {
         console.log('❓ UNKNOWN STATUS from EvolutionAPI:', evolutionStatus);
-        // Para status desconhecido, manter como qr_ready se tiver QR code ativo
-        currentStatus = config.qr_code ? 'qr_ready' : 'created';
+        // Para status desconhecido, usar disconnected como fallback
+        currentStatus = config.qr_code ? 'qr_ready' : 'disconnected';
         console.log('🤔 Fallback status based on QR presence:', currentStatus);
       }
     } else {
       console.log('❌ No instance data found in API response');
-      currentStatus = 'created';
+      currentStatus = 'disconnected';
     }
 
     console.log('🎯 Final mapped status:', currentStatus);
@@ -531,10 +533,10 @@ async function handleDisconnectInstance(supabase: any, params: any) {
       throw new Error(`Erro ao desconectar instância: ${disconnectResponse.status}`);
     }
 
-    // Atualizar status no banco
+    // Atualizar status no banco usando status válido
     await supabase
       .from('evolution_api_configs')
-      .update({ status: 'created', qr_code: null })
+      .update({ status: 'disconnected', qr_code: null })
       .eq('id', config_id);
 
     return new Response(
