@@ -191,7 +191,17 @@ export function useEvolutionAPI(franchiseeId?: string) {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro na função create_instance:', error);
+        throw new Error(`Erro na função: ${error.message || 'Erro desconhecido'}`);
+      }
+
+      if (!data || !data.success) {
+        console.error('Resposta inválida da função:', data);
+        throw new Error(data?.error || 'Resposta inválida da função');
+      }
+      
+      console.log('Instância criada com sucesso:', data);
       
       // Aguardar um pouco e recarregar os dados
       await new Promise(resolve => setTimeout(resolve, 1000));
@@ -201,7 +211,8 @@ export function useEvolutionAPI(franchiseeId?: string) {
       return data.config;
     } catch (error) {
       console.error('Erro ao criar instância:', error);
-      toast.error('Erro ao criar instância automática');
+      const errorMessage = error instanceof Error ? error.message : 'Erro desconhecido';
+      toast.error(`Erro ao criar instância: ${errorMessage}`);
       throw error;
     } finally {
       setIsCreating(false);
@@ -224,23 +235,29 @@ export function useEvolutionAPI(franchiseeId?: string) {
       });
 
       if (error) {
-        console.error('Erro da API:', error);
-        throw error;
+        console.error('Erro da função connect_instance:', error);
+        throw new Error(`Erro na função: ${error.message || 'Erro desconhecido'}`);
       }
       
       if (!data) {
-        throw new Error('Nenhum dado retornado pela API');
+        throw new Error('Nenhum dado retornado pela função');
       }
 
-      console.log('Resposta da API connectInstance:', data);
+      console.log('Resposta da função connectInstance:', data);
+
+      if (!data.success) {
+        throw new Error(data.error || 'Erro ao conectar instância');
+      }
       
       // Aguardar um pouco e recarregar os dados
       await new Promise(resolve => setTimeout(resolve, 500));
       await loadConfigs();
       
       // Retornar o QR code se disponível
-      if (data.qr_code || data.qrCode || data.base64) {
-        return data.qr_code || data.qrCode || data.base64;
+      const qrCode = data.qr_code || data.qrCode || data.base64;
+      if (qrCode) {
+        console.log('QR code gerado com sucesso');
+        return qrCode;
       }
       
       if (data.message && data.message.includes('connected')) {
