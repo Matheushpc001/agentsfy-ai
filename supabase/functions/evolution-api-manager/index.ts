@@ -80,7 +80,7 @@ async function handleCreateInstance(supabase: any, params: any) {
       franchisee_id,
       instance_name,
       global_config_id: globalConfig.id,
-      status: 'disconnected',
+      status: 'created',
       webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/evolution-webhook`
     };
 
@@ -143,8 +143,7 @@ async function handleCreateInstance(supabase: any, params: any) {
     await supabase
       .from('evolution_api_configs')
       .update({ 
-        webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/evolution-webhook`,
-        status: 'created'
+        webhook_url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/evolution-webhook`
       })
       .eq('id', config.id);
 
@@ -226,11 +225,11 @@ async function handleConnectInstance(supabase: any, params: any) {
     if (connectResult.base64 || connectResult.qr_code || connectResult.qrCode) {
       console.log('QR code generated successfully');
       
-      // Atualizar status no banco
+      // Atualizar status no banco para 'qr_ready'
       await supabase
         .from('evolution_api_configs')
         .update({ 
-          status: 'connecting',
+          status: 'qr_ready',
           qr_code: connectResult.base64 || connectResult.qr_code || connectResult.qrCode,
           qr_code_expires_at: new Date(Date.now() + 2 * 60 * 1000).toISOString()
         })
@@ -250,16 +249,12 @@ async function handleConnectInstance(supabase: any, params: any) {
         }
       );
     } else {
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Instance already connected or connecting'
-        }),
-        { 
-          status: 200, 
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-        }
-      );
+      // Se não há QR code, pode já estar conectado
+      console.log('No QR code in response, checking if already connected');
+      
+      // Verificar status atual
+      const statusCheck = await handleCheckStatus(supabase, { config_id });
+      return statusCheck;
     }
 
   } catch (error) {
@@ -274,7 +269,7 @@ async function handleConnectInstance(supabase: any, params: any) {
 async function handleCheckStatus(supabase: any, params: any) {
   const { config_id } = params;
   
-  console.log('Checking status for config:', config_id);
+  console.log('🔍 Checking status for config:', config_id);
   
   try {
     // Buscar configuração
@@ -293,7 +288,8 @@ async function handleCheckStatus(supabase: any, params: any) {
     const globalConfig = config.evolution_global_configs;
     if (!globalConfig) throw new Error('Configuração global não encontrada');
 
-    console.log('Checking status for instance:', config.instance_name);
+    console.log('📱 Checking status for instance:', config.instance_name);
+    console.log('🔗 Current status in DB:', config.status);
 
     // Verificar status na EvolutionAPI
     const statusResponse = await fetch(`${globalConfig.api_url}/instance/fetchInstances/${config.instance_name}`, {
@@ -303,15 +299,16 @@ async function handleCheckStatus(supabase: any, params: any) {
       }
     });
 
+    console.log('📡 EvolutionAPI status response status:', statusResponse.status);
+
     if (!statusResponse.ok) {
-      console.log('Instance not found or error checking status:', statusResponse.status);
-      // Se a instância não for encontrada, pode estar sendo criada
+      console.log('❌ Instance not found or error checking status:', statusResponse.status);
       if (statusResponse.status === 404) {
         return new Response(
           JSON.stringify({ 
             success: true, 
-            status: 'disconnected',
-            message: 'Instance not found, might be creating'
+            status: 'not_found',
+            message: 'Instance not found, might need to be created'
           }),
           { 
             status: 200, 
@@ -322,54 +319,87 @@ async function handleCheckStatus(supabase: any, params: any) {
       throw new Error(`Erro ao verificar status: ${statusResponse.status}`);
     }
 
-    const statusResult = await statusResponse.json();
-    console.log('Status result from EvolutionAPI:', statusResult);
+    const statusText = await statusResponse.text();
+    console.log('📄 Raw status response:', statusText);
 
-    let currentStatus = 'disconnected';
-    let instanceData = null;
-    
-    if (statusResult && statusResult.length > 0) {
-      instanceData = statusResult[0];
-      const evolutionStatus = instanceData.status;
-      
-      console.log('Evolution status received:', evolutionStatus);
-      
-      // Mapear status da EvolutionAPI para nosso sistema
-      if (evolutionStatus === 'open' || evolutionStatus === 'connected') {
-        currentStatus = 'connected';
-        console.log('WhatsApp is connected!');
-      } else if (evolutionStatus === 'connecting' || evolutionStatus === 'qr') {
-        currentStatus = 'connecting';
-      } else if (evolutionStatus === 'close' || evolutionStatus === 'closed') {
-        currentStatus = 'disconnected';
-      } else {
-        // Para qualquer outro status, manter como connecting se tiver QR code ativo
-        currentStatus = config.qr_code ? 'connecting' : 'disconnected';
-      }
-    } else {
-      console.log('No instance data found');
+    let statusResult;
+    try {
+      statusResult = JSON.parse(statusText);
+    } catch (e) {
+      console.error('❌ Error parsing status response:', e);
+      throw new Error('Invalid response from EvolutionAPI');
     }
 
-    console.log('Mapped status:', currentStatus);
+    console.log('📊 Parsed status result:', JSON.stringify(statusResult, null, 2));
+
+    let currentStatus = 'created';
+    let instanceData = null;
+    
+    if (statusResult && Array.isArray(statusResult) && statusResult.length > 0) {
+      instanceData = statusResult[0];
+      const evolutionStatus = instanceData.connectionStatus || instanceData.status;
+      
+      console.log('🚦 Evolution status from API:', evolutionStatus);
+      console.log('📋 Full instance data:', JSON.stringify(instanceData, null, 2));
+      
+      // Mapear status da EvolutionAPI para nosso sistema com logs detalhados
+      if (evolutionStatus === 'open' || evolutionStatus === 'connected') {
+        currentStatus = 'connected';
+        console.log('✅ STATUS MAPPED TO: CONNECTED - WhatsApp is online!');
+      } else if (evolutionStatus === 'connecting' || evolutionStatus === 'qr') {
+        currentStatus = 'qr_ready';
+        console.log('🔄 STATUS MAPPED TO: QR_READY - Waiting for QR scan');
+      } else if (evolutionStatus === 'close' || evolutionStatus === 'closed' || evolutionStatus === 'disconnected') {
+        currentStatus = 'created';
+        console.log('❌ STATUS MAPPED TO: CREATED - WhatsApp is disconnected');
+      } else {
+        console.log('❓ UNKNOWN STATUS from EvolutionAPI:', evolutionStatus);
+        // Para status desconhecido, manter como qr_ready se tiver QR code ativo
+        currentStatus = config.qr_code ? 'qr_ready' : 'created';
+        console.log('🤔 Fallback status based on QR presence:', currentStatus);
+      }
+    } else {
+      console.log('❌ No instance data found in API response');
+      currentStatus = 'created';
+    }
+
+    console.log('🎯 Final mapped status:', currentStatus);
+    console.log('🔄 Previous status in DB:', config.status);
 
     // Atualizar status no banco se mudou
     if (currentStatus !== config.status) {
-      console.log('Updating status in database from', config.status, 'to', currentStatus);
+      console.log('💾 UPDATING STATUS IN DATABASE:', config.status, '->', currentStatus);
       
-      const updateData: any = { status: currentStatus };
+      const updateData: any = { 
+        status: currentStatus,
+        updated_at: new Date().toISOString()
+      };
       
       // Se conectado, limpar QR code
       if (currentStatus === 'connected') {
         updateData.qr_code = null;
         updateData.qr_code_expires_at = null;
+        console.log('🧹 Clearing QR code data since connected');
       }
       
-      await supabase
+      const { error: updateError } = await supabase
         .from('evolution_api_configs')
         .update(updateData)
         .eq('id', config_id);
       
-      console.log('Status updated in database');
+      if (updateError) {
+        console.error('❌ Error updating status in database:', updateError);
+        throw updateError;
+      }
+      
+      console.log('✅ Status successfully updated in database');
+    } else {
+      console.log('⏭️ Status unchanged, no database update needed');
+    }
+
+    // Log final para debug
+    if (currentStatus === 'connected') {
+      console.log('🎉 WHATSAPP CONNECTION DETECTED! Status is CONNECTED');
     }
 
     return new Response(
@@ -377,7 +407,11 @@ async function handleCheckStatus(supabase: any, params: any) {
         success: true, 
         status: currentStatus,
         instance_data: instanceData,
-        previous_status: config.status
+        previous_status: config.status,
+        debug_info: {
+          raw_evolution_status: instanceData?.connectionStatus || instanceData?.status,
+          evolution_response: statusResult
+        }
       }),
       { 
         status: 200, 
@@ -386,7 +420,7 @@ async function handleCheckStatus(supabase: any, params: any) {
     );
 
   } catch (error) {
-    console.error('Erro ao verificar status:', error);
+    console.error('❌ Error checking status:', error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -429,7 +463,7 @@ async function handleDisconnectInstance(supabase: any, params: any) {
     // Atualizar status no banco
     await supabase
       .from('evolution_api_configs')
-      .update({ status: 'disconnected', qr_code: null })
+      .update({ status: 'created', qr_code: null })
       .eq('id', config_id);
 
     return new Response(

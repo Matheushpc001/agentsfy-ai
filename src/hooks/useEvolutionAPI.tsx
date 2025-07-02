@@ -129,7 +129,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
 
   const checkInstanceStatus = async (configId: string) => {
     try {
-      console.log('Verificando status da instância:', configId);
+      console.log('🔍 Verificando status da instância:', configId);
       
       const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
@@ -138,19 +138,33 @@ export function useEvolutionAPI(franchiseeId?: string) {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ Erro na função de verificação:', error);
+        throw error;
+      }
       
-      console.log('Status da instância retornado:', data);
+      console.log('📊 Status da instância retornado:', data);
+      console.log('🔍 Debug info from API:', data?.debug_info);
       
       // Se o status mudou para connected, recarregar dados
       if (data?.status === 'connected') {
-        console.log('WhatsApp conectado! Recarregando dados...');
+        console.log('🎉 WhatsApp CONECTADO detectado! Recarregando dados...');
         await loadConfigs();
+        return data;
+      }
+      
+      // Log para debugging de outros status
+      if (data?.status === 'qr_ready') {
+        console.log('🔄 Status QR_READY - aguardando escaneamento');
+      } else if (data?.status === 'created') {
+        console.log('❌ Status CREATED - não conectado');
+      } else {
+        console.log('❓ Status desconhecido:', data?.status);
       }
       
       return data;
     } catch (error) {
-      console.error('Erro ao verificar status da instância:', error);
+      console.error('❌ Erro ao verificar status da instância:', error);
       throw error;
     }
   };
