@@ -1,8 +1,10 @@
+
 import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { CheckCircle2, AlertCircle, Smartphone, Wifi, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, AlertCircle, Smartphone, Wifi, Clock, RefreshCw, Zap } from "lucide-react";
 import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
 import { Agent, Customer } from "@/types";
 import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
@@ -32,28 +34,27 @@ export default function WhatsAppConnectionModal({
   const [evolutionConfigId, setEvolutionConfigId] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
   const [isCreatingInstance, setIsCreatingInstance] = useState(false);
-  const [isCheckingStatus, setIsCheckingStatus] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<string>('unknown');
+  const [lastStatusCheck, setLastStatusCheck] = useState<Date | null>(null);
   
   const statusCheckInterval = useRef<NodeJS.Timeout | null>(null);
-  const { configs, aiAgents, connectInstance, checkInstanceStatus, globalConfigs, createAgentWithAutoInstance, refreshData } = useEvolutionAPI(user?.id);
+  const { 
+    configs, 
+    aiAgents, 
+    connectInstance, 
+    checkInstanceStatus, 
+    forceStatusSync,
+    globalConfigs, 
+    createAgentWithAutoInstance, 
+    refreshData,
+    isMonitoring
+  } = useEvolutionAPI(user?.id);
 
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen && agent) {
       console.log('🚀 Modal opened for agent:', agent.id);
-      setConnectionStep('loading');
-      setQrError(null);
-      setCurrentQrCode(null);
-      setEvolutionConfigId(null);
-      setRetryCount(0);
-      setIsCreatingInstance(false);
-      setIsCheckingStatus(false);
-      
-      // Clear any existing interval
-      if (statusCheckInterval.current) {
-        clearInterval(statusCheckInterval.current);
-        statusCheckInterval.current = null;
-      }
+      resetModalState();
       
       // Small delay to allow data to load
       setTimeout(() => {
@@ -72,44 +73,59 @@ export default function WhatsAppConnectionModal({
     };
   }, []);
 
-  const startStatusChecking = (configId: string) => {
+  const resetModalState = () => {
+    setConnectionStep('loading');
+    setQrError(null);
+    setCurrentQrCode(null);
+    setEvolutionConfigId(null);
+    setRetryCount(0);
+    setIsCreatingInstance(false);
+    setConnectionStatus('unknown');
+    setLastStatusCheck(null);
+    
+    // Clear any existing interval
+    if (statusCheckInterval.current) {
+      clearInterval(statusCheckInterval.current);
+      statusCheckInterval.current = null;
+    }
+  };
+
+  const startEnhancedStatusChecking = (configId: string) => {
     if (statusCheckInterval.current) {
       clearInterval(statusCheckInterval.current);
     }
 
-    console.log('🔄 Iniciando verificação de status MELHORADA para:', configId);
-    setIsCheckingStatus(true);
+    console.log('🔄 Iniciando verificação de status APRIMORADA para:', configId);
 
     // Primeira verificação imediatamente
-    checkInstanceStatus(configId)
-      .then(statusData => {
-        console.log('📊 Status inicial:', statusData);
-        if (statusData && statusData.status === 'connected') {
-          handleConnectionSuccess();
-          return;
-        }
-      })
-      .catch(error => console.error('❌ Erro na verificação inicial:', error));
+    performStatusCheck(configId);
 
-    // Configurar polling mais agressivo (a cada 1.5 segundos)
+    // Configurar polling mais inteligente
     statusCheckInterval.current = setInterval(async () => {
-      try {
-        console.log('🔍 Verificando status automaticamente...');
-        const statusData = await checkInstanceStatus(configId);
-        
-        console.log('📊 Status retornado no polling:', statusData);
-        
-        if (statusData && statusData.status === 'connected') {
-          console.log('🎉 CONEXÃO WHATSAPP DETECTADA NO POLLING!');
-          handleConnectionSuccess();
-        } else {
-          console.log('⏳ Ainda aguardando conexão. Status atual:', statusData?.status);
-        }
-      } catch (error) {
-        console.error('❌ Erro ao verificar status no polling:', error);
-        // Continuar tentando em caso de erro temporário
+      await performStatusCheck(configId);
+    }, 2000); // Verificar a cada 2 segundos
+  };
+
+  const performStatusCheck = async (configId: string) => {
+    try {
+      console.log('🔍 Verificando status...');
+      const statusData = await checkInstanceStatus(configId);
+      
+      setLastStatusCheck(new Date());
+      setConnectionStatus(statusData?.status || 'unknown');
+      
+      console.log('📊 Status retornado:', statusData);
+      
+      if (statusData && statusData.status === 'connected') {
+        console.log('🎉 CONEXÃO WHATSAPP DETECTADA!');
+        handleConnectionSuccess();
+      } else {
+        console.log('⏳ Ainda aguardando conexão. Status atual:', statusData?.status);
       }
-    }, 1500); // Polling mais rápido: 1.5 segundos
+    } catch (error) {
+      console.error('❌ Erro ao verificar status:', error);
+      // Continuar tentando em caso de erro temporário
+    }
   };
 
   const handleConnectionSuccess = () => {
@@ -121,7 +137,6 @@ export default function WhatsAppConnectionModal({
       statusCheckInterval.current = null;
     }
     
-    setIsCheckingStatus(false);
     setConnectionStep('connected');
     
     // Mostrar toast de sucesso
@@ -162,6 +177,24 @@ export default function WhatsAppConnectionModal({
       if (aiAgent && aiAgent.evolution_config_id) {
         console.log('Found existing AI Agent configuration:', aiAgent.evolution_config_id);
         setEvolutionConfigId(aiAgent.evolution_config_id);
+        
+        // Verificar o status atual da configuração
+        const currentConfig = configs.find(c => c.id === aiAgent.evolution_config_id);
+        if (currentConfig) {
+          setConnectionStatus(currentConfig.status);
+          
+          if (currentConfig.status === 'connected') {
+            setConnectionStep('connected');
+            setTimeout(() => handleConnectionSuccess(), 1000);
+            return;
+          } else if (currentConfig.status === 'qr_ready' && currentConfig.qr_code) {
+            setCurrentQrCode(currentConfig.qr_code);
+            setConnectionStep('qr');
+            startEnhancedStatusChecking(currentConfig.id);
+            return;
+          }
+        }
+        
         setConnectionStep('instructions');
         return;
       }
@@ -172,6 +205,14 @@ export default function WhatsAppConnectionModal({
       if (existingConfig) {
         console.log('Found existing Evolution config:', existingConfig.id);
         setEvolutionConfigId(existingConfig.id);
+        setConnectionStatus(existingConfig.status);
+        
+        if (existingConfig.status === 'connected') {
+          setConnectionStep('connected');
+          setTimeout(() => handleConnectionSuccess(), 1000);
+          return;
+        }
+        
         setConnectionStep('instructions');
         return;
       }
@@ -191,6 +232,7 @@ export default function WhatsAppConnectionModal({
           if (evolutionConfig && evolutionConfig.id) {
             console.log('Successfully created Evolution config:', evolutionConfig.id);
             setEvolutionConfigId(evolutionConfig.id);
+            setConnectionStatus(evolutionConfig.status || 'disconnected');
             setConnectionStep('instructions');
             toast.success('Instância WhatsApp criada automaticamente');
             
@@ -242,11 +284,12 @@ export default function WhatsAppConnectionModal({
         
         setCurrentQrCode(qrCodeUrl);
         setRetryCount(0);
+        setConnectionStatus('qr_ready');
         console.log('✅ QR code generated successfully');
         toast.success('QR code gerado! Escaneie com o WhatsApp.');
         
-        // Iniciar verificação de status mais agressiva
-        startStatusChecking(evolutionConfigId);
+        // Iniciar verificação de status aprimorada
+        startEnhancedStatusChecking(evolutionConfigId);
       } else {
         throw new Error('QR code não foi retornado pela EvolutionAPI');
       }
@@ -269,25 +312,37 @@ export default function WhatsAppConnectionModal({
     }
   };
 
+  const handleForceSync = async () => {
+    if (!evolutionConfigId) return;
+    
+    try {
+      console.log('🔄 Forcing status sync...');
+      toast.loading('Sincronizando status...');
+      
+      const statusData = await forceStatusSync(evolutionConfigId);
+      
+      toast.dismiss();
+      
+      if (statusData?.status === 'connected') {
+        handleConnectionSuccess();
+      } else {
+        setConnectionStatus(statusData?.status || 'unknown');
+        toast.success('Status sincronizado');
+      }
+    } catch (error) {
+      toast.dismiss();
+      console.error('Error forcing sync:', error);
+      toast.error('Erro ao sincronizar status');
+    }
+  };
+
   const handleConnect = () => {
     setConnectionStep('connecting');
     onConnect();
   };
 
   const handleRetryConnection = () => {
-    setQrError(null);
-    setCurrentQrCode(null);
-    setRetryCount(0);
-    setEvolutionConfigId(null);
-    setIsCreatingInstance(false);
-    setIsCheckingStatus(false);
-    
-    // Parar verificação de status
-    if (statusCheckInterval.current) {
-      clearInterval(statusCheckInterval.current);
-      statusCheckInterval.current = null;
-    }
-    
+    resetModalState();
     initializeEvolutionConfig();
   };
 
@@ -298,8 +353,28 @@ export default function WhatsAppConnectionModal({
       statusCheckInterval.current = null;
     }
     
-    setIsCheckingStatus(false);
     onClose();
+  };
+
+  const getStatusBadge = () => {
+    const statusConfig = {
+      connected: { color: 'bg-green-500', icon: CheckCircle2, text: 'Conectado' },
+      qr_ready: { color: 'bg-blue-500', icon: Clock, text: 'QR Pronto' },
+      disconnected: { color: 'bg-red-500', icon: AlertCircle, text: 'Desconectado' },
+      connecting: { color: 'bg-yellow-500', icon: RefreshCw, text: 'Conectando' },
+      unknown: { color: 'bg-gray-500', icon: AlertCircle, text: 'Desconhecido' }
+    };
+
+    const config = statusConfig[connectionStatus as keyof typeof statusConfig] || statusConfig.unknown;
+    const Icon = config.icon;
+
+    return (
+      <Badge variant="secondary" className="flex items-center gap-1">
+        <div className={`w-2 h-2 rounded-full ${config.color}`} />
+        <Icon className="h-3 w-3" />
+        {config.text}
+      </Badge>
+    );
   };
 
   const renderStepContent = () => {
@@ -363,7 +438,11 @@ export default function WhatsAppConnectionModal({
             </Alert>
             
             <div className="space-y-3">
-              <h4 className="font-medium text-sm">Informações do Agente:</h4>
+              <div className="flex items-center justify-between">
+                <h4 className="font-medium text-sm">Status da Instância:</h4>
+                {getStatusBadge()}
+              </div>
+              
               <div className="bg-muted p-3 rounded-lg space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Cliente:</span>
@@ -381,6 +460,15 @@ export default function WhatsAppConnectionModal({
                   <span className="text-sm text-muted-foreground">Status API:</span>
                   <span className="text-sm font-medium text-green-600">Configurada</span>
                 </div>
+                {isMonitoring && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Monitoramento:</span>
+                    <span className="text-sm font-medium text-blue-600 flex items-center gap-1">
+                      <Wifi className="h-3 w-3" />
+                      Ativo
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -415,24 +503,28 @@ export default function WhatsAppConnectionModal({
       case 'qr':
         return (
           <div className="space-y-4">
-            <Alert>
-              <Wifi className="h-4 w-4" />
-              <AlertDescription>
-                {qrError 
-                  ? "Erro ao conectar com EvolutionAPI. Verifique a configuração."
-                  : isCheckingStatus 
-                    ? "🔍 Escaneie o código QR com o WhatsApp. Sistema verificando conexão automaticamente a cada 1,5s..."
+            <div className="flex items-center justify-between">
+              <Alert className="flex-1">
+                <Wifi className="h-4 w-4" />
+                <AlertDescription>
+                  {qrError 
+                    ? "Erro ao conectar com EvolutionAPI. Verifique a configuração."
                     : "Escaneie o código QR com o WhatsApp."
-                }
-              </AlertDescription>
-            </Alert>
+                  }
+                </AlertDescription>
+              </Alert>
+              {getStatusBadge()}
+            </div>
             
-            {isCheckingStatus && (
+            {lastStatusCheck && (
               <div className="text-center">
-                <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg animate-pulse">
-                  <Wifi className="h-4 w-4 text-blue-600" />
+                <div className="inline-flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
+                  <RefreshCw className="h-4 w-4 text-blue-600 animate-spin" />
                   <span className="text-sm font-medium text-blue-800">
-                    🔄 Detectando conexão automática...
+                    🔄 Verificando conexão automaticamente...
+                  </span>
+                  <span className="text-xs text-blue-600">
+                    (última: {lastStatusCheck.toLocaleTimeString()})
                   </span>
                 </div>
               </div>
@@ -510,9 +602,7 @@ export default function WhatsAppConnectionModal({
       case 'instructions':
         return 'Instância configurada automaticamente. Pronto para conectar ao WhatsApp.';
       case 'qr':
-        return isCheckingStatus 
-          ? 'QR Code gerado. Escaneie e o sistema detectará automaticamente sua conexão a cada 1,5 segundos.'
-          : 'QR Code gerado. Use o WhatsApp do celular para escanear.';
+        return 'QR Code gerado. Sistema verificando conexão automaticamente a cada 2 segundos.';
       case 'connecting':
         return 'Estabelecendo conexão com o WhatsApp...';
       case 'connected':
@@ -553,6 +643,12 @@ export default function WhatsAppConnectionModal({
               <Button variant="outline" onClick={handleClose} className="w-full sm:w-auto">
                 Configurar depois
               </Button>
+              {connectionStatus !== 'unknown' && (
+                <Button variant="outline" onClick={handleForceSync} className="w-full sm:w-auto">
+                  <Zap className="h-4 w-4 mr-2" />
+                  Sincronizar Status
+                </Button>
+              )}
               <Button onClick={handleGenerateQrCode} className="w-full sm:w-auto">
                 Conectar WhatsApp
               </Button>
@@ -563,6 +659,10 @@ export default function WhatsAppConnectionModal({
             <>
               <Button variant="outline" onClick={() => setConnectionStep('instructions')} className="w-full sm:w-auto">
                 Voltar
+              </Button>
+              <Button variant="outline" onClick={handleForceSync} className="w-full sm:w-auto">
+                <Zap className="h-4 w-4 mr-2" />
+                Forçar Sync
               </Button>
               {qrError && (
                 <Button onClick={handleRetryConnection} className="w-full sm:w-auto">

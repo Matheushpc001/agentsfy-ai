@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -57,8 +57,20 @@ export function useEvolutionAPI(franchiseeId?: string) {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Status monitoring
+  const statusCheckInterval = useRef<NodeJS.Timeout | null>(null);
+  const [isMonitoring, setIsMonitoring] = useState(false);
+
   useEffect(() => {
     loadInitialData();
+    
+    // Cleanup interval on unmount
+    return () => {
+      if (statusCheckInterval.current) {
+        clearInterval(statusCheckInterval.current);
+        statusCheckInterval.current = null;
+      }
+    };
   }, [franchiseeId]);
 
   const loadInitialData = async () => {
@@ -68,8 +80,65 @@ export function useEvolutionAPI(franchiseeId?: string) {
         loadConfigs(),
         loadAIAgents()
       ]);
+      
+      // Start status monitoring if we have configs
+      setTimeout(() => {
+        startStatusMonitoring();
+      }, 1000);
     }
     setIsLoading(false);
+  };
+
+  const startStatusMonitoring = () => {
+    if (statusCheckInterval.current || !franchiseeId) {
+      return;
+    }
+
+    console.log('🔄 Starting status monitoring...');
+    setIsMonitoring(true);
+
+    // Check status every 10 seconds for active configs
+    statusCheckInterval.current = setInterval(async () => {
+      await monitorConfigStatuses();
+    }, 10000);
+  };
+
+  const stopStatusMonitoring = () => {
+    if (statusCheckInterval.current) {
+      console.log('⏹️ Stopping status monitoring...');
+      clearInterval(statusCheckInterval.current);
+      statusCheckInterval.current = null;
+      setIsMonitoring(false);
+    }
+  };
+
+  const monitorConfigStatuses = async () => {
+    // Only monitor configs that might change status
+    const configsToMonitor = configs.filter(config => 
+      config.status === 'qr_ready' || config.status === 'connecting'
+    );
+
+    if (configsToMonitor.length === 0) {
+      return;
+    }
+
+    console.log('🔍 Monitoring', configsToMonitor.length, 'configs for status changes...');
+
+    for (const config of configsToMonitor) {
+      try {
+        const statusData = await checkInstanceStatus(config.id);
+        
+        if (statusData?.status === 'connected' && config.status !== 'connected') {
+          console.log('🎉 Status change detected! Config', config.id, 'is now connected');
+          toast.success(`WhatsApp conectado para ${config.instance_name}!`);
+          
+          // Reload configs to get updated data
+          await loadConfigs();
+        }
+      } catch (error) {
+        console.error('❌ Error monitoring config', config.id, ':', error);
+      }
+    }
   };
 
   const loadGlobalConfigs = async () => {
@@ -99,7 +168,21 @@ export function useEvolutionAPI(franchiseeId?: string) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setConfigs(data || []);
+      
+      const newConfigs = data || [];
+      setConfigs(newConfigs);
+      
+      // Check if monitoring should be started/stopped
+      const needsMonitoring = newConfigs.some(config => 
+        config.status === 'qr_ready' || config.status === 'connecting'
+      );
+      
+      if (needsMonitoring && !statusCheckInterval.current) {
+        startStatusMonitoring();
+      } else if (!needsMonitoring && statusCheckInterval.current) {
+        stopStatusMonitoring();
+      }
+      
     } catch (error) {
       console.error('Erro ao carregar configurações:', error);
       setError('Erro ao carregar configurações');
@@ -144,27 +227,43 @@ export function useEvolutionAPI(franchiseeId?: string) {
       }
       
       console.log('📊 Status da instância retornado:', data);
-      console.log('🔍 Debug info from API:', data?.debug_info);
-      
-      // Se o status mudou para connected, recarregar dados
-      if (data?.status === 'connected') {
-        console.log('🎉 WhatsApp CONECTADO detectado! Recarregando dados...');
-        await loadConfigs();
-        return data;
-      }
-      
-      // Log para debugging de outros status
-      if (data?.status === 'qr_ready') {
-        console.log('🔄 Status QR_READY - aguardando escaneamento');
-      } else if (data?.status === 'created') {
-        console.log('❌ Status CREATED - não conectado');
-      } else {
-        console.log('❓ Status desconhecido:', data?.status);
-      }
       
       return data;
     } catch (error) {
       console.error('❌ Erro ao verificar status da instância:', error);
+      throw error;
+    }
+  };
+
+  const forceStatusSync = async (configId: string) => {
+    try {
+      console.log('🔄 Forcing status sync for config:', configId);
+      
+      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
+        body: {
+          action: 'force_status_sync',
+          config_id: configId
+        }
+      });
+
+      if (error) {
+        console.error('❌ Error in force sync:', error);
+        throw error;
+      }
+      
+      console.log('✅ Force sync completed:', data);
+      
+      // Reload configs after sync
+      await loadConfigs();
+      
+      if (data?.status === 'connected') {
+        toast.success('Status sincronizado: WhatsApp conectado!');
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('❌ Error forcing status sync:', error);
+      toast.error('Erro ao sincronizar status');
       throw error;
     }
   };
@@ -252,6 +351,9 @@ export function useEvolutionAPI(franchiseeId?: string) {
       // Aguardar um pouco e recarregar os dados
       await new Promise(resolve => setTimeout(resolve, 500));
       await loadConfigs();
+      
+      // Start monitoring for this config
+      startStatusMonitoring();
       
       // Retornar o QR code se disponível
       const qrCode = data.qr_code || data.qrCode || data.base64;
@@ -443,12 +545,14 @@ export function useEvolutionAPI(franchiseeId?: string) {
     globalConfigs,
     isLoading,
     isCreating,
+    isMonitoring,
     error,
     createInstance,
     createInstanceWithAutoConfig,
     createAgentWithAutoInstance,
     connectInstance,
     checkInstanceStatus,
+    forceStatusSync,
     disconnectInstance,
     deleteInstance,
     updateAIAgent,
@@ -456,6 +560,8 @@ export function useEvolutionAPI(franchiseeId?: string) {
     sendTestMessage,
     testConnection,
     loadConfigs,
-    refreshData
+    refreshData,
+    startStatusMonitoring,
+    stopStatusMonitoring
   };
 }

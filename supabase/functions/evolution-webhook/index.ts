@@ -1,240 +1,333 @@
 
-import "https://deno.land/x/xhr@0.1.0/mod.ts";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const supabaseUrl = 'https://kzxiqdakyfxtyyuybwtl.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imt6eGlxZGFreWZ4dHl5dXlid3RsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg0NTYwNjksImV4cCI6MjA2NDAzMjA2OX0.8GwAjmdwup-i7gfhHKAxKi2Uufr3JAisKj5jg0qIALk';
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0"
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
 serve(async (req) => {
+  console.log('🎣 Evolution Webhook called with method:', req.method);
+  
+  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseAnonKey);
-    const webhookData = await req.json();
+    const payload = await req.json();
+    console.log('📨 Webhook payload received:', JSON.stringify(payload, null, 2));
 
-    console.log('Webhook recebido:', JSON.stringify(webhookData, null, 2));
+    // Conectar ao Supabase
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase environment variables not configured');
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Processar diferentes tipos de eventos do EvolutionAPI
-    const { event, data } = webhookData;
+    // Processar diferentes tipos de eventos
+    const { event, instance, data } = payload;
+    
+    console.log('🔍 Processing webhook event:', {
+      event,
+      instance: instance?.instanceName || 'unknown',
+      connectionStatus: data?.state || data?.connectionStatus || 'unknown'
+    });
 
-    switch (event) {
-      case 'qrcode.updated':
-        await handleQRCodeUpdate(supabase, data);
-        break;
-      
-      case 'connection.update':
-        await handleConnectionUpdate(supabase, data);
-        break;
-      
-      case 'messages.upsert':
-        await handleNewMessage(supabase, data);
-        break;
-      
-      default:
-        console.log('Evento não tratado:', event);
+    // Processar eventos de conexão
+    if (event === 'connection.update' || event === 'CONNECTION_UPDATE') {
+      await handleConnectionUpdate(supabase, payload);
+    }
+    
+    // Processar mensagens
+    if (event === 'messages.upsert' || event === 'MESSAGES_UPSERT') {
+      await handleMessageUpsert(supabase, payload);
     }
 
-    return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    // Processar eventos de QR Code
+    if (event === 'qrcode.updated' || event === 'QRCODE_UPDATED') {
+      await handleQRCodeUpdate(supabase, payload);
+    }
+
+    return new Response(
+      JSON.stringify({ success: true, message: 'Webhook processed successfully' }),
+      { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
 
   } catch (error) {
-    console.error('Erro no webhook:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    console.error('❌ Webhook processing error:', error);
+    return new Response(
+      JSON.stringify({ 
+        error: 'Webhook processing failed',
+        details: error.message 
+      }),
+      { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      }
+    );
   }
 });
 
-async function handleQRCodeUpdate(supabase: any, data: any) {
-  const { instance, qrcode } = data;
+async function handleConnectionUpdate(supabase: any, payload: any) {
+  console.log('🔄 Processing connection update:', payload);
   
-  await supabase
-    .from('evolution_api_configs')
-    .update({ 
-      qr_code: qrcode,
-      qr_code_expires_at: new Date(Date.now() + 60000).toISOString(), // 1 minuto
-      status: 'connecting'
-    })
-    .eq('instance_name', instance);
-}
+  const instanceName = payload.instance?.instanceName;
+  const connectionState = payload.data?.state || payload.data?.connectionStatus;
+  
+  if (!instanceName) {
+    console.log('⚠️ No instance name found in connection update');
+    return;
+  }
 
-async function handleConnectionUpdate(supabase: any, data: any) {
-  const { instance, state } = data;
-  
-  let status = 'disconnected';
-  if (state === 'open') status = 'connected';
-  else if (state === 'connecting') status = 'connecting';
-  
-  await supabase
-    .from('evolution_api_configs')
-    .update({ 
-      status,
-      qr_code: state === 'open' ? null : undefined
-    })
-    .eq('instance_name', instance);
-}
+  console.log('📱 Instance:', instanceName, 'New state:', connectionState);
 
-async function handleNewMessage(supabase: any, data: any) {
-  const { instance, messages } = data;
+  // Mapear status da EvolutionAPI para nosso sistema
+  let newStatus = 'disconnected';
   
-  for (const message of messages) {
-    // Buscar configuração da instância
-    const { data: config } = await supabase
-      .from('evolution_api_configs')
-      .select('id')
-      .eq('instance_name', instance)
-      .single();
+  switch (connectionState) {
+    case 'open':
+    case 'connected':
+      newStatus = 'connected';
+      console.log('✅ WhatsApp CONNECTED detected via webhook!');
+      break;
+    case 'connecting':
+    case 'qr':
+      newStatus = 'qr_ready';
+      console.log('🔄 WhatsApp waiting for QR scan');
+      break;
+    case 'close':
+    case 'closed':
+    case 'disconnected':
+      newStatus = 'disconnected';
+      console.log('❌ WhatsApp DISCONNECTED');
+      break;
+    default:
+      console.log('❓ Unknown connection state:', connectionState);
+      return;
+  }
+
+  // Atualizar status no banco de dados
+  const updateData: any = {
+    status: newStatus,
+    updated_at: new Date().toISOString()
+  };
+
+  // Se conectado, limpar QR code
+  if (newStatus === 'connected') {
+    updateData.qr_code = null;
+    updateData.qr_code_expires_at = null;
+  }
+
+  const { data, error } = await supabase
+    .from('evolution_api_configs')
+    .update(updateData)
+    .eq('instance_name', instanceName)
+    .select();
+
+  if (error) {
+    console.error('❌ Error updating config status:', error);
+    return;
+  }
+
+  if (data && data.length > 0) {
+    console.log('✅ Config updated successfully:', data[0].id, 'Status:', newStatus);
     
-    if (!config) continue;
+    // Notificar outros sistemas sobre a mudança de status
+    if (newStatus === 'connected') {
+      await notifyConnectionSuccess(supabase, data[0]);
+    }
+  } else {
+    console.log('⚠️ No config found for instance:', instanceName);
+  }
+}
 
-    // Verificar se é uma mensagem recebida (não enviada pelo bot)
-    if (!message.key.fromMe && message.messageType === 'conversation') {
-      const contactNumber = message.key.remoteJid.replace('@s.whatsapp.net', '');
-      
-      // Buscar ou criar conversa
-      let { data: conversation } = await supabase
-        .from('whatsapp_conversations')
-        .select('*')
-        .eq('evolution_config_id', config.id)
-        .eq('contact_number', contactNumber)
-        .single();
-      
-      if (!conversation) {
-        const { data: newConversation } = await supabase
-          .from('whatsapp_conversations')
-          .insert({
-            evolution_config_id: config.id,
-            contact_number: contactNumber,
-            contact_name: message.pushName || contactNumber
-          })
-          .select()
-          .single();
-        
-        conversation = newConversation;
-      }
+async function handleMessageUpsert(supabase: any, payload: any) {
+  console.log('💬 Processing message upsert:', payload);
+  
+  const instanceName = payload.instance?.instanceName;
+  const messageData = payload.data;
+  
+  if (!instanceName || !messageData) {
+    console.log('⚠️ Incomplete message data');
+    return;
+  }
 
-      // Salvar mensagem
-      await supabase
-        .from('whatsapp_messages')
-        .insert({
-          conversation_id: conversation.id,
-          message_id: message.key.id,
-          content: message.message?.conversation || '',
-          sender_type: 'user',
-          is_from_me: false,
-          timestamp: new Date(message.messageTimestamp * 1000).toISOString()
-        });
+  // Buscar configuração da instância
+  const { data: config, error: configError } = await supabase
+    .from('evolution_api_configs')
+    .select('id, franchisee_id')
+    .eq('instance_name', instanceName)
+    .single();
 
-      // Processar resposta IA se houver agente ativo
-      await processAIResponse(supabase, conversation, message);
+  if (configError || !config) {
+    console.log('⚠️ Config not found for message:', instanceName);
+    return;
+  }
+
+  // Buscar ou criar conversa
+  const contactNumber = messageData.key?.remoteJid?.replace('@s.whatsapp.net', '');
+  if (!contactNumber) {
+    console.log('⚠️ No contact number found in message');
+    return;
+  }
+
+  let conversation = await findOrCreateConversation(supabase, config.id, contactNumber);
+  
+  // Salvar mensagem
+  const messageInsert = {
+    conversation_id: conversation.id,
+    message_id: messageData.key?.id || `msg_${Date.now()}`,
+    content: messageData.message?.conversation || messageData.message?.extendedTextMessage?.text || '',
+    message_type: 'text',
+    sender_type: messageData.key?.fromMe ? 'agent' : 'customer',
+    is_from_me: messageData.key?.fromMe || false,
+    timestamp: new Date(messageData.messageTimestamp * 1000).toISOString(),
+  };
+
+  const { error: messageError } = await supabase
+    .from('whatsapp_messages')
+    .insert([messageInsert]);
+
+  if (messageError) {
+    console.error('❌ Error saving message:', messageError);
+  } else {
+    console.log('✅ Message saved successfully');
+    
+    // Se é mensagem do cliente, verificar se precisa de resposta automática
+    if (!messageData.key?.fromMe) {
+      await checkAutoResponse(supabase, config.id, conversation.id, messageInsert.content);
     }
   }
 }
 
-async function processAIResponse(supabase: any, conversation: any, message: any) {
-  // Buscar agente ativo para esta conversa
-  const { data: agent } = await supabase
+async function handleQRCodeUpdate(supabase: any, payload: any) {
+  console.log('📱 Processing QR code update:', payload);
+  
+  const instanceName = payload.instance?.instanceName;
+  const qrCode = payload.data?.qrcode || payload.data?.qr;
+  
+  if (!instanceName || !qrCode) {
+    console.log('⚠️ Incomplete QR code data');
+    return;
+  }
+
+  // Atualizar QR code no banco
+  const { error } = await supabase
+    .from('evolution_api_configs')
+    .update({
+      qr_code: qrCode,
+      qr_code_expires_at: new Date(Date.now() + 2 * 60 * 1000).toISOString(), // 2 minutos
+      status: 'qr_ready',
+      updated_at: new Date().toISOString()
+    })
+    .eq('instance_name', instanceName);
+
+  if (error) {
+    console.error('❌ Error updating QR code:', error);
+  } else {
+    console.log('✅ QR code updated successfully for:', instanceName);
+  }
+}
+
+async function findOrCreateConversation(supabase: any, configId: string, contactNumber: string) {
+  // Tentar encontrar conversa existente
+  const { data: existing, error: findError } = await supabase
+    .from('whatsapp_conversations')
+    .select('*')
+    .eq('evolution_config_id', configId)
+    .eq('contact_number', contactNumber)
+    .single();
+
+  if (!findError && existing) {
+    return existing;
+  }
+
+  // Criar nova conversa
+  const { data: newConversation, error: createError } = await supabase
+    .from('whatsapp_conversations')
+    .insert([{
+      evolution_config_id: configId,
+      contact_number: contactNumber,
+      contact_name: contactNumber, // Pode ser atualizado depois
+      is_active: true,
+      last_message_at: new Date().toISOString()
+    }])
+    .select()
+    .single();
+
+  if (createError) {
+    console.error('❌ Error creating conversation:', createError);
+    throw createError;
+  }
+
+  return newConversation;
+}
+
+async function checkAutoResponse(supabase: any, configId: string, conversationId: string, messageContent: string) {
+  console.log('🤖 Checking auto response for config:', configId);
+  
+  // Buscar agente AI ativo para esta configuração
+  const { data: aiAgent, error: agentError } = await supabase
     .from('ai_whatsapp_agents')
     .select('*')
-    .eq('evolution_config_id', conversation.evolution_config_id)
+    .eq('evolution_config_id', configId)
     .eq('is_active', true)
+    .eq('auto_response', true)
     .single();
+
+  if (agentError || !aiAgent) {
+    console.log('ℹ️ No active AI agent found for auto response');
+    return;
+  }
+
+  console.log('🚀 Triggering AI response generation...');
   
-  if (!agent || !agent.openai_api_key) return;
-
+  // Chamar função de geração de resposta AI
   try {
-    // Buscar mensagens anteriores para contexto
-    const { data: previousMessages } = await supabase
-      .from('whatsapp_messages')
-      .select('content, sender_type')
-      .eq('conversation_id', conversation.id)
-      .order('timestamp', { ascending: false })
-      .limit(10);
-
-    // Chamar Edge Function para gerar resposta IA
-    const { data: aiResponse, error } = await supabase.functions.invoke('generate-ai-response', {
+    const { error: aiError } = await supabase.functions.invoke('generate-ai-response', {
       body: {
-        agentId: agent.id,
-        userMessage: message.message?.conversation || '',
-        previousMessages: previousMessages || [],
-        systemPrompt: agent.system_prompt || 'Você é um assistente útil.',
-        model: agent.model || 'gpt-4o-mini',
-        openaiApiKey: agent.openai_api_key
+        agent_id: aiAgent.id,
+        conversation_id: conversationId,
+        message_content: messageContent
       }
     });
 
-    if (aiResponse && !error) {
-      // Enviar resposta via EvolutionAPI
-      await sendWhatsAppMessage(supabase, conversation, aiResponse.response);
-      
-      // Registrar log da interação
-      await supabase
-        .from('ai_interaction_logs')
-        .insert({
-          agent_id: agent.id,
-          conversation_id: conversation.id,
-          user_message: message.message?.conversation || '',
-          ai_response: aiResponse.response,
-          tokens_used: aiResponse.tokensUsed,
-          response_time_ms: aiResponse.responseTime,
-          model_used: agent.model
-        });
+    if (aiError) {
+      console.error('❌ Error generating AI response:', aiError);
+    } else {
+      console.log('✅ AI response generation triggered');
     }
-
   } catch (error) {
-    console.error('Erro ao processar resposta IA:', error);
+    console.error('❌ Error calling AI response function:', error);
   }
 }
 
-async function sendWhatsAppMessage(supabase: any, conversation: any, message: string) {
-  try {
-    // Buscar configuração da EvolutionAPI
-    const { data: config } = await supabase
-      .from('evolution_api_configs')
-      .select('*')
-      .eq('id', conversation.evolution_config_id)
-      .single();
-    
-    if (!config) return;
+async function notifyConnectionSuccess(supabase: any, config: any) {
+  console.log('🎉 Notifying connection success for config:', config.id);
+  
+  // Aqui podemos adicionar notificações em tempo real
+  // ou outras ações quando uma conexão é estabelecida
+  
+  // Atualizar agentes relacionados
+  const { error: agentError } = await supabase
+    .from('ai_whatsapp_agents')
+    .update({ 
+      is_active: true,
+      updated_at: new Date().toISOString()
+    })
+    .eq('evolution_config_id', config.id);
 
-    // Enviar mensagem via EvolutionAPI
-    const response = await fetch(`${config.api_url}/message/sendText/${config.instance_name}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'apikey': config.api_key
-      },
-      body: JSON.stringify({
-        number: conversation.contact_number,
-        text: message
-      })
-    });
-
-    if (response.ok) {
-      // Salvar mensagem enviada
-      await supabase
-        .from('whatsapp_messages')
-        .insert({
-          conversation_id: conversation.id,
-          message_id: `ai_${Date.now()}`,
-          content: message,
-          sender_type: 'agent',
-          is_from_me: true,
-          ai_response_generated: true
-        });
-    }
-
-  } catch (error) {
-    console.error('Erro ao enviar mensagem WhatsApp:', error);
+  if (agentError) {
+    console.error('❌ Error updating related agents:', agentError);
+  } else {
+    console.log('✅ Related agents updated successfully');
   }
 }
