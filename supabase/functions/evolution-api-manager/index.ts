@@ -17,20 +17,16 @@ serve(async (req) => {
     
     console.log('Evolution API Manager - Action:', action, 'Params:', params);
 
-    // --- INÍCIO DA CORREÇÃO FINAL ---
-    // Simplificamos a criação do cliente para usar APENAS a chave de serviço.
-    // Esta é a maneira correta e segura de criar um cliente com privilégios de administrador
-    // dentro de uma Edge Function, que ignora todas as políticas de RLS.
+    // Conectar ao Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    if (!supabaseUrl || !serviceRoleKey) {
+    if (!supabaseUrl || !supabaseKey) {
       throw new Error('Supabase environment variables not configured');
     }
     
-    // A inicialização agora é simples e direta
-    const supabase = createClient(supabaseUrl, serviceRoleKey);
-    
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     switch (action) {
       case 'create_instance':
         return await handleCreateInstance(supabase, params);

@@ -1,10 +1,8 @@
-// src/context/AuthContext.tsx
 
 import { createContext, useContext, useState, useEffect, ReactNode } from "react";
 import { User as SupabaseUser, Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { User, AuthContextType } from "@/types";
-import { toast } from "sonner"; // Importar toast para feedback
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -13,10 +11,43 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadUserProfile = async (supabaseUser: SupabaseUser): Promise<User | null> => {
+  useEffect(() => {
+    // Get initial session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session?.user) {
+        loadUserProfile(session.user);
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email);
+        setSession(session);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Defer user profile loading to prevent potential deadlocks
+          setTimeout(() => {
+            loadUserProfile(session.user);
+          }, 0);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setLoading(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const loadUserProfile = async (supabaseUser: SupabaseUser) => {
     try {
       console.log('Loading profile for user:', supabaseUser.email);
       
+      // Load user profile and role
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -24,8 +55,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .single();
 
       if (profileError) {
-        // Este erro agora será capturado pela função de login
-        throw new Error(`Falha ao buscar perfil: ${profileError.message}`);
+        console.error('Error loading profile:', profileError);
+        setLoading(false);
+        return;
       }
 
       const { data: userRoles, error: rolesError } = await supabase
@@ -34,12 +66,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         .eq('user_id', supabaseUser.id);
 
       if (rolesError) {
-        throw new Error(`Falha ao buscar roles: ${rolesError.message}`);
+        console.error('Error loading user roles:', rolesError);
+        setLoading(false);
+        return;
       }
 
+      // Get the primary role (first one found, prefer admin > franchisee > customer)
       const rolesPriority = ['admin', 'franchisee', 'customer'];
       const availableRoles = userRoles?.map(ur => ur.role) || [];
       const primaryRole = rolesPriority.find(role => availableRoles.includes(role)) || 'customer';
+
+      console.log('User roles found:', availableRoles, 'Primary role:', primaryRole);
 
       const userObj: User = {
         id: profile.id,
@@ -50,69 +87,45 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
       setUser(userObj);
       console.log('User profile loaded successfully:', userObj);
-      return userObj;
     } catch (error) {
-      console.error('Error loading user profile:', error);
-      // Se falhar ao carregar o perfil, deslogamos o usuário para evitar um estado inconsistente.
+      console.error('Unexpected error loading user profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const login = async (email: string, password: string) => {
+    setLoading(true);
+    try {
+      console.log('Attempting login for:', email);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      console.log('Login successful for:', email);
+      // User profile will be loaded by the auth state change listener
+      return;
+    } catch (error) {
+      console.error("Login error:", error);
+      setLoading(false);
+      throw error;
+    }
+  };
+
+  const logout = async () => {
+    try {
+      console.log('Logging out user');
       await supabase.auth.signOut();
       setUser(null);
       setSession(null);
-      throw error; // Propaga o erro para a função de login
+      console.log('Logout successful');
+    } catch (error) {
+      console.error("Logout error:", error);
     }
-  };
-
-  useEffect(() => {
-    setLoading(true);
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        await loadUserProfile(session.user).catch(() => {});
-      }
-      setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setSession(session);
-        if (event === 'SIGNED_IN' && session?.user) {
-          setLoading(true);
-          await loadUserProfile(session.user).catch(() => {});
-          setLoading(false);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // --- FUNÇÃO DE LOGIN MELHORADA ---
-  const login = async (email: string, password: string): Promise<User> => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) throw error;
-    if (!data.user) throw new Error("Login bem-sucedido, mas nenhum usuário retornado.");
-
-    // Após o signIn, o onAuthStateChange vai disparar, mas podemos carregar o perfil aqui
-    // para dar um retorno imediato e robusto para a página de Login.
-    const userProfile = await loadUserProfile(data.user);
-    
-    if (!userProfile) {
-        throw new Error("Não foi possível carregar os dados do perfil após o login.");
-    }
-
-    return userProfile;
-  };
-  // --- FIM DA MELHORIA ---
-
-  const logout = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setSession(null);
   };
 
   return (
