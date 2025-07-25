@@ -62,29 +62,53 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   };
 
   useEffect(() => {
-    setLoading(true);
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        await loadUserProfile(session.user).catch(() => {});
+    let isMounted = true; // Flag para evitar atualizações de estado após desmontagem
+
+    const initializeAuth = async () => {
+      setLoading(true);
+      
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!isMounted) return; // Evita atualizações se o componente foi desmontado
+        
+        setSession(session);
+        if (session?.user) {
+          await loadUserProfile(session.user).catch(() => {});
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
       }
-      setLoading(false);
-    });
+    };
+
+    initializeAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        if (!isMounted) return; // Evita atualizações se o componente foi desmontado
+        
+        console.log('Auth state changed:', event, session?.user?.email);
+        
         setSession(session);
+        
         if (event === 'SIGNED_IN' && session?.user) {
-          setLoading(true);
+          // Não precisa definir loading aqui, pois pode causar loops
           await loadUserProfile(session.user).catch(() => {});
-          setLoading(false);
         } else if (event === 'SIGNED_OUT') {
           setUser(null);
+          setLoading(false); // Garantir que o loading seja resetado
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   // --- FUNÇÃO DE LOGIN MELHORADA ---
