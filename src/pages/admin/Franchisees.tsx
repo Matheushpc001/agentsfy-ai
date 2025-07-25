@@ -1,76 +1,24 @@
+// src/pages/admin/Franchisees.tsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { PlusCircle, Search } from "lucide-react";
+import { PlusCircle, Search, Building2 } from "lucide-react";
 import FranchiseeCard from "@/components/franchisees/FranchiseeCard";
 import { Franchisee } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-
-// Mock franchisees data
-const MOCK_FRANCHISEES: Franchisee[] = [
-  {
-    id: "franchisee1",
-    name: "João Silva",
-    email: "joao@example.com",
-    role: "franchisee",
-    agentCount: 8,
-    revenue: 1497.00,
-    isActive: true,
-    createdAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000).toISOString(),
-    customerCount: 5,
-  },
-  {
-    id: "franchisee2",
-    name: "Ana Souza",
-    email: "ana@example.com",
-    role: "franchisee",
-    agentCount: 12,
-    revenue: 2992.50,
-    isActive: true,
-    createdAt: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
-    customerCount: 7,
-  },
-  {
-    id: "franchisee3",
-    name: "Carlos Mendes",
-    email: "carlos@example.com",
-    role: "franchisee",
-    agentCount: 5,
-    revenue: 1048.70,
-    isActive: true,
-    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-    customerCount: 3,
-  },
-  {
-    id: "franchisee4",
-    name: "Patricia Lima",
-    email: "patricia@example.com",
-    role: "franchisee",
-    agentCount: 15,
-    revenue: 3745.20,
-    isActive: true,
-    createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-    customerCount: 9,
-  },
-  {
-    id: "franchisee5",
-    name: "Roberto Alves",
-    email: "roberto@example.com",
-    role: "franchisee",
-    agentCount: 0,
-    revenue: 297.00,
-    isActive: false,
-    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-    customerCount: 0,
-  }
-];
+import { franchiseeService } from "@/services/franchiseeService";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 
 export default function Franchisees() {
-  const [franchisees, setFranchisees] = useState<Franchisee[]>(MOCK_FRANCHISEES);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [franchisees, setFranchisees] = useState<Franchisee[]>([]);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -80,6 +28,24 @@ export default function Franchisees() {
     email: "",
     isActive: true
   });
+
+  useEffect(() => {
+    const fetchFranchisees = async () => {
+      try {
+        setIsLoading(true);
+        setError(null);
+        const data = await franchiseeService.getFranchisees();
+        setFranchisees(data);
+      } catch (e) {
+        setError("Falha ao carregar dados dos franqueados. Verifique se você tem permissão de administrador.");
+        console.error(e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFranchisees();
+  }, []);
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value.toLowerCase());
@@ -91,8 +57,8 @@ export default function Franchisees() {
   );
 
   const handleViewFranchisee = (franchisee: Franchisee) => {
-    // In a real app, navigate to franchisee details page or show details modal
     toast.info(`Visualizando detalhes de ${franchisee.name}`);
+    // Futuramente, isso navegaria para /admin/franchisees/${franchisee.id}
   };
 
   const handleEditFranchisee = (franchisee: Franchisee) => {
@@ -115,45 +81,98 @@ export default function Franchisees() {
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const newFranchisee: Franchisee = {
-      id: `franchisee${franchisees.length + 1}`,
-      name: formData.name,
-      email: formData.email,
-      role: "franchisee",
-      agentCount: 0,
-      revenue: 297.00,
-      isActive: formData.isActive,
-      createdAt: new Date().toISOString(),
-      customerCount: 0
-    };
-    
-    setFranchisees([...franchisees, newFranchisee]);
+    // TODO: Implementar a chamada ao serviço para criar um franqueado no Supabase
+    // Exemplo: await franchiseeService.createFranchisee(formData);
+    toast.success(`Funcionalidade de adicionar franqueado a ser implementada.`);
     setIsAddModalOpen(false);
-    setFormData({ name: "", email: "", isActive: true });
-    toast.success(`Franqueado ${formData.name} adicionado com sucesso!`);
   };
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!editingFranchisee) return;
-    
-    const updatedFranchisees = franchisees.map(f => 
-      f.id === editingFranchisee.id 
-        ? { 
-            ...f, 
-            name: formData.name, 
-            email: formData.email, 
-            isActive: formData.isActive 
-          } 
-        : f
-    );
-    
-    setFranchisees(updatedFranchisees);
+    // TODO: Implementar a chamada ao serviço para atualizar um franqueado no Supabase
+    // Exemplo: await franchiseeService.updateFranchisee(editingFranchisee.id, formData);
+    toast.success(`Funcionalidade de editar franqueado a ser implementada.`);
     setIsEditModalOpen(false);
-    setEditingFranchisee(null);
-    toast.success(`Franqueado ${formData.name} atualizado com sucesso!`);
+  };
+
+  const renderSkeleton = () => (
+    Array.from({ length: 3 }).map((_, index) => (
+      <Card key={index}>
+        <CardHeader className="p-4 flex flex-row items-center justify-between">
+            <div className="flex items-center space-x-3">
+                <Skeleton className="w-9 h-9 rounded-full" />
+                <div className="space-y-2">
+                    <Skeleton className="h-4 w-[150px]" />
+                    <Skeleton className="h-3 w-[120px]" />
+                </div>
+            </div>
+            <Skeleton className="h-6 w-16 rounded-full" />
+        </CardHeader>
+        <CardContent className="p-4 space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-28" />
+                <Skeleton className="h-4 w-20" />
+            </div>
+            <div className="flex space-x-2 pt-2">
+                <Skeleton className="h-9 flex-1 rounded-md" />
+                <Skeleton className="h-9 flex-1 rounded-md" />
+            </div>
+        </CardContent>
+      </Card>
+    ))
+  );
+
+  const renderContent = () => {
+    if (isLoading) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          {renderSkeleton()}
+        </div>
+      );
+    }
+
+    if (error) {
+      return (
+        <div className="text-center py-10 text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+          <p className="font-semibold">Erro ao carregar dados</p>
+          <p className="text-sm mt-1">{error}</p>
+          <Button variant="outline" onClick={() => window.location.reload()} className="mt-4">
+            Tentar Novamente
+          </Button>
+        </div>
+      );
+    }
+
+    if (filteredFranchisees.length > 0) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
+          {filteredFranchisees.map(franchisee => (
+            <FranchiseeCard 
+              key={franchisee.id} 
+              franchisee={franchisee} 
+              onView={handleViewFranchisee}
+              onEdit={handleEditFranchisee}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex flex-col items-center justify-center h-64 border-2 border-dashed rounded-lg">
+        <Building2 size={48} className="text-muted-foreground/30 mb-4" />
+        <p className="text-muted-foreground mb-2 font-semibold">
+          {searchTerm ? "Nenhum franqueado encontrado." : "Nenhum franqueado cadastrado."}
+        </p>
+        {searchTerm && (
+          <Button variant="link" onClick={() => setSearchTerm("")}>
+            Limpar busca
+          </Button>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -168,6 +187,7 @@ export default function Franchisees() {
               className="w-full sm:w-[250px] md:w-[300px] pl-8"
               value={searchTerm}
               onChange={handleSearch}
+              disabled={isLoading}
             />
           </div>
           <Button onClick={() => setIsAddModalOpen(true)} className="w-full sm:w-auto">
@@ -176,27 +196,7 @@ export default function Franchisees() {
           </Button>
         </div>
 
-        {filteredFranchisees.length > 0 ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 md:gap-4">
-            {filteredFranchisees.map(franchisee => (
-              <FranchiseeCard 
-                key={franchisee.id} 
-                franchisee={franchisee} 
-                onView={handleViewFranchisee}
-                onEdit={handleEditFranchisee}
-              />
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col items-center justify-center h-64">
-            <p className="text-muted-foreground mb-2">Nenhum franqueado encontrado.</p>
-            {searchTerm && (
-              <Button variant="link" onClick={() => setSearchTerm("")}>
-                Limpar busca
-              </Button>
-            )}
-          </div>
-        )}
+        {renderContent()}
       </div>
 
       {/* Add Franchisee Modal */}
