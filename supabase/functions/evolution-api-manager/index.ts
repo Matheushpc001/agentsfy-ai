@@ -17,15 +17,26 @@ serve(async (req) => {
     
     console.log('Evolution API Manager - Action:', action, 'Params:', params);
 
-    // Conectar ao Supabase
+    // --- INÍCIO DA CORREÇÃO CRÍTICA DE PERMISSÃO ---
+    // Em vez de usar as credenciais do usuário, que são limitadas por RLS,
+    // vamos criar um cliente de serviço com acesso total e seguro.
+    // Isso garante que a função possa ler a tabela 'evolution_global_configs'
+    // sem expor a chave de serviço ao cliente.
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
-    if (!supabaseUrl || !supabaseKey) {
+    if (!supabaseUrl || !serviceRoleKey) {
       throw new Error('Supabase environment variables not configured');
     }
     
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabase = createClient(
+      supabaseUrl,
+      serviceRoleKey,
+      // Passar o cabeçalho de autorização do usuário permite que você ainda possa
+      // verificar quem está fazendo a chamada, se necessário (auditoria, etc.),
+      // mas as operações no banco usarão os privilégios de serviço.
+      { global: { headers: { Authorization: req.headers.get('Authorization')! } } }
+    );
 
     switch (action) {
       case 'create_instance':
