@@ -1,4 +1,3 @@
-// src/components/whatsapp/WhatsAppConnectionCard.tsx
 
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,12 +19,10 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
   const { user } = useAuthCheck();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
-  // --- INÍCIO DA CORREÇÃO 1: Renomear estado para clareza ---
-  const [qrCodeData, setQrCodeData] = useState<string | null>(null);
-  // --- FIM DA CORREÇÃO 1 ---
+  const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
   const [qrError, setQrError] = useState<string | null>(null);
   
-  const { connectInstance, globalConfigs, createAgentWithAutoInstance } = useEvolutionAPI(user?.id);
+  const { configs, aiAgents, connectInstance, globalConfigs, createAgentWithAutoInstance } = useEvolutionAPI(user?.id);
 
   const handleGenerateQR = async () => {
     if (!user?.id) {
@@ -33,55 +30,56 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
       return;
     }
 
+    // Verificar se há configuração global
     if (globalConfigs.length === 0) {
       setQrError('EvolutionAPI não configurada. Entre em contato com o administrador.');
       return;
     }
 
-    let evolutionConfigId: string | undefined;
-    try {
-      // Simplificado para sempre tentar criar/obter a instância
-      // A função createAgentWithAutoInstance deve ser idempotente ou encontrar a existente
-      toast.loading('Verificando instância WhatsApp...');
-      const evolutionConfig = await createAgentWithAutoInstance(
-        agent.id, 
-        agent.name, 
-        agent.phoneNumber
-      );
-      evolutionConfigId = evolutionConfig.id;
-      toast.dismiss();
-    } catch (error) {
-      console.error('Erro ao obter/criar instância automática:', error);
-      toast.dismiss();
-      setQrError('Erro ao preparar instância automática. Tente novamente.');
-      return;
-    }
+    // Encontrar ou criar configuração para este agente
+    let aiAgent = aiAgents.find(ai => ai.agent_id === agent.id);
+    let evolutionConfigId = aiAgent?.evolution_config_id;
 
     if (!evolutionConfigId) {
-        setQrError('Não foi possível obter um ID de configuração para a instância.');
+      try {
+        console.log('Criando instância automática para agente:', agent.id);
+        toast.loading('Criando instância WhatsApp...');
+        
+        const evolutionConfig = await createAgentWithAutoInstance(
+          agent.id, 
+          agent.name, 
+          agent.phoneNumber
+        );
+        
+        evolutionConfigId = evolutionConfig.id;
+        toast.dismiss();
+        toast.success('Instância WhatsApp criada automaticamente');
+      } catch (error) {
+        console.error('Erro ao criar instância automática:', error);
+        toast.dismiss();
+        setQrError('Erro ao criar instância automática. Tente novamente.');
         return;
+      }
     }
 
     setIsGenerating(true);
     setQrError(null);
-    setQrCodeData(null); // Limpa o QR anterior
     
     try {
       console.log('Gerando QR para agente:', agent.id, 'com config:', evolutionConfigId);
       
-      const responseQrCodeData = await connectInstance(evolutionConfigId);
+      const qrCodeData = await connectInstance(evolutionConfigId);
       
-      if (responseQrCodeData) {
-        // --- INÍCIO DA CORREÇÃO 2: Apenas armazena o dado bruto ---
-        // A lógica de formatação para data:image/png;base64, foi movida para dentro do WhatsAppQRCode
-        setQrCodeData(responseQrCodeData); 
-        // --- FIM DA CORREÇÃO 2 ---
+      if (qrCodeData) {
+        // Handle different QR code formats
+        let qrCodeUrl = qrCodeData;
+        if (typeof qrCodeData === 'string' && !qrCodeData.startsWith('data:') && !qrCodeData.startsWith('http')) {
+          qrCodeUrl = `data:image/png;base64,${qrCodeData}`;
+        }
+        setQrCodeUrl(qrCodeUrl);
         toast.success('QR code gerado! Escaneie com o WhatsApp.');
       } else {
-        // Isso pode acontecer se a instância já estiver conectada, por exemplo.
-        toast.info('QR code não foi retornado. Verificando status...');
-        if(onRefresh) onRefresh(agent); // Força uma atualização do status
-        setIsModalOpen(false); // Fecha o modal pois não há QR para mostrar
+        throw new Error('QR code não foi retornado pela EvolutionAPI');
       }
     } catch (error) {
       console.error('Error generating QR code:', error);
@@ -100,12 +98,6 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
       toast.success("Conexão realizada com sucesso!");
     }, 1000);
   };
-  
-  const openModalAndGenerateQR = () => {
-    setIsModalOpen(true);
-    // Gera o QR Code assim que o modal abre
-    handleGenerateQR();
-  }
   
   return (
     <>
@@ -140,7 +132,7 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
           <Button
             variant={agent.whatsappConnected ? "outline" : "default"}
             className="w-full"
-            onClick={openModalAndGenerateQR} // Ação de clique atualizada
+            onClick={() => setIsModalOpen(true)}
             disabled={globalConfigs.length === 0}
           >
             {agent.whatsappConnected ? (
@@ -165,22 +157,20 @@ export default function WhatsAppConnectionCard({ agent, onRefresh }: WhatsAppCon
             <DialogDescription>
               {globalConfigs.length === 0 
                 ? "EvolutionAPI não configurada. Entre em contato com o administrador."
-                : "Escaneie o QR Code com o WhatsApp do seu cliente."
+                : "Conecte usando a EvolutionAPI para WhatsApp real."
               }
             </DialogDescription>
           </DialogHeader>
           
           {globalConfigs.length > 0 && (
-            // --- INÍCIO DA CORREÇÃO 3: Usar a prop correta ---
             <WhatsAppQRCode
               isGenerating={isGenerating}
-              qrCodeData={qrCodeData || undefined} 
+              qrCodeUrl={qrCodeUrl || undefined}
               error={qrError || undefined}
               onRefresh={handleGenerateQR}
               onConnect={handleConnect}
               className="my-4"
             />
-            // --- FIM DA CORREÇÃO 3 ---
           )}
           
           {globalConfigs.length === 0 && (

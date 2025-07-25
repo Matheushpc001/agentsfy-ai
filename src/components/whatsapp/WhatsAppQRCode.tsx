@@ -1,4 +1,3 @@
-// src/components/whatsapp/WhatsAppQRCode.tsx
 
 import { useState, useEffect } from "react";
 import { QrCode, RefreshCw, Clock, AlertTriangle } from "lucide-react";
@@ -9,7 +8,7 @@ interface WhatsAppQRCodeProps {
   onConnect?: () => void;
   onRefresh?: () => void;
   isGenerating?: boolean;
-  qrCodeData?: string; // Alterado de qrCodeUrl para qrCodeData
+  qrCodeUrl?: string;
   className?: string;
   error?: string;
 }
@@ -18,43 +17,19 @@ export default function WhatsAppQRCode({
   onConnect, 
   onRefresh,
   isGenerating = false,
-  qrCodeData, // Prop atualizada
+  qrCodeUrl,
   error,
   className = ""
 }: WhatsAppQRCodeProps) {
-  const [countdown, setCountdown] = useState(120);
+  const [countdown, setCountdown] = useState(120); // Increased to 2 minutes for EvolutionAPI
   const [expired, setExpired] = useState(false);
   
-  // ==================== INÍCIO DA CORREÇÃO ====================
-  // Função para determinar o 'src' da tag <img>.
-  // Ela verifica se o dado recebido é uma URL, uma data URL formatada,
-  // ou uma string Base64 pura, e a formata corretamente.
-  const getQrCodeSrc = () => {
-    if (!qrCodeData) {
-      return undefined;
-    }
-    // Se já for uma data URL (formato correto para Base64 em HTML), usa diretamente.
-    if (qrCodeData.startsWith('data:image')) {
-      return qrCodeData;
-    }
-    // Se for uma URL HTTP (usado em testes ou cenários de fallback), usa diretamente.
-    if (qrCodeData.startsWith('http')) {
-      return qrCodeData;
-    }
-    // Se for apenas a string Base64, formata como uma data URL.
-    // Este é o caso mais comum vindo da sua API.
-    return `data:image/png;base64,${qrCodeData}`;
-  };
-
-  // Chama a função para obter a fonte da imagem pronta para ser usada.
-  const qrCodeSrc = getQrCodeSrc();
-  // ===================== FIM DA CORREÇÃO ======================
-
+  // Enhanced countdown for EvolutionAPI QR codes
   useEffect(() => {
-    // A lógica do timer agora depende de qrCodeData
-    if (!qrCodeData || expired || error) return;
+    if (!qrCodeUrl || expired || error) return;
     
     let timer: NodeJS.Timeout;
+    
     if (countdown > 0) {
       timer = setTimeout(() => setCountdown(countdown - 1), 1000);
     } else {
@@ -62,15 +37,15 @@ export default function WhatsAppQRCode({
     }
     
     return () => clearTimeout(timer);
-  }, [countdown, qrCodeData, expired, error]);
+  }, [countdown, qrCodeUrl, expired, error]);
   
+  // Reset countdown when new QR code is generated
   useEffect(() => {
-    // Reseta o timer quando um novo qrCodeData é recebido
-    if (qrCodeData && !error) {
+    if (qrCodeUrl && !error) {
       setCountdown(120);
       setExpired(false);
     }
-  }, [qrCodeData, error]);
+  }, [qrCodeUrl, error]);
   
   const handleRefresh = () => {
     if (onRefresh) onRefresh();
@@ -86,6 +61,7 @@ export default function WhatsAppQRCode({
   
   return (
     <div className={`flex flex-col items-center space-y-4 ${className}`}>
+      {/* Error message */}
       {error && (
         <Alert variant="destructive" className="w-full max-w-md">
           <AlertTriangle className="h-4 w-4" />
@@ -93,7 +69,8 @@ export default function WhatsAppQRCode({
         </Alert>
       )}
 
-      {qrCodeData && !expired && !isGenerating && !error && (
+      {/* Timer display */}
+      {qrCodeUrl && !expired && !isGenerating && !error && (
         <div className="flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-200 rounded-lg">
           <Clock className="h-4 w-4 text-blue-600" />
           <span className="text-sm font-medium text-blue-800">
@@ -102,6 +79,7 @@ export default function WhatsAppQRCode({
         </div>
       )}
 
+      {/* QR Code Container */}
       <div className="w-64 h-64 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-white relative">
         {isGenerating ? (
           <div className="text-center">
@@ -116,14 +94,14 @@ export default function WhatsAppQRCode({
             <p className="text-sm text-red-600 font-medium">Erro ao gerar QR Code</p>
             <p className="text-xs text-red-500 mt-1">Verifique a configuração da API</p>
           </div>
-        ) : qrCodeSrc ? ( // MODIFICADO para usar a variável qrCodeSrc
+        ) : qrCodeUrl ? (
           <div className="w-full h-full p-4 flex items-center justify-center">
             <img
-              src={qrCodeSrc} // MODIFICADO para usar a variável qrCodeSrc
+              src={qrCodeUrl}
               alt="WhatsApp QR Code da EvolutionAPI"
               className="w-full h-full object-contain"
               onError={() => {
-                console.error('Falha ao carregar a imagem do QR code. Verifique o formato do base64.');
+                console.error('Failed to load QR code image');
               }}
             />
           </div>
@@ -142,6 +120,7 @@ export default function WhatsAppQRCode({
         )}
       </div>
 
+      {/* Instructions */}
       <div className="text-center max-w-sm">
         <p className="text-sm text-muted-foreground leading-relaxed">
           {error ? (
@@ -149,14 +128,15 @@ export default function WhatsAppQRCode({
           ) : (
             <>
               Abra o WhatsApp no seu celular, acesse <span className="font-medium">Configurações</span> → 
-              <span className="font-medium"> Aparelhos Conectados</span> e escaneie o código QR.
+              <span className="font-medium"> WhatsApp Web</span> e escaneie o código QR.
             </>
           )}
         </p>
       </div>
       
+      {/* Action buttons */}
       <div className="flex flex-col items-center gap-3">
-        {(!qrCodeData && !isGenerating) || error ? (
+        {(!qrCodeUrl && !isGenerating) || error ? (
           <Button 
             onClick={handleRefresh} 
             className="min-w-[180px]"
@@ -174,7 +154,7 @@ export default function WhatsAppQRCode({
           </Button>
         )}
         
-        {qrCodeData && !expired && !error && onConnect && (
+        {qrCodeUrl && !expired && !error && onConnect && (
           <Button 
             variant="default" 
             onClick={onConnect}
