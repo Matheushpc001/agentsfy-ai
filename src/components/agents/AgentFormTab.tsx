@@ -37,8 +37,13 @@ export default function AgentFormTab({
 }: AgentFormTabProps) {
   
   const handleNextClick = () => {
-    console.log('Next button clicked in AgentFormTab');
-    console.log('Form data:', formData);
+    console.log('=== BOTÃO PRÓXIMO CLICADO ===');
+    console.log('FormData no AgentFormTab:', JSON.stringify(formData, null, 2));
+    console.log('Campos obrigatórios:');
+    console.log('- name:', formData.name);
+    console.log('- sector:', formData.sector); 
+    console.log('- openAiKey:', formData.openAiKey ? 'PRESENTE' : 'AUSENTE');
+    console.log('Chamando onNext()...');
     onNext();
   };
 

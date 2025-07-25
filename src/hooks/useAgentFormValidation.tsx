@@ -19,29 +19,48 @@ export function useAgentFormValidation({
   setActiveTab,
 }: UseAgentFormValidationProps) {
   const validateAgentForm = useCallback(() => {
-    console.log('Validating agent form:', formData);
+    console.log('=== INICIANDO VALIDAÇÃO DO AGENTE ===');
+    console.log('FormData completo:', JSON.stringify(formData, null, 2));
     
+    // Verificar nome
+    console.log('Verificando nome:', formData.name);
     if (!formData.name?.trim()) {
-      toast.error("Por favor, preencha o nome do agente");
+      const msg = "Por favor, preencha o nome do agente";
+      console.error('❌ Erro de validação - Nome:', msg);
+      toast.error(msg);
       return false;
     }
+    console.log('✅ Nome válido:', formData.name);
 
+    // Verificar setor
+    console.log('Verificando setor:', formData.sector);
     if (!formData.sector?.trim()) {
-      toast.error("Por favor, preencha o setor do agente");
+      const msg = "Por favor, preencha o setor do agente";
+      console.error('❌ Erro de validação - Setor:', msg);
+      toast.error(msg);
       return false;
     }
+    console.log('✅ Setor válido:', formData.sector);
 
+    // Verificar chave OpenAI
+    console.log('Verificando chave OpenAI:', formData.openAiKey ? 'PRESENTE' : 'AUSENTE');
     if (!formData.openAiKey?.trim()) {
-      toast.error("Por favor, forneça uma chave da OpenAI");
+      const msg = "Por favor, forneça uma chave da OpenAI";
+      console.error('❌ Erro de validação - Chave OpenAI ausente:', msg);
+      toast.error(msg);
       return false;
     }
 
+    console.log('Verificando formato da chave OpenAI...');
     if (!formData.openAiKey.startsWith("sk-")) {
-      toast.error("A chave da OpenAI deve começar com 'sk-'");
+      const msg = "A chave da OpenAI deve começar com 'sk-'";
+      console.error('❌ Erro de validação - Formato da chave inválido:', msg);
+      toast.error(msg);
       return false;
     }
+    console.log('✅ Chave OpenAI válida');
 
-    console.log('Agent form validation passed');
+    console.log('✅ VALIDAÇÃO COMPLETA - SUCESSO!');
     return true;
   }, [formData]);
 
