@@ -531,12 +531,12 @@ export default function WhatsAppConnectionModal({
             )}
             
             <WhatsAppQRCode
-              isGenerating={isGeneratingQr}
-              qrCodeUrl={currentQrCode || undefined}
-              error={qrError || undefined}
-              onRefresh={handleGenerateQrCode}
-              onConnect={handleConnect}
-              className="flex justify-center"
+                isGenerating={isGeneratingQr}
+                qrCodeData={currentQrCode || undefined} // ALTERADO AQUI
+                error={qrError || undefined}
+                onRefresh={handleGenerateQrCode}
+                onConnect={handleConnect}
+                className="flex justify-center"
             />
           </div>
         );
