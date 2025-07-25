@@ -43,8 +43,17 @@ interface ProtectedRouteProps {
 const ProtectedRoute = ({ element, allowedRoles }: ProtectedRouteProps) => {
   const { user, loading } = useAuth();
   
-  // Show nothing while loading
-  if (loading) return null;
+  // Show loading state while authentication is being checked
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-lg text-muted-foreground mt-4">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
   
   // If user is not logged in, redirect to auth page
   if (!user) return <Navigate to="/auth" replace />;
@@ -57,9 +66,18 @@ const ProtectedRoute = ({ element, allowedRoles }: ProtectedRouteProps) => {
 
 const AppRoutes = () => {
   const { user, loading } = useAuth();
-
-  // Show nothing while loading
-  if (loading) return null;
+  
+  // Show loading state while authentication is being checked
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="text-lg text-muted-foreground mt-4">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <Routes>

@@ -337,7 +337,7 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
           </DialogHeader>
           <WhatsAppQRCode
             isGenerating={isGeneratingQr}
-            qrCodeUrl={currentQrCode || undefined}
+            qrCodeData={currentQrCode || undefined}
             error={qrError || undefined}
             onRefresh={() => selectedConfigId && handleGenerateQrCode(selectedConfigId)}
             onConnect={() => {

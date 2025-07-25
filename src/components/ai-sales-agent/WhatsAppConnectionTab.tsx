@@ -131,7 +131,7 @@ export default function WhatsAppConnectionTab({
                 onConnect={connectWhatsApp}
                 onRefresh={handleTestConnection}
                 isGenerating={isGeneratingQr}
-                qrCodeUrl={qrCodeUrl || undefined}
+                qrCodeData={qrCodeUrl || undefined}
                 error={qrError || undefined}
               />
             ) : (
