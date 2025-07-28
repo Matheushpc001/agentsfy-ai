@@ -9,6 +9,7 @@ const corsHeaders = {
 // Handler principal
 async function handler(req: Request) {
   // --- NOVO LOG DE DIAGNÓSTICO ---
+  console.log("✅✅✅ DEPLOY V2 - JWT Desativado - INVOCADO ✅✅✅");
   console.log(`[${new Date().toISOString()}] 🚀 Webhook Handler INVOCADO. Método: ${req.method}. URL: ${req.url}`);
   if (req.method === 'OPTIONS') {
     return new Response(null, {
