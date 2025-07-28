@@ -1,11 +1,13 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0";
+
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
+
 // Handler principal
-async function handler(req) {
+async function handler(req: Request) {
   // --- NOVO LOG DE DIAGNÓSTICO ---
   console.log(`[${new Date().toISOString()}] 🚀 Webhook Handler INVOCADO. Método: ${req.method}. URL: ${req.url}`);
   if (req.method === 'OPTIONS') {
@@ -24,8 +26,7 @@ async function handler(req) {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { event } = payload;
     console.log('🔍 Processing webhook event:', event);
-    // ... (resto do seu switch case e funções auxiliares, sem alterações)
-    // --- O CÓDIGO ABAIXO PERMANECE IGUAL ---
+    
     switch(event){
       case 'connection.update':
       case 'CONNECTION_UPDATE':
@@ -42,6 +43,7 @@ async function handler(req) {
       default:
         console.log(`ℹ️ Evento não tratado recebido: ${event}`);
     }
+    
     return new Response(JSON.stringify({
       success: true,
       message: 'Webhook processed successfully'
@@ -66,13 +68,21 @@ async function handler(req) {
     });
   }
 }
+
 // Inicia o servidor
-// --- NOVO LOG DE DIAGNÓSTICO ---
 console.log(`[${new Date().toISOString()}] 📢 Servidor do Webhook está sendo inicializado e escutando...`);
-serve(handler);
-// --- SUAS FUNÇÕES AUXILIARES (handleConnectionUpdate, etc.) CONTINUAM AQUI SEM MUDANÇAS ---
-// ... (cole o resto do seu arquivo aqui)
-async function handleConnectionUpdate(supabase, payload) {
+
+// MODIFICAÇÃO APLICADA AQUI:
+serve(handler, {
+  verifyJWT: false, // Permite que a Evolution API chame este webhook sem um token de usuário
+  onListen: ({ port, hostname }) => {
+    console.log(`🚀 Webhook server listening on http://${hostname}:${port}`);
+  },
+});
+
+// --- FUNÇÕES AUXILIARES ---
+
+async function handleConnectionUpdate(supabase: any, payload: any) {
   console.log('🔄 Processing connection update:', payload);
   const instanceName = payload.instance?.instanceName;
   const connectionState = payload.data?.state || payload.data?.connectionStatus;
@@ -103,7 +113,7 @@ async function handleConnectionUpdate(supabase, payload) {
       console.log('❓ Unknown connection state:', connectionState);
       return;
   }
-  const updateData = {
+  const updateData: any = {
     status: newStatus,
     updated_at: new Date().toISOString()
   };
@@ -125,7 +135,8 @@ async function handleConnectionUpdate(supabase, payload) {
     console.log('⚠️ No config found for instance:', instanceName);
   }
 }
-async function handleMessageUpsert(supabase, payload) {
+
+async function handleMessageUpsert(supabase: any, payload: any) {
   console.log('💬 Processing message upsert:', payload);
   const instanceName = payload.instance?.instanceName;
   const messageData = payload.data;
@@ -151,7 +162,7 @@ async function handleMessageUpsert(supabase, payload) {
     message_type: 'text',
     sender_type: messageData.key?.fromMe ? 'agent' : 'customer',
     is_from_me: messageData.key?.fromMe || false,
-    timestamp: new Date(messageData.messageTimestamp * 1000).toISOString()
+    timestamp: new Date((messageData.messageTimestamp || Date.now() / 1000) * 1000).toISOString()
   };
   const { error: messageError } = await supabase.from('whatsapp_messages').insert([
     messageInsert
@@ -165,7 +176,8 @@ async function handleMessageUpsert(supabase, payload) {
     }
   }
 }
-async function handleQRCodeUpdate(supabase, payload) {
+
+async function handleQRCodeUpdate(supabase: any, payload: any) {
   console.log('📱 Processing QR code update:', payload);
   const instanceName = payload.instance?.instanceName;
   const qrCode = payload.data?.qrcode || payload.data?.qr;
@@ -185,7 +197,8 @@ async function handleQRCodeUpdate(supabase, payload) {
     console.log('✅ QR code updated successfully for:', instanceName);
   }
 }
-async function findOrCreateConversation(supabase, configId, contactNumber) {
+
+async function findOrCreateConversation(supabase: any, configId: string, contactNumber: string) {
   const { data: existing, error: findError } = await supabase.from('whatsapp_conversations').select('*').eq('evolution_config_id', configId).eq('contact_number', contactNumber).single();
   if (!findError && existing) {
     return existing;
@@ -205,7 +218,8 @@ async function findOrCreateConversation(supabase, configId, contactNumber) {
   }
   return newConversation;
 }
-async function checkAutoResponse(supabase, configId, conversationId, messageContent) {
+
+async function checkAutoResponse(supabase: any, configId: string, conversationId: string, messageContent: string) {
   console.log('🤖 Checking auto response for config:', configId);
   const { data: aiAgent, error: agentError } = await supabase.from('ai_whatsapp_agents').select('*').eq('evolution_config_id', configId).eq('is_active', true).eq('auto_response', true).single();
   if (agentError || !aiAgent) {
@@ -216,9 +230,12 @@ async function checkAutoResponse(supabase, configId, conversationId, messageCont
   try {
     const { error: aiError } = await supabase.functions.invoke('generate-ai-response', {
       body: {
-        agent_id: aiAgent.id,
-        conversation_id: conversationId,
-        message_content: messageContent
+        agentId: aiAgent.id,
+        userMessage: messageContent,
+        previousMessages: [], // Ajuste: Você precisará buscar as mensagens anteriores aqui
+        systemPrompt: aiAgent.system_prompt,
+        model: aiAgent.model,
+        openaiApiKey: aiAgent.openai_api_key,
       }
     });
     if (aiError) {
@@ -230,7 +247,8 @@ async function checkAutoResponse(supabase, configId, conversationId, messageCont
     console.error('❌ Error calling AI response function:', error);
   }
 }
-async function notifyConnectionSuccess(supabase, config) {
+
+async function notifyConnectionSuccess(supabase: any, config: any) {
   console.log('🎉 Notifying connection success for config:', config.id);
   const { error: agentError } = await supabase.from('ai_whatsapp_agents').update({
     is_active: true,
