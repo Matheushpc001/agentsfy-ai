@@ -85,7 +85,7 @@ serve(handler, {
 
 async function handleConnectionUpdate(supabase: any, payload: any) {
   console.log('🔄 Processing connection update:', payload);
-  const instanceName = payload.instance?.instanceName;
+  const instanceName = payload.instance;
   const connectionState = payload.data?.state || payload.data?.connectionStatus;
   if (!instanceName) {
     console.log('⚠️ No instance name found in connection update');
@@ -139,7 +139,7 @@ async function handleConnectionUpdate(supabase: any, payload: any) {
 
 async function handleMessageUpsert(supabase: any, payload: any) {
   console.log('💬 Processing message upsert:', payload);
-  const instanceName = payload.instance?.instanceName;
+  const instanceName = payload.instance;
   const messageData = payload.data;
   if (!instanceName || !messageData) {
     console.log('⚠️ Incomplete message data');
@@ -180,7 +180,7 @@ async function handleMessageUpsert(supabase: any, payload: any) {
 
 async function handleQRCodeUpdate(supabase: any, payload: any) {
   console.log('📱 Processing QR code update:', payload);
-  const instanceName = payload.instance?.instanceName;
+  const instanceName = payload.instance;
   const qrCode = payload.data?.qrcode || payload.data?.qr;
   if (!instanceName || !qrCode) {
     console.log('⚠️ Incomplete QR code data');
