@@ -105,17 +105,16 @@ async function handleCreateInstance(supabase, params) {
     }
     console.log('Config created in database:', config.id);
     // Tentar criar instância na EvolutionAPI
+    // FORMATO NOVO E CORRETOoo
     const createPayload = {
       instanceName: instance_name,
       integration: 'WHATSAPP-BAILEYS',
-      webhook: `${Deno.env.get('SUPABASE_URL')}/functions/v1/evolution-webhook`,
-      webhook_by_events: false,
-      events: [
-        'APPLICATION_STARTUP',
-        'QRCODE_UPDATED',
-        'CONNECTION_UPDATE',
-        'MESSAGES_UPSERT'
-      ]
+      webhook: {
+        url: `${Deno.env.get('SUPABASE_URL')}/functions/v1/evolution-webhook`,
+        enabled: true, // Adicionamos isso para robustez
+        webhook_by_events: false,
+        events: ['APPLICATION_STARTUP', 'QRCODE_UPDATED', 'CONNECTION_UPDATE', 'MESSAGES_UPSERT']
+      }
     };
     console.log('Creating instance in EvolutionAPI with payload:', createPayload);
     try {
