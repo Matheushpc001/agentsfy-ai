@@ -165,6 +165,9 @@ async function handleMessageUpsert(supabase: any, payload: any) {
     is_from_me: messageData.key?.fromMe || false,
     timestamp: new Date((messageData.messageTimestamp || Date.now() / 1000) * 1000).toISOString()
   };
+
+  console.log('📦 Preparing to insert message:', JSON.stringify(messageInsert, null, 2));
+  
   const { error: messageError } = await supabase.from('whatsapp_messages').insert([
     messageInsert
   ]);
