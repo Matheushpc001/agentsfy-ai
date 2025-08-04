@@ -159,9 +159,9 @@ async function handleMessageUpsert(supabase: any, payload: any) {
   const messageInsert = {
     conversation_id: conversation.id,
     message_id: messageData.key?.id || `msg_${Date.now()}`,
-    content: messageData.message?.conversation || messageData.message?.extendedTextMessage?.text || '',
+    content: messageData.message?.conversation || messageData.message?.extendedTextMessage?.text || 'No content found',
     message_type: 'text',
-    sender_type: messageData.key?.fromMe ? 'agent' : 'customer',
+    sender_type: messageData.key?.fromMe ? 'agent' : 'user',
     is_from_me: messageData.key?.fromMe || false,
     timestamp: new Date((messageData.messageTimestamp || Date.now() / 1000) * 1000).toISOString()
   };
