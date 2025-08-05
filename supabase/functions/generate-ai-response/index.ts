@@ -1,3 +1,4 @@
+// ARQUIVO: supabase/functions/generate-ai-response/index.ts
 
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -16,56 +17,50 @@ serve(async (req) => {
     const {
       agentId,
       userMessage,
-      previousMessages,
+      previousMessages, // Array de { role: 'user'|'assistant', content: '...' }
       systemPrompt,
       model,
-      openaiApiKey
+      openaiApiKey,
     } = await req.json();
 
-    if (!openaiApiKey) {
-      throw new Error('Chave da OpenAI não configurada para este agente');
+    if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
+      throw new Error('Chave da API OpenAI inválida ou não configurada para este agente.');
     }
 
-    console.log('Gerando resposta IA para agente:', agentId);
+    console.log(`🤖 Gerando resposta de IA para o agente: ${agentId}`);
+    console.log(`🗣️ Usando o modelo: ${model || 'gpt-4o-mini'}`);
 
-    // Construir histórico de mensagens para contexto
     const messages = [];
     
-    // Adicionar prompt do sistema
-    if (systemPrompt) {
-      messages.push({
-        role: 'system',
-        content: systemPrompt
-      });
-    } else {
-      messages.push({
-        role: 'system',
-        content: 'Você é um assistente útil de atendimento ao cliente via WhatsApp. Seja cordial, prestativo e responda de forma clara e objetiva.'
-      });
-    }
+    // 1. Adicionar o prompt do sistema
+    messages.push({
+      role: 'system',
+      content: systemPrompt || 'Você é um assistente prestativo.'
+    });
 
-    // Adicionar mensagens anteriores para contexto (limitado aos últimos 10)
+    // 2. Adicionar mensagens anteriores para contexto (se houver)
     if (previousMessages && previousMessages.length > 0) {
+      // O Supabase retorna sender_type, então precisamos mapear para role
       const contextMessages = previousMessages
-        .slice(0, 10)
-        .reverse()
+        .slice(-10) // Pega as últimas 10 mensagens
         .map((msg: any) => ({
-          role: msg.sender_type === 'user' ? 'user' : 'assistant',
+          role: msg.sender_type === 'agent' ? 'assistant' : 'user',
           content: msg.content
         }));
-      
       messages.push(...contextMessages);
     }
 
-    // Adicionar mensagem atual do usuário
+    // 3. Adicionar a mensagem atual do usuário
     messages.push({
       role: 'user',
       content: userMessage
     });
 
+    console.log('📦 Payload final enviado para OpenAI:', JSON.stringify(messages, null, 2));
+
     const startTime = Date.now();
 
-    // Chamar OpenAI API
+    // Chamar a API da OpenAI
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -82,33 +77,33 @@ serve(async (req) => {
 
     if (!openAIResponse.ok) {
       const errorData = await openAIResponse.text();
-      console.error('Erro da OpenAI:', errorData);
-      throw new Error(`OpenAI API Error: ${openAIResponse.status} - ${errorData}`);
+      console.error('❌ Erro da API OpenAI:', errorData);
+      throw new Error(`Erro da API OpenAI: ${openAIResponse.status} - ${errorData}`);
     }
 
     const openAIData = await openAIResponse.json();
     const responseTime = Date.now() - startTime;
 
-    const aiResponse = openAIData.choices[0]?.message?.content;
-    const tokensUsed = openAIData.usage?.total_tokens || 0;
+    const aiResponseContent = openAIData.choices[0]?.message?.content;
 
-    if (!aiResponse) {
-      throw new Error('Resposta da IA não disponível');
+    if (!aiResponseContent) {
+      throw new Error('A API da OpenAI não retornou uma resposta.');
     }
 
-    console.log('Resposta gerada em', responseTime, 'ms, tokens:', tokensUsed);
+    console.log(`✅ Resposta da IA gerada em ${responseTime}ms`);
 
+    // Retorna a resposta gerada em um JSON
     return new Response(JSON.stringify({
-      response: aiResponse,
-      tokensUsed,
-      responseTime,
-      model: model || 'gpt-4o-mini'
+      aiResponse: aiResponseContent,
+      tokensUsed: openAIData.usage?.total_tokens || 0,
+      modelUsed: model || 'gpt-4o-mini'
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
     });
 
   } catch (error) {
-    console.error('Erro ao gerar resposta IA:', error);
+    console.error('❌ Erro ao gerar resposta de IA:', error);
     return new Response(JSON.stringify({ 
       error: error.message,
       details: error.stack 
