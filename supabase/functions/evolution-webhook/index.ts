@@ -1,13 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0";
-
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
-
 // Handler principal
-async function handler(req: Request) {
+async function handler(req) {
   // --- NOVO LOG DE DIAGNÓSTICO ---
   console.log("✅✅✅ DEPLOY V2 - JWT Desativado - INVOCADO ✅✅✅");
   console.log(`[${new Date().toISOString()}] 🚀 Webhook Handler INVOCADO. Método: ${req.method}. URL: ${req.url}`);
@@ -27,7 +25,6 @@ async function handler(req: Request) {
     const supabase = createClient(supabaseUrl, supabaseKey);
     const { event } = payload;
     console.log('🔍 Processing webhook event:', event);
-    
     switch(event){
       case 'connection.update':
       case 'CONNECTION_UPDATE':
@@ -44,7 +41,6 @@ async function handler(req: Request) {
       default:
         console.log(`ℹ️ Evento não tratado recebido: ${event}`);
     }
-    
     return new Response(JSON.stringify({
       success: true,
       message: 'Webhook processed successfully'
@@ -69,21 +65,17 @@ async function handler(req: Request) {
     });
   }
 }
-
 // Inicia o servidor
 console.log(`[${new Date().toISOString()}] 📢 Servidor do Webhook está sendo inicializado e escutando...`);
-
 // MODIFICAÇÃO APLICADA AQUI:
 serve(handler, {
-  verifyJWT: false, // Permite que a Evolution API chame este webhook sem um token de usuário
-  onListen: ({ port, hostname }) => {
+  verifyJWT: false,
+  onListen: ({ port, hostname })=>{
     console.log(`🚀 Webhook server listening on http://${hostname}:${port}`);
-  },
+  }
 });
-
 // --- FUNÇÕES AUXILIARES ---
-
-async function handleConnectionUpdate(supabase: any, payload: any) {
+async function handleConnectionUpdate(supabase, payload) {
   console.log('🔄 Processing connection update:', payload);
   const instanceName = payload.instance;
   const connectionState = payload.data?.state || payload.data?.connectionStatus;
@@ -114,7 +106,7 @@ async function handleConnectionUpdate(supabase: any, payload: any) {
       console.log('❓ Unknown connection state:', connectionState);
       return;
   }
-  const updateData: any = {
+  const updateData = {
     status: newStatus,
     updated_at: new Date().toISOString()
   };
@@ -136,8 +128,7 @@ async function handleConnectionUpdate(supabase: any, payload: any) {
     console.log('⚠️ No config found for instance:', instanceName);
   }
 }
-
-async function handleMessageUpsert(supabase: any, payload: any) {
+async function handleMessageUpsert(supabase, payload) {
   console.log('💬 Processing message upsert:', payload);
   const instanceName = payload.instance;
   const messageData = payload.data;
@@ -165,9 +156,7 @@ async function handleMessageUpsert(supabase: any, payload: any) {
     is_from_me: messageData.key?.fromMe || false,
     timestamp: new Date((messageData.messageTimestamp || Date.now() / 1000) * 1000).toISOString()
   };
-
   console.log('📦 Preparing to insert message:', JSON.stringify(messageInsert, null, 2));
-  
   const { error: messageError } = await supabase.from('whatsapp_messages').insert([
     messageInsert
   ]);
@@ -180,8 +169,7 @@ async function handleMessageUpsert(supabase: any, payload: any) {
     }
   }
 }
-
-async function handleQRCodeUpdate(supabase: any, payload: any) {
+async function handleQRCodeUpdate(supabase, payload) {
   console.log('📱 Processing QR code update:', payload);
   const instanceName = payload.instance;
   const qrCode = payload.data?.qrcode || payload.data?.qr;
@@ -201,8 +189,7 @@ async function handleQRCodeUpdate(supabase: any, payload: any) {
     console.log('✅ QR code updated successfully for:', instanceName);
   }
 }
-
-async function findOrCreateConversation(supabase: any, configId: string, contactNumber: string) {
+async function findOrCreateConversation(supabase, configId, contactNumber) {
   const { data: existing, error: findError } = await supabase.from('whatsapp_conversations').select('*').eq('evolution_config_id', configId).eq('contact_number', contactNumber).single();
   if (!findError && existing) {
     return existing;
@@ -222,37 +209,96 @@ async function findOrCreateConversation(supabase: any, configId: string, contact
   }
   return newConversation;
 }
-
 async function checkAutoResponse(supabase: any, configId: string, conversationId: string, messageContent: string) {
-  console.log('🤖 Checking auto response for config:', configId);
-  const { data: aiAgent, error: agentError } = await supabase.from('ai_whatsapp_agents').select('*').eq('evolution_config_id', configId).eq('is_active', true).eq('auto_response', true).single();
+  console.log('🤖 Verificando auto-resposta para config:', configId);
+  
+  // 1. Encontrar o agente de IA ativo para esta instância
+  const { data: aiAgent, error: agentError } = await supabase
+    .from('ai_whatsapp_agents')
+    .select('*')
+    .eq('evolution_config_id', configId)
+    .eq('is_active', true)
+    .eq('auto_response', true)
+    .single();
+
   if (agentError || !aiAgent) {
-    console.log('ℹ️ No active AI agent found for auto response');
+    console.log('ℹ️ Nenhum agente de IA ativo para auto-resposta.', agentError);
     return;
   }
-  console.log('🚀 Triggering AI response generation...');
+
+  console.log(`🤖 Agente de IA encontrado: ${aiAgent.agent_id}`);
+
   try {
-    const { error: aiError } = await supabase.functions.invoke('generate-ai-response', {
+    // 2. Buscar o histórico da conversa para dar contexto
+    const { data: previousMessages, error: historyError } = await supabase
+      .from('whatsapp_messages')
+      .select('content, sender_type')
+      .eq('conversation_id', conversationId)
+      .order('timestamp', { ascending: false })
+      .limit(10);
+
+    if (historyError) {
+      console.error('❌ Erro ao buscar histórico da conversa:', historyError);
+      // Continuar mesmo sem histórico
+    }
+
+    // 3. Invocar a função de IA para gerar a resposta
+    console.log('🚀 Invocando a função generate-ai-response...');
+    const { data: aiFunctionResponse, error: aiFunctionError } = await supabase.functions.invoke('generate-ai-response', {
       body: {
         agentId: aiAgent.id,
         userMessage: messageContent,
-        previousMessages: [], // Ajuste: Você precisará buscar as mensagens anteriores aqui
+        previousMessages: previousMessages || [],
         systemPrompt: aiAgent.system_prompt,
         model: aiAgent.model,
         openaiApiKey: aiAgent.openai_api_key,
       }
     });
-    if (aiError) {
-      console.error('❌ Error generating AI response:', aiError);
-    } else {
-      console.log('✅ AI response generation triggered');
+
+    if (aiFunctionError) {
+      throw new Error(`Erro ao invocar a função de IA: ${aiFunctionError.message}`);
     }
+
+    const { aiResponse, tokensUsed, modelUsed } = aiFunctionResponse;
+    
+    if (!aiResponse) {
+      throw new Error("A função de IA não retornou uma resposta válida.");
+    }
+    
+    console.log('✅ Resposta da IA recebida:', aiResponse);
+
+    // 4. Salvar o log da interação com a IA
+    await supabase.from('ai_interaction_logs').insert({
+      agent_id: aiAgent.id,
+      conversation_id: conversationId,
+      user_message: messageContent,
+      ai_response: aiResponse,
+      tokens_used: tokensUsed,
+      model_used: modelUsed
+    });
+    
+    // 5. Invocar o api-manager para ENVIAR a resposta para o WhatsApp
+    console.log('📤 Enviando resposta para o usuário via evolution-api-manager...');
+    const { error: sendMessageError } = await supabase.functions.invoke('evolution-api-manager', {
+      body: {
+        action: 'send_message',
+        config_id: configId,
+        phone_number: (await supabase.from('whatsapp_conversations').select('contact_number').eq('id', conversationId).single()).data.contact_number,
+        message: aiResponse
+      }
+    });
+
+    if (sendMessageError) {
+      throw new Error(`Erro ao enviar mensagem de resposta: ${sendMessageError.message}`);
+    }
+
+    console.log('✅ Resposta da IA enviada com sucesso para o usuário.');
+
   } catch (error) {
-    console.error('❌ Error calling AI response function:', error);
+    console.error('❌ Erro no fluxo de auto-resposta da IA:', error);
   }
 }
-
-async function notifyConnectionSuccess(supabase: any, config: any) {
+async function notifyConnectionSuccess(supabase, config) {
   console.log('🎉 Notifying connection success for config:', config.id);
   const { error: agentError } = await supabase.from('ai_whatsapp_agents').update({
     is_active: true,
