@@ -21,18 +21,18 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string) {
     throw new Error(`Falha ao baixar o áudio da URL: ${audioResponse.statusText}`);
   }
   const audioBlob = await audioResponse.blob();
-
+  
   // ###############################################################
-  // ### CORREÇÃO AQUI: NOME DE ARQUIVO GENÉRICO E DETECÇÃO DE TIPO ###
+  // ### CORREÇÃO FINAL: FORÇAR A EXTENSÃO PARA .ogg             ###
   // ###############################################################
-  // A API Whisper é inteligente o suficiente para detectar o formato.
-  // Usar um nome de arquivo genérico é mais seguro.
-  const fileName = `audio.${audioBlob.type.split('/')[1] || 'mp3'}`;
-  console.log(`🎤 Arquivo de áudio recebido como blob. Tipo: ${audioBlob.type}, Tamanho: ${audioBlob.size}, Nome do arquivo para envio: ${fileName}`);
+  // O WhatsApp geralmente usa o codec Opus em contêineres OGG.
+  // Vamos forçar essa extensão, já que a API não nos informa o tipo correto.
+  const fileName = 'audio.ogg';
+  console.log(`🎤 Arquivo de áudio recebido como blob. Tipo: ${audioBlob.type}, Tamanho: ${audioBlob.size}, Forçando nome de arquivo: ${fileName}`);
 
   // 2. Criar o FormData para enviar à API Whisper
   const formData = new FormData();
-  formData.append('file', audioBlob, fileName); // Usa o nome de arquivo com a extensão correta
+  formData.append('file', audioBlob, fileName); // Usa o nome de arquivo forçado
   formData.append('model', 'whisper-1');
   formData.append('response_format', 'text');
 
