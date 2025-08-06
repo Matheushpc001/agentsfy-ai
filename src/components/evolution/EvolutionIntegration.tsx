@@ -1,9 +1,10 @@
+// ARQUIVO: src/components/evolution/EvolutionIntegration.tsx
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Bot, MessageSquare, Settings, Smartphone, BarChart3 } from "lucide-react";
 import EvolutionManagement from "./EvolutionManagement";
-import EvolutionAgents from "./EvolutionAgents";
+import EvolutionAgents from "./EvolutionAgents"; // Verifique se a importação está correta
 import EvolutionMessages from "./EvolutionMessages";
 import EvolutionDashboard from "./EvolutionDashboard";
 
@@ -37,7 +38,7 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
             Gerenciamento
           </TabsTrigger>
           <TabsTrigger value="agents" className="flex items-center gap-2">
-            <Smartphone className="h-4 w-4" />
+            <Bot className="h-4 w-4" /> {/* Ícone alterado para Bot */}
             Agentes IA
           </TabsTrigger>
           <TabsTrigger value="messages" className="flex items-center gap-2">
@@ -54,9 +55,13 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
           <EvolutionManagement franchiseeId={franchiseeId} />
         </TabsContent>
 
+        {/* ################################################## */}
+        {/* ### ALTERAÇÃO PRINCIPAL APLICADA AQUI          ### */}
+        {/* ################################################## */}
         <TabsContent value="agents">
-          <EvolutionAgents franchiseeId={franchiseeId} />
+          <EvolutionAgents />
         </TabsContent>
+        {/* ################################################## */}
 
         <TabsContent value="messages">
           <EvolutionMessages franchiseeId={franchiseeId} />
