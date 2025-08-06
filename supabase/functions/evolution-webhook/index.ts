@@ -132,6 +132,11 @@ async function handleMessageUpsert(supabase, payload) {
   console.log('💬 Processing message upsert:', payload);
   const instanceName = payload.instance;
   const messageData = payload.data;
+  const remoteJid = messageData?.key?.remoteJid;
+  if (remoteJid && remoteJid.endsWith('@g.us')) {
+    console.log('🗣️ Mensagem de grupo ignorada.');
+    return; // Para a execução aqui e não salva a mensagem
+  }
   if (!instanceName || !messageData) {
     console.log('⚠️ Incomplete message data');
     return;
