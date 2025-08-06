@@ -8,59 +8,70 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+// Nova função para transcrever áudio
+async function handleTranscribe(openaiApiKey: string, audioUrl: string) {
+  if (!audioUrl) {
+    throw new Error("URL do áudio não fornecida.");
+  }
+  console.log(`🎤 Iniciando transcrição para a URL: ${audioUrl}`);
+
+  // 1. Baixar o arquivo de áudio
+  const audioResponse = await fetch(audioUrl);
+  if (!audioResponse.ok) {
+    throw new Error(`Falha ao baixar o áudio da URL: ${audioResponse.statusText}`);
+  }
+  const audioBlob = await audioResponse.blob();
+
+  // 2. Criar o FormData para enviar à API Whisper
+  const formData = new FormData();
+  formData.append('file', audioBlob, 'audio.ogg');
+  formData.append('model', 'whisper-1');
+  formData.append('response_format', 'text');
+
+  // 3. Chamar a API de transcrições da OpenAI
+  const transcribeResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${openaiApiKey}`,
+    },
+    body: formData,
+  });
+
+  if (!transcribeResponse.ok) {
+    const errorText = await transcribeResponse.text();
+    console.error('❌ Erro da API Whisper:', errorText);
+    throw new Error(`Erro na API Whisper: ${transcribeResponse.status} - ${errorText}`);
   }
 
-  try {
+  const transcribedText = await transcribeResponse.text();
+  console.log(`✅ Transcrição concluída: "${transcribedText}"`);
+  return transcribedText;
+}
+
+
+// Função para gerar resposta de texto (código que já tínhamos)
+async function handleGenerate(openaiApiKey: string, payload: any) {
     const {
       agentId,
       userMessage,
-      previousMessages, // Array de { role: 'user'|'assistant', content: '...' }
+      previousMessages,
       systemPrompt,
       model,
-      openaiApiKey,
-    } = await req.json();
-
-    if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
-      throw new Error('Chave da API OpenAI inválida ou não configurada para este agente.');
-    }
+    } = payload;
 
     console.log(`🤖 Gerando resposta de IA para o agente: ${agentId}`);
-    console.log(`🗣️ Usando o modelo: ${model || 'gpt-4o-mini'}`);
-
     const messages = [];
-    
-    // 1. Adicionar o prompt do sistema
-    messages.push({
-      role: 'system',
-      content: systemPrompt || 'Você é um assistente prestativo.'
-    });
+    messages.push({ role: 'system', content: systemPrompt || 'Você é um assistente prestativo.' });
 
-    // 2. Adicionar mensagens anteriores para contexto (se houver)
     if (previousMessages && previousMessages.length > 0) {
-      // O Supabase retorna sender_type, então precisamos mapear para role
-      const contextMessages = previousMessages
-        .slice(-10) // Pega as últimas 10 mensagens
-        .map((msg: any) => ({
-          role: msg.sender_type === 'agent' ? 'assistant' : 'user',
-          content: msg.content
-        }));
+      const contextMessages = previousMessages.slice(-10).map((msg: any) => ({
+        role: msg.sender_type === 'agent' ? 'assistant' : 'user',
+        content: msg.content
+      }));
       messages.push(...contextMessages);
     }
+    messages.push({ role: 'user', content: userMessage });
 
-    // 3. Adicionar a mensagem atual do usuário
-    messages.push({
-      role: 'user',
-      content: userMessage
-    });
-
-    console.log('📦 Payload final enviado para OpenAI:', JSON.stringify(messages, null, 2));
-
-    const startTime = Date.now();
-
-    // Chamar a API da OpenAI
     const openAIResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -76,38 +87,62 @@ serve(async (req) => {
     });
 
     if (!openAIResponse.ok) {
-      const errorData = await openAIResponse.text();
-      console.error('❌ Erro da API OpenAI:', errorData);
-      throw new Error(`Erro da API OpenAI: ${openAIResponse.status} - ${errorData}`);
+        const errorData = await openAIResponse.text();
+        throw new Error(`Erro da API OpenAI: ${openAIResponse.status} - ${errorData}`);
     }
 
     const openAIData = await openAIResponse.json();
-    const responseTime = Date.now() - startTime;
-
     const aiResponseContent = openAIData.choices[0]?.message?.content;
-
     if (!aiResponseContent) {
-      throw new Error('A API da OpenAI não retornou uma resposta.');
+        throw new Error('A API da OpenAI não retornou uma resposta.');
     }
 
-    console.log(`✅ Resposta da IA gerada em ${responseTime}ms`);
+    return {
+        aiResponse: aiResponseContent,
+        tokensUsed: openAIData.usage?.total_tokens || 0,
+        modelUsed: model || 'gpt-4o-mini'
+    };
+}
 
-    // Retorna a resposta gerada em um JSON
-    return new Response(JSON.stringify({
-      aiResponse: aiResponseContent,
-      tokensUsed: openAIData.usage?.total_tokens || 0,
-      modelUsed: model || 'gpt-4o-mini'
-    }), {
+
+// Servidor principal da função
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const payload = await req.json();
+    const { action, openaiApiKey, ...params } = payload;
+    
+    if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
+      throw new Error('Chave da API OpenAI inválida ou não fornecida.');
+    }
+
+    let responseData;
+    
+    switch (action) {
+      case 'transcribe':
+        const transcribedText = await handleTranscribe(openaiApiKey, params.audioUrl);
+        responseData = { transcribedText };
+        break;
+      
+      case 'generate':
+        responseData = await handleGenerate(openaiApiKey, params);
+        break;
+
+      default:
+        throw new Error(`Ação desconhecida: ${action}`);
+    }
+
+    return new Response(JSON.stringify(responseData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
 
   } catch (error) {
-    console.error('❌ Erro ao gerar resposta de IA:', error);
-    return new Response(JSON.stringify({ 
-      error: error.message,
-      details: error.stack 
-    }), {
+    console.error('❌ Erro na função generate-ai-response:', error);
+    return new Response(JSON.stringify({ error: error.message }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
