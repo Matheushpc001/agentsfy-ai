@@ -3,18 +3,16 @@
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bot, Plus, Settings, AlertTriangle, RefreshCw } from "lucide-react";
-import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
-import { toast } from "sonner";
-import AIAgentSetup from "./AIAgentSetup"; // Usaremos um modal depois
+import { Bot, Plus, Settings, RefreshCw } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
+import AIAgentSetup from "./AIAgentSetup";
+import { Badge } from "@/components/ui/badge";
 
 export default function EvolutionAgents() {
-  // Usando o hook que criamos
   const { user } = useAuth();
   const { aiAgents, configs, isLoading, refreshData } = useEvolutionAPI(user?.id);
   
-  // Estados para controlar o modal
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any | null>(null);
 
@@ -102,7 +100,7 @@ export default function EvolutionAgents() {
           franchiseeId={user?.id || ''}
           onSave={() => {
             setIsSetupModalOpen(false);
-            refreshData(); // Recarrega os dados após salvar
+            refreshData();
           }}
       />
     </div>
