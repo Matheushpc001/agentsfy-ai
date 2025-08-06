@@ -1,233 +1,244 @@
+// ARQUIVO: src/components/evolution/AIAgentSetup.tsx
 
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bot, Settings, TestTube } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
+import { supabase } from "@/integrations/supabase/client";
+import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
 import { toast } from "sonner";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { RefreshCw } from "lucide-react";
+
+// Schema de validação com Zod
+const agentSchema = z.object({
+  agent_id: z.string().uuid({ message: "Selecione um agente válido." }),
+  evolution_config_id: z.string().uuid({ message: "Selecione uma instância do WhatsApp." }),
+  phone_number: z.string().min(10, { message: "Número de telefone é obrigatório." }),
+  openai_api_key: z.string().refine(val => val.startsWith('sk-'), { message: "Chave da OpenAI deve iniciar com 'sk-'." }),
+  model: z.string().default('gpt-4o-mini'),
+  system_prompt: z.string().min(10, { message: "O prompt deve ter pelo menos 10 caracteres." }),
+  auto_response: z.boolean().default(true),
+  is_active: z.boolean().default(true),
+});
+
+type AgentFormValues = z.infer<typeof agentSchema>;
 
 interface AIAgentSetupProps {
-  evolutionConfigId: string;
-  onCreateAgent: (agentData: any) => Promise<void>;
-  onUpdateAgent: (agentId: string, updates: any) => Promise<void>;
-  existingAgent?: any;
-  agents?: any[];
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: () => void;
+  existingAgent?: any | null;
+  franchiseeId: string;
 }
 
-export default function AIAgentSetup({ 
-  evolutionConfigId, 
-  onCreateAgent, 
-  onUpdateAgent,
-  existingAgent,
-  agents = []
-}: AIAgentSetupProps) {
-  const [formData, setFormData] = useState({
-    agentId: existingAgent?.agent_id || '',
-    phoneNumber: existingAgent?.phone_number || '',
-    openaiApiKey: existingAgent?.openai_api_key || '',
-    model: existingAgent?.model || 'gpt-4o-mini',
-    systemPrompt: existingAgent?.system_prompt || '',
-    autoResponse: existingAgent?.auto_response !== false,
-    responseDelaySeconds: existingAgent?.response_delay_seconds || 2,
+export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, franchiseeId }: AIAgentSetupProps) {
+  const { configs: evolutionConfigs, agents: traditionalAgents } = useEvolutionAPI(franchiseeId);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const form = useForm<AgentFormValues>({
+    resolver: zodResolver(agentSchema),
+    defaultValues: {
+      agent_id: '',
+      evolution_config_id: '',
+      phone_number: '',
+      openai_api_key: '',
+      model: 'gpt-4o-mini',
+      system_prompt: '',
+      auto_response: true,
+      is_active: true,
+    }
   });
 
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleChange = (field: string, value: any) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-  };
-
-  const handleSubmit = async () => {
-    if (!formData.agentId || !formData.phoneNumber) {
-      toast.error('Preencha todos os campos obrigatórios');
-      return;
+  useEffect(() => {
+    if (existingAgent) {
+      form.reset({
+        agent_id: existingAgent.agent_id,
+        evolution_config_id: existingAgent.evolution_config_id,
+        phone_number: existingAgent.phone_number,
+        openai_api_key: existingAgent.openai_api_key || '',
+        model: existingAgent.model || 'gpt-4o-mini',
+        system_prompt: existingAgent.system_prompt || '',
+        auto_response: existingAgent.auto_response,
+        is_active: existingAgent.is_active,
+      });
+    } else {
+      form.reset(); // Reseta para os valores padrão
     }
+  }, [existingAgent, form, isOpen]);
 
-    setIsLoading(true);
+  const onSubmit = async (values: AgentFormValues) => {
+    setIsSubmitting(true);
     try {
       if (existingAgent) {
-        await onUpdateAgent(existingAgent.id, {
-          agent_id: formData.agentId,
-          phone_number: formData.phoneNumber,
-          openai_api_key: formData.openaiApiKey,
-          model: formData.model,
-          system_prompt: formData.systemPrompt,
-          auto_response: formData.autoResponse,
-          response_delay_seconds: formData.responseDelaySeconds,
-        });
+        // Atualizar
+        const { error } = await supabase
+          .from('ai_whatsapp_agents')
+          .update(values)
+          .eq('id', existingAgent.id);
+        if (error) throw error;
+        toast.success("Agente IA atualizado com sucesso!");
       } else {
-        await onCreateAgent({
-          agentId: formData.agentId,
-          evolutionConfigId,
-          phoneNumber: formData.phoneNumber,
-          openaiApiKey: formData.openaiApiKey,
-          model: formData.model,
-          systemPrompt: formData.systemPrompt,
-          autoResponse: formData.autoResponse,
-          responseDelaySeconds: formData.responseDelaySeconds,
-        });
+        // Criar
+        const { error } = await supabase
+          .from('ai_whatsapp_agents')
+          .insert(values);
+        if (error) throw error;
+        toast.success("Agente IA criado com sucesso!");
       }
-      
-      // Reset form if creating new agent
-      if (!existingAgent) {
-        setFormData({
-          agentId: '',
-          phoneNumber: '',
-          openaiApiKey: '',
-          model: 'gpt-4o-mini',
-          systemPrompt: '',
-          autoResponse: true,
-          responseDelaySeconds: 2,
-        });
-      }
-    } catch (error) {
-      console.error('Erro ao salvar agente:', error);
+      onSave();
+      onClose();
+    } catch (error: any) {
+      toast.error(`Erro ao salvar: ${error.message}`);
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
-  };
-
-  const testAgent = async () => {
-    if (!formData.openaiApiKey) {
-      toast.error('Configure a chave da OpenAI primeiro');
-      return;
-    }
-
-    toast.info('Testando agente IA... (funcionalidade em desenvolvimento)');
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center gap-2">
-          <Bot className="h-5 w-5" />
-          <CardTitle>
-            {existingAgent ? 'Editar Agente IA' : 'Configurar Agente IA'}
-          </CardTitle>
-        </div>
-        <CardDescription>
-          Configure um agente de inteligência artificial para responder automaticamente no WhatsApp
-        </CardDescription>
-      </CardHeader>
-      
-      <CardContent className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="agentId">ID do Agente *</Label>
-            <Input
-              id="agentId"
-              value={formData.agentId}
-              onChange={(e) => handleChange('agentId', e.target.value)}
-              placeholder="ID único do agente"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="phoneNumber">Número do WhatsApp *</Label>
-            <Input
-              id="phoneNumber"
-              value={formData.phoneNumber}
-              onChange={(e) => handleChange('phoneNumber', e.target.value)}
-              placeholder="+5511999999999"
-            />
-          </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="openaiApiKey">Chave da API OpenAI</Label>
-          <Input
-            id="openaiApiKey"
-            type="password"
-            value={formData.openaiApiKey}
-            onChange={(e) => handleChange('openaiApiKey', e.target.value)}
-            placeholder="sk-..."
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="model">Modelo da IA</Label>
-          <Select value={formData.model} onValueChange={(value) => handleChange('model', value)}>
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="gpt-4o-mini">GPT-4o Mini (Rápido e Econômico)</SelectItem>
-              <SelectItem value="gpt-4o">GPT-4o (Mais Poderoso)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="systemPrompt">Prompt do Sistema</Label>
-          <Textarea
-            id="systemPrompt"
-            value={formData.systemPrompt}
-            onChange={(e) => handleChange('systemPrompt', e.target.value)}
-            placeholder="Você é um assistente de atendimento ao cliente..."
-            rows={4}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex items-center justify-between">
-            <div className="space-y-0.5">
-              <Label>Resposta Automática</Label>
-              <p className="text-sm text-muted-foreground">
-                Responder automaticamente às mensagens
-              </p>
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>{existingAgent ? 'Editar' : 'Criar'} Agente IA</DialogTitle>
+          <DialogDescription>
+            Configure os detalhes do seu agente de resposta automática.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="agent_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Agente do Sistema</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione o agente a ser automatizado" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {traditionalAgents.map(agent => (
+                          <SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="evolution_config_id"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Instância do WhatsApp</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione a instância conectada" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {evolutionConfigs.filter(c => c.status === 'connected').map(config => (
+                          <SelectItem key={config.id} value={config.id}>{config.instance_name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
-            <Switch
-              checked={formData.autoResponse}
-              onCheckedChange={(checked) => handleChange('autoResponse', checked)}
+            
+            <FormField
+              control={form.control}
+              name="phone_number"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Número do WhatsApp</FormLabel>
+                  <FormControl>
+                    <Input placeholder="5511999998888" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="responseDelaySeconds">Delay de Resposta (segundos)</Label>
-            <Input
-              id="responseDelaySeconds"
-              type="number"
-              min="1"
-              max="30"
-              value={formData.responseDelaySeconds}
-              onChange={(e) => handleChange('responseDelaySeconds', parseInt(e.target.value))}
+            <FormField
+              control={form.control}
+              name="openai_api_key"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Chave da API OpenAI</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="sk-..." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
-        </div>
 
-        <div className="flex gap-2 pt-4">
-          <Button 
-            onClick={handleSubmit} 
-            disabled={isLoading}
-            className="flex-1"
-          >
-            <Settings className="w-4 h-4 mr-2" />
-            {existingAgent ? 'Atualizar Agente' : 'Criar Agente'}
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={testAgent}
-            disabled={!formData.openaiApiKey}
-          >
-            <TestTube className="w-4 h-4 mr-2" />
-            Testar
-          </Button>
-        </div>
-
-        {agents.length > 0 && (
-          <div className="mt-6">
-            <h4 className="font-medium mb-2">Agentes Configurados:</h4>
-            <div className="text-sm text-muted-foreground">
-              {agents.length} agente(s) ativo(s) nesta instância
+            <FormField
+              control={form.control}
+              name="system_prompt"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Personalidade (System Prompt)</FormLabel>
+                  <FormControl>
+                    <Textarea placeholder="Você é um assistente virtual para..." {...field} rows={5} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            
+            <div className="flex items-center space-x-4">
+               <FormField
+                control={form.control}
+                name="is_active"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel>Agente Ativo</FormLabel>
+                  </FormItem>
+                )}
+              />
+               <FormField
+                control={form.control}
+                name="auto_response"
+                render={({ field }) => (
+                  <FormItem className="flex items-center space-x-2">
+                    <FormControl>
+                      <Switch checked={field.value} onCheckedChange={field.onChange} />
+                    </FormControl>
+                    <FormLabel>Resposta Automática</FormLabel>
+                  </FormItem>
+                )}
+              />
             </div>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>
+                {isSubmitting && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
+                Salvar Configurações
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
   );
 }
