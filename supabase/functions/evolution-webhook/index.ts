@@ -132,45 +132,103 @@ async function handleMessageUpsert(supabase, payload) {
   console.log('💬 Processing message upsert:', payload);
   const instanceName = payload.instance;
   const messageData = payload.data;
+
+  // Filtro de Grupo
   const remoteJid = messageData?.key?.remoteJid;
   if (remoteJid && remoteJid.endsWith('@g.us')) {
     console.log('🗣️ Mensagem de grupo ignorada.');
-    return; // Para a execução aqui e não salva a mensagem
+    return;
   }
+  
   if (!instanceName || !messageData) {
     console.log('⚠️ Incomplete message data');
     return;
   }
+
+  // Encontrar a configuração da instância para obter o franchisee_id
   const { data: config, error: configError } = await supabase.from('evolution_api_configs').select('id, franchisee_id').eq('instance_name', instanceName).single();
   if (configError || !config) {
-    console.log('⚠️ Config not found for message:', instanceName);
+    console.log('⚠️ Configuração não encontrada para a instância:', instanceName);
     return;
   }
-  const contactNumber = messageData.key?.remoteJid?.replace('@s.whatsapp.net', '');
+  
+  const contactNumber = remoteJid?.replace('@s.whatsapp.net', '');
   if (!contactNumber) {
-    console.log('⚠️ No contact number found in message');
+    console.log('⚠️ Número do contato não encontrado na mensagem.');
     return;
   }
-  let conversation = await findOrCreateConversation(supabase, config.id, contactNumber);
+
+  let messageContent = messageData.message?.conversation || messageData.message?.extendedTextMessage?.text;
+  let messageType = 'text';
+
+  // Lógica para Transcrição de Áudio
+  if (messageData.message?.audioMessage) {
+    console.log('🎤 Mensagem de áudio detectada. Iniciando transcrição...');
+    messageType = 'audio';
+    
+    // Precisamos da chave da OpenAI para transcrever. Buscamos do primeiro agente de IA ativo.
+    const { data: anyAiAgent, error: anyAiAgentError } = await supabase
+      .from('ai_whatsapp_agents')
+      .select('openai_api_key')
+      .eq('evolution_config_id', config.id)
+      .eq('is_active', true)
+      .limit(1)
+      .single();
+
+    if (anyAiAgentError || !anyAiAgent?.openai_api_key) {
+        console.error('❌ Não foi possível encontrar uma chave da OpenAI para transcrever o áudio.');
+        return;
+    }
+
+    try {
+      const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('generate-ai-response', {
+        body: {
+          action: 'transcribe',
+          openaiApiKey: anyAiAgent.openai_api_key,
+          audioUrl: messageData.message.audioMessage.url,
+        }
+      });
+
+      if (transcribeError) throw transcribeError;
+
+      messageContent = transcribeData.transcribedText;
+      console.log(`🗣️ Texto Transcrito: "${messageContent}"`);
+
+    } catch (error) {
+      console.error('❌ Falha ao transcrever o áudio:', error);
+      // Salva uma mensagem de falha para que o franqueado veja que um áudio foi recebido
+      messageContent = "[Falha ao transcrever mensagem de voz]";
+    }
+  }
+  
+  if (!messageContent) {
+    console.log('⚠️ Conteúdo da mensagem não encontrado ou tipo não suportado. Ignorando.');
+    return;
+  }
+
+  // O resto do fluxo continua como antes
+  const conversation = await findOrCreateConversation(supabase, config.id, contactNumber);
+
   const messageInsert = {
     conversation_id: conversation.id,
     message_id: messageData.key?.id || `msg_${Date.now()}`,
-    content: messageData.message?.conversation || messageData.message?.extendedTextMessage?.text || 'No content found',
-    message_type: 'text',
+    content: messageContent,
+    message_type: messageType,
     sender_type: messageData.key?.fromMe ? 'agent' : 'user',
     is_from_me: messageData.key?.fromMe || false,
     timestamp: new Date((messageData.messageTimestamp || Date.now() / 1000) * 1000).toISOString()
   };
-  console.log('📦 Preparing to insert message:', JSON.stringify(messageInsert, null, 2));
-  const { error: messageError } = await supabase.from('whatsapp_messages').insert([
-    messageInsert
-  ]);
+  
+  console.log('📦 Preparando para inserir mensagem:', JSON.stringify(messageInsert, null, 2));
+  
+  const { error: messageError } = await supabase.from('whatsapp_messages').insert([messageInsert]);
+
   if (messageError) {
-    console.error('❌ Error saving message:', messageError);
+    console.error('❌ Erro ao salvar mensagem:', messageError);
   } else {
-    console.log('✅ Message saved successfully');
+    console.log('✅ Mensagem salva com sucesso');
     if (!messageData.key?.fromMe) {
-      await checkAutoResponse(supabase, config.id, conversation.id, messageInsert.content);
+      await checkAutoResponse(supabase, config.id, conversation.id, messageContent);
     }
   }
 }
