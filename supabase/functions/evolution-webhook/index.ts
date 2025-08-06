@@ -318,7 +318,18 @@ async function checkAutoResponse(supabase: any, configId: string, conversationId
     // Invocar a função de IA para gerar a resposta
     console.log('🚀 PASSO 4: Invocando a função generate-ai-response...');
     const { data: aiFunctionResponse, error: aiFunctionError } = await supabase.functions.invoke('generate-ai-response', {
-      body: invokeBody
+      body: {
+        // ##############################################
+        // ### ADICIONE A ACTION AQUI                 ###
+        // ##############################################
+        action: 'generate', // Especifica que queremos gerar texto
+        agentId: aiAgent.id,
+        userMessage: messageContent,
+        previousMessages: previousMessages || [],
+        systemPrompt: aiAgent.system_prompt,
+        model: aiAgent.model,
+        openaiApiKey: aiAgent.openai_api_key,
+      }
     });
 
     if (aiFunctionError) {
