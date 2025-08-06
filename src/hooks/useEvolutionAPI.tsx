@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { Agent } from "@/types";
 
 export interface EvolutionConfig {
   id: string;
@@ -53,6 +54,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
   const [configs, setConfigs] = useState<EvolutionConfig[]>([]);
   const [aiAgents, setAiAgents] = useState<AIAgent[]>([]);
   const [globalConfigs, setGlobalConfigs] = useState<GlobalConfig[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +80,8 @@ export function useEvolutionAPI(franchiseeId?: string) {
     if (franchiseeId) {
       await Promise.all([
         loadConfigs(),
-        loadAIAgents()
+        loadAIAgents(),
+        loadTraditionalAgents()
       ]);
       
       // Start status monitoring if we have configs
@@ -207,6 +210,22 @@ export function useEvolutionAPI(franchiseeId?: string) {
     } catch (error) {
       console.error('Erro ao carregar agentes IA:', error);
       setError('Erro ao carregar agentes IA');
+    }
+  };
+
+  const loadTraditionalAgents = async () => {
+    if (!franchiseeId) return;
+    try {
+      const { data, error } = await supabase
+        .from('agents')
+        .select('*')
+        .eq('franchisee_id', franchiseeId);
+
+      if (error) throw error;
+      setAgents(data || []);
+    } catch (error) {
+      console.error('Erro ao carregar agentes tradicionais:', error);
+      setError('Erro ao carregar agentes tradicionais');
     }
   };
 
@@ -543,6 +562,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
     configs,
     aiAgents,
     globalConfigs,
+    agents,
     isLoading,
     isCreating,
     isMonitoring,
