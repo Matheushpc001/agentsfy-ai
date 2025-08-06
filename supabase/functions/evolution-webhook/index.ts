@@ -210,26 +210,26 @@ async function findOrCreateConversation(supabase, configId, contactNumber) {
   return newConversation;
 }
 async function checkAutoResponse(supabase: any, configId: string, conversationId: string, messageContent: string) {
-  console.log('🤖 Verificando auto-resposta para config:', configId);
+  console.log('🤖 PASSO 1: Iniciando checkAutoResponse...');
   
-  // 1. Encontrar o agente de IA ativo para esta instância
-  const { data: aiAgent, error: agentError } = await supabase
-    .from('ai_whatsapp_agents')
-    .select('*')
-    .eq('evolution_config_id', configId)
-    .eq('is_active', true)
-    .eq('auto_response', true)
-    .single();
-
-  if (agentError || !aiAgent) {
-    console.log('ℹ️ Nenhum agente de IA ativo para auto-resposta.', agentError);
-    return;
-  }
-
-  console.log(`🤖 Agente de IA encontrado: ${aiAgent.agent_id}`);
-
   try {
-    // 2. Buscar o histórico da conversa para dar contexto
+    // Encontrar o agente de IA ativo para esta instância
+    const { data: aiAgent, error: agentError } = await supabase
+      .from('ai_whatsapp_agents')
+      .select('*')
+      .eq('evolution_config_id', configId)
+      .eq('is_active', true)
+      .eq('auto_response', true)
+      .single();
+
+    if (agentError || !aiAgent) {
+      console.log('ℹ️ PASSO 2: Nenhum agente de IA ativo encontrado. Finalizando auto-resposta.', { agentError });
+      return;
+    }
+    console.log(`🤖 PASSO 2: Agente de IA encontrado: ${aiAgent.id}`);
+
+    // Buscar o histórico da conversa para dar contexto
+    console.log('📚 PASSO 3: Buscando histórico da conversa...');
     const { data: previousMessages, error: historyError } = await supabase
       .from('whatsapp_messages')
       .select('content, sender_type')
@@ -238,37 +238,43 @@ async function checkAutoResponse(supabase: any, configId: string, conversationId
       .limit(10);
 
     if (historyError) {
-      console.error('❌ Erro ao buscar histórico da conversa:', historyError);
-      // Continuar mesmo sem histórico
+      console.error('❌ Erro no PASSO 3 ao buscar histórico:', historyError);
     }
+    console.log(`📚 PASSO 3: Histórico encontrado: ${previousMessages?.length || 0} mensagens.`);
+    
+    // Montar o corpo da requisição para a função de IA
+    const invokeBody = {
+      agentId: aiAgent.id,
+      userMessage: messageContent,
+      previousMessages: previousMessages || [],
+      systemPrompt: aiAgent.system_prompt,
+      model: aiAgent.model,
+      openaiApiKey: aiAgent.openai_api_key,
+    };
 
-    // 3. Invocar a função de IA para gerar a resposta
-    console.log('🚀 Invocando a função generate-ai-response...');
+    // Invocar a função de IA para gerar a resposta
+    console.log('🚀 PASSO 4: Invocando a função generate-ai-response...');
     const { data: aiFunctionResponse, error: aiFunctionError } = await supabase.functions.invoke('generate-ai-response', {
-      body: {
-        agentId: aiAgent.id,
-        userMessage: messageContent,
-        previousMessages: previousMessages || [],
-        systemPrompt: aiAgent.system_prompt,
-        model: aiAgent.model,
-        openaiApiKey: aiAgent.openai_api_key,
-      }
+      body: invokeBody
     });
 
     if (aiFunctionError) {
+      console.error('❌ Erro no PASSO 4 ao invocar a função de IA:', aiFunctionError);
       throw new Error(`Erro ao invocar a função de IA: ${aiFunctionError.message}`);
     }
+    console.log('✅ PASSO 4: Função de IA invocada com sucesso.');
 
     const { aiResponse, tokensUsed, modelUsed } = aiFunctionResponse;
     
     if (!aiResponse) {
+      console.error('❌ Erro no PASSO 5: A função de IA não retornou uma resposta válida.');
       throw new Error("A função de IA não retornou uma resposta válida.");
     }
-    
-    console.log('✅ Resposta da IA recebida:', aiResponse);
+    console.log('✅ PASSO 5: Resposta da IA recebida:', aiResponse.substring(0, 50) + "...");
 
-    // 4. Salvar o log da interação com a IA
-    await supabase.from('ai_interaction_logs').insert({
+    // Salvar o log da interação com a IA
+    console.log('💾 PASSO 6: Salvando log da interação...');
+    const { error: logInsertError } = await supabase.from('ai_interaction_logs').insert({
       agent_id: aiAgent.id,
       conversation_id: conversationId,
       user_message: messageContent,
@@ -276,26 +282,48 @@ async function checkAutoResponse(supabase: any, configId: string, conversationId
       tokens_used: tokensUsed,
       model_used: modelUsed
     });
-    
-    // 5. Invocar o api-manager para ENVIAR a resposta para o WhatsApp
-    console.log('📤 Enviando resposta para o usuário via evolution-api-manager...');
+
+    if (logInsertError) {
+      console.error('❌ Erro no PASSO 6 ao salvar log:', logInsertError);
+    } else {
+      console.log('✅ PASSO 6: Log da interação salvo com sucesso.');
+    }
+
+    // Buscar o número de telefone para enviar a resposta
+    console.log('📞 PASSO 7: Buscando número do contato...');
+    const { data: conversationData, error: conversationError } = await supabase
+        .from('whatsapp_conversations')
+        .select('contact_number')
+        .eq('id', conversationId)
+        .single();
+
+    if (conversationError || !conversationData?.contact_number) {
+        console.error('❌ Erro no PASSO 7 ao buscar número do contato:', conversationError);
+        throw new Error("Não foi possível encontrar o número do contato para responder.");
+    }
+    const contactNumber = conversationData.contact_number;
+    console.log(`📞 PASSO 7: Número do contato encontrado: ${contactNumber}`);
+
+    // Invocar o api-manager para ENVIAR a resposta para o WhatsApp
+    console.log('📤 PASSO 8: Invocando evolution-api-manager para enviar a resposta...');
     const { error: sendMessageError } = await supabase.functions.invoke('evolution-api-manager', {
       body: {
         action: 'send_message',
         config_id: configId,
-        phone_number: (await supabase.from('whatsapp_conversations').select('contact_number').eq('id', conversationId).single()).data.contact_number,
+        phone_number: contactNumber,
         message: aiResponse
       }
     });
 
     if (sendMessageError) {
+      console.error('❌ Erro no PASSO 8 ao invocar o envio de mensagem:', sendMessageError);
       throw new Error(`Erro ao enviar mensagem de resposta: ${sendMessageError.message}`);
     }
 
-    console.log('✅ Resposta da IA enviada com sucesso para o usuário.');
+    console.log('✅ PASSO 8: Resposta da IA enviada com sucesso para o usuário.');
 
   } catch (error) {
-    console.error('❌ Erro no fluxo de auto-resposta da IA:', error);
+    console.error('❌ Erro GERAL no fluxo de auto-resposta da IA:', error);
   }
 }
 async function notifyConnectionSuccess(supabase, config) {
