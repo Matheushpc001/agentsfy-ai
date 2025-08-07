@@ -10,26 +10,33 @@ const corsHeaders = {
 };
 
 // Nova função para transcrever áudio 2
-async function handleTranscribe(openaiApiKey: string, audioUrl: string) {
-  if (!audioUrl) { throw new Error("URL do áudio não fornecida."); }
-  console.log(`🎤 Iniciando transcrição para a URL: ${audioUrl}`);
+async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype: string) {
+  if (!audioUrl) {
+    throw new Error("URL do áudio não fornecida.");
+  }
+  if (!mimetype) {
+    throw new Error("Mimetype do áudio não fornecido.");
+  }
+  console.log(`🎤 Iniciando transcrição para a URL: ${audioUrl} com mimetype: ${mimetype}`);
 
-  // 1. Baixar o arquivo de áudio como ArrayBuffer
+  // 1. Baixar o arquivo de áudio
   const audioResponse = await fetch(audioUrl);
   if (!audioResponse.ok) {
     throw new Error(`Falha ao baixar o áudio da URL: ${audioResponse.statusText}`);
   }
-  const audioArrayBuffer = await audioResponse.arrayBuffer();
-  // Criar um Blob a partir do ArrayBuffer sem especificar o tipo, deixando a detecção para a OpenAI
-  const audioBlob = new Blob([audioArrayBuffer]);
-
-  const fileName = 'audio.mp3'; // Vamos tentar forçar .mp3, um formato universalmente aceito
-  console.log(`🎤 Arquivo de áudio recebido. Tamanho: ${audioBlob.size}, Forçando nome de arquivo: ${fileName}`);
+  const audioBlob = await audioResponse.blob();
+  
+  // ###############################################################
+  // ### CORREÇÃO FINAL: USAR O MIMETYPE REAL DO PAYLOAD         ###
+  // ###############################################################
+  const extension = mimetype.split('/')[1] || 'mp3'; // Pega a extensão do mimetype, ex: 'mp4' de 'audio/mp4'
+  const fileName = `audio.${extension}`;
+  console.log(`🎤 Arquivo de áudio recebido. Tamanho: ${audioBlob.size}, Nome de arquivo gerado: ${fileName}`);
 
   // 2. Criar o FormData
   const formData = new FormData();
   formData.append('file', audioBlob, fileName);
-  formData.append('model', 'whisper-1'); // Voltando para whisper-1, que é mais tolerante
+  formData.append('model', 'whisper-1');
   formData.append('response_format', 'text');
 
   // 3. Chamar a API de transcrições
@@ -49,6 +56,7 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string) {
   console.log(`✅ Transcrição concluída: "${transcribedText}"`);
   return transcribedText;
 }
+
 
 
 // Função para gerar resposta de texto (código que já tínhamos)
@@ -125,7 +133,7 @@ serve(async (req) => {
     
     switch (action) {
       case 'transcribe':
-        const transcribedText = await handleTranscribe(openaiApiKey, params.audioUrl);
+        const transcribedText = await handleTranscribe(openaiApiKey, params.audioUrl, params.mimetype);
         responseData = { transcribedText };
         break;
       

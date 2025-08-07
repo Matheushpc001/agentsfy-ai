@@ -187,6 +187,7 @@ async function handleMessageUpsert(supabase, payload) {
           action: 'transcribe',
           openaiApiKey: anyAiAgent.openai_api_key,
           audioUrl: messageData.message.audioMessage.url,
+          mimetype: messageData.message.audioMessage.mimetype,
         }
       });
 
