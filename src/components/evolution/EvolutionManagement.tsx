@@ -1,279 +1,311 @@
-// ARQUIVO: src/hooks/useEvolutionAPI.tsx
-
-import { useState, useEffect, useRef, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useState } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { 
+  AlertCircle, 
+  CheckCircle, 
+  Clock, 
+  MessageSquare, 
+  Settings, 
+  Trash2,
+  RefreshCw,
+  Plus,
+  Smartphone,
+  Bot
+} from "lucide-react";
+import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
 import { toast } from "sonner";
-import { Agent } from "@/types";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
+import EvolutionBotSetup from "./EvolutionBotSetup"; // Importe o novo componente
 
-export interface EvolutionConfig {
-  id: string;
-  instance_name: string;
-  status: string;
-  qr_code?: string;
-  webhook_url?: string;
-  created_at: string;
-  updated_at: string;
+interface EvolutionManagementProps {
+  franchiseeId: string;
 }
 
-export interface AIAgent {
-  id: string;
-  agent_id: string;
-  evolution_config_id: string;
-  phone_number: string;
-  model: string;
-  system_prompt?: string;
-  is_active: boolean;
-  auto_response: boolean;
-  response_delay_seconds?: number;
-  created_at: string;
-  updated_at: string;
-}
+export default function EvolutionManagement({ franchiseeId }: EvolutionManagementProps) {
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [isBotSetupOpen, setIsBotSetupOpen] = useState(false);
+  const [newInstanceName, setNewInstanceName] = useState("");
+  const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
+  const [selectedInstanceName, setSelectedInstanceName] = useState<string | null>(null);
+  const [currentQrCode, setCurrentQrCode] = useState<string | null>(null);
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
 
-export interface GlobalConfig {
-  id: string;
-  name: string;
-  api_url: string;
-  api_key: string;
-  manager_url?: string;
-  global_api_key?: string;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface CreateAIAgentRequest {
-  agent_id: string;
-  evolution_config_id: string;
-  phone_number: string;
-  openai_api_key?: string;
-  model: string;
-  system_prompt: string;
-  auto_response: boolean;
-  response_delay_seconds: number;
-}
-
-export function useEvolutionAPI(franchiseeId?: string) {
-  const [configs, setConfigs] = useState<EvolutionConfig[]>([]);
-  const [aiAgents, setAiAgents] = useState<AIAgent[]>([]);
-  const [globalConfigs, setGlobalConfigs] = useState<GlobalConfig[]>([]);
-  const [agents, setAgents] = useState<Agent[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isCreating, setIsCreating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const monitoringInterval = useRef<NodeJS.Timeout | null>(null);
-
-  const loadGlobalConfigs = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('evolution_global_configs')
-        .select('*')
-        .eq('is_active', true)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setGlobalConfigs(data || []);
-    } catch (err: any) {
-      console.error('Erro ao carregar configurações globais:', err);
-      setError('Erro ao carregar configurações globais');
-    }
-  }, []);
-
-  const loadConfigs = useCallback(async () => {
-    if (!franchiseeId) return;
-    try {
-      const { data, error } = await supabase
-        .from('evolution_api_configs')
-        .select('*')
-        .eq('franchisee_id', franchiseeId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setConfigs(data || []);
-    } catch (err: any) {
-      console.error('Erro ao carregar configurações:', err);
-      setError('Erro ao carregar configurações');
-    }
-  }, [franchiseeId]);
-
-  const loadAIAgents = useCallback(async () => {
-    if (!franchiseeId) return;
-    try {
-      const { data, error } = await supabase
-        .from('ai_whatsapp_agents')
-        .select(`*, evolution_api_configs!inner(franchisee_id)`)
-        .eq('evolution_api_configs.franchisee_id', franchiseeId)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setAiAgents(data || []);
-    } catch (err: any) {
-      console.error('Erro ao carregar agentes IA:', err);
-      setError('Erro ao carregar agentes IA');
-    }
-  }, [franchiseeId]);
-
-  const loadTraditionalAgents = useCallback(async () => {
-    if (!franchiseeId) return;
-    try {
-      const { data, error } = await supabase
-        .from('agents')
-        .select('*')
-        .eq('franchisee_id', franchiseeId);
-      if (error) throw error;
-      setAgents(data || []);
-    } catch (err: any) {
-      console.error('Erro ao carregar agentes tradicionais:', err);
-      setError('Erro ao carregar agentes tradicionais');
-    }
-  }, [franchiseeId]);
-  
-  const refreshData = useCallback(async () => {
-    if (!franchiseeId) return;
-    setIsLoading(true);
-    await Promise.all([
-      loadGlobalConfigs(),
-      loadConfigs(),
-      loadAIAgents(),
-      loadTraditionalAgents(),
-    ]);
-    setIsLoading(false);
-  }, [franchiseeId, loadGlobalConfigs, loadConfigs, loadAIAgents, loadTraditionalAgents]);
-
-  const stopMonitoring = useCallback(() => {
-    if (monitoringInterval.current) {
-      clearInterval(monitoringInterval.current);
-      monitoringInterval.current = null;
-      console.log('⏹️ Monitoramento de status parado.');
-    }
-  }, []);
-
-  const checkSingleInstanceStatus = useCallback(async (configId: string): Promise<string | null> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
-        body: { action: 'check_status', config_id: configId }
-      });
-
-      if (error) {
-        console.error('Erro na verificação de status:', error);
-        return null;
-      }
-      
-      if (data?.status) {
-         setConfigs(prevConfigs => 
-            prevConfigs.map(c => c.id === configId ? { ...c, status: data.status, ...data.instance_data } : c)
-         );
-      }
-      return data?.status || null;
-    } catch (e) {
-      console.error('Falha na chamada da função check_status', e);
-      return null;
-    }
-  }, [setConfigs]);
-
-  const startMonitoringStatus = useCallback((configId: string) => {
-    stopMonitoring();
-    console.log(`🔄 Iniciando monitoramento de status para a instância ${configId}...`);
-    
-    monitoringInterval.current = setInterval(async () => {
-      const newStatus = await checkSingleInstanceStatus(configId);
-      if (newStatus === 'connected') {
-        toast.success("WhatsApp Conectado com Sucesso!");
-        stopMonitoring();
-        await refreshData();
-      }
-    }, 5000);
-  }, [checkSingleInstanceStatus, stopMonitoring, refreshData]);
-
-  useEffect(() => {
-    refreshData();
-    return () => {
-      stopMonitoring();
-    };
-  }, [franchiseeId, refreshData, stopMonitoring]);
-
-  const createInstance = async (instanceName: string) => {
-    setIsCreating(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
-        body: { action: 'create_instance', franchisee_id: franchiseeId, instance_name: instanceName }
-      });
-      if (error) throw error;
-      if (!data.success) throw new Error(data.error);
-      await refreshData();
-      return data.config;
-    } catch(err: any) {
-        toast.error(`Erro ao criar instância: ${err.message}`);
-        throw err;
-    } finally {
-      setIsCreating(false);
-    }
-  };
-
-  const connectInstance = async (configId: string) => {
-    try {
-      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
-        body: { action: 'connect_instance', config_id: configId }
-      });
-
-      if (error) throw new Error(error.message);
-      if (!data.success) throw new Error(data.error || 'Falha ao conectar');
-      
-      if (data.qr_code) {
-        startMonitoringStatus(configId);
-        return data.qr_code;
-      }
-      return null;
-    } catch (err: any) {
-       toast.error(`Erro ao conectar: ${err.message}`);
-       throw err;
-    }
-  };
-  
-  const disconnectInstance = async (configId: string) => {
-    try {
-        await supabase.functions.invoke('evolution-api-manager', {
-          body: { action: 'disconnect_instance', config_id: configId }
-        });
-        await refreshData();
-    } catch (err: any) {
-        toast.error(`Erro ao desconectar: ${err.message}`);
-        throw err;
-    }
-  };
-
-  const deleteInstance = async (configId: string) => {
-    try {
-        await supabase.functions.invoke('evolution-api-manager', {
-          body: { action: 'delete_instance', config_id: configId }
-        });
-        await refreshData();
-    } catch (err: any) {
-        toast.error(`Erro ao deletar: ${err.message}`);
-        throw err;
-    }
-  };
-  
-  // As funções abaixo não foram implementadas na UI ainda, mas estão aqui para o futuro
-  const updateAIAgent = async (agentId: string, updates: Partial<AIAgent>) => { /* ... */ };
-  const createAIAgent = async (agentData: CreateAIAgentRequest) => { /* ... */ };
-  const sendTestMessage = async (configId: string, phoneNumber: string, message: string) => { /* ... */ };
-  const testConnection = async () => { /* ... */ };
-
-  return {
-    configs,
-    aiAgents,
-    globalConfigs,
-    agents,
-    isLoading,
+  const { 
+    configs, 
+    globalConfigs, 
+    isLoading, 
     isCreating,
-    error,
-    createInstance,
+    createInstance, 
     connectInstance,
+    stopMonitoring,
     disconnectInstance,
     deleteInstance,
-    updateAIAgent,
-    createAIAgent,
     sendTestMessage,
-    testConnection,
-    refreshData,
-    stopMonitoring,
+    refreshData
+  } = useEvolutionAPI(franchiseeId);
+
+  const handleCreateInstance = async () => {
+    if (!newInstanceName.trim()) {
+      toast.error("Nome da instância é obrigatório");
+      return;
+    }
+
+    try {
+      await createInstance(newInstanceName.trim());
+      setNewInstanceName("");
+      setIsCreateModalOpen(false);
+      toast.success("Instância criada com sucesso!");
+    } catch (error) {
+      console.error('Error creating instance:', error);
+      toast.error("Erro ao criar instância");
+    }
   };
+
+  const handleGenerateQrCode = async (configId: string) => {
+    setSelectedConfigId(configId);
+    setIsGeneratingQr(true);
+    setQrError(null);
+    setCurrentQrCode(null);
+    setIsQRModalOpen(true);
+
+    try {
+      const qrCodeData = await connectInstance(configId);
+      
+      if (qrCodeData) {
+        let qrCodeUrl = qrCodeData;
+        if (typeof qrCodeData === 'string' && !qrCodeData.startsWith('data:') && !qrCodeData.startsWith('http')) {
+          qrCodeUrl = `data:image/png;base64,${qrCodeData}`;
+        }
+        setCurrentQrCode(qrCodeUrl);
+      }
+    } catch (error) {
+      console.error('Error generating QR code:', error);
+      setQrError("Erro ao gerar QR code");
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
+
+  const handleDisconnect = async (configId: string) => {
+    try {
+      await disconnectInstance(configId);
+      toast.success("Instância desconectada");
+    } catch (error) {
+      console.error('Error disconnecting:', error);
+      toast.error("Erro ao desconectar instância");
+    }
+  };
+
+  const handleDelete = async (configId: string) => {
+    if (!confirm("Tem certeza que deseja remover esta instância? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+
+    try {
+      await deleteInstance(configId);
+      toast.success("Instância removida");
+    } catch (error) {
+      console.error('Error deleting instance:', error);
+      toast.error("Erro ao remover instância");
+    }
+  };
+  
+  const handleOpenBotSetup = (instanceName: string) => {
+      setSelectedInstanceName(instanceName);
+      setIsBotSetupOpen(true);
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'connected': return CheckCircle;
+      case 'connecting': return Clock;
+      case 'qr_ready': return Clock;
+      case 'disconnected': return AlertCircle;
+      default: return AlertCircle;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <RefreshCw className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Status da EvolutionAPI
+          </CardTitle>
+          <CardDescription>
+            Configuração global da integração EvolutionAPI.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {globalConfigs.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <span className="text-green-600 font-medium">
+                EvolutionAPI configurada ({globalConfigs.length} configuração{globalConfigs.length > 1 ? 'ões' : ''})
+              </span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              <span className="text-red-600 font-medium">
+                EvolutionAPI não configurada. Contate o administrador.
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                Instâncias WhatsApp
+              </CardTitle>
+              <CardDescription>
+                Gerencie suas conexões de WhatsApp via EvolutionAPI.
+              </CardDescription>
+            </div>
+            {globalConfigs.length > 0 && (
+              <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Instância
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Criar Nova Instância</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <Label htmlFor="instanceName">Nome da Instância</Label>
+                      <Input
+                        id="instanceName"
+                        value={newInstanceName}
+                        onChange={(e) => setNewInstanceName(e.target.value)}
+                        placeholder="Ex: whatsapp-vendas"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={handleCreateInstance}
+                        disabled={isCreating}
+                        className="flex-1"
+                      >
+                        {isCreating ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : null}
+                        {isCreating ? "Criando..." : "Criar Instância"}
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {configs.length === 0 ? (
+            <div className="text-center py-8">
+              <Smartphone className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Nenhuma instância criada ainda.</p>
+            </div>
+          ) : (
+            <div className="grid gap-4">
+              {configs.map((config) => {
+                const StatusIcon = getStatusIcon(config.status);
+                return (
+                  <div key={config.id} className="border rounded-lg p-4">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${config.status === 'connected' ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <div>
+                          <h3 className="font-medium">{config.instance_name}</h3>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                        <Badge variant={config.status === 'connected' ? 'default' : 'secondary'}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {config.status}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {config.status === 'connected' ? (
+                        <>
+                          <Button size="sm" onClick={() => handleOpenBotSetup(config.instance_name)}>
+                            <Bot className="h-4 w-4 mr-2" />
+                            Configurar IA
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleDisconnect(config.id)}>Desconectar</Button>
+                        </>
+                      ) : (
+                        <Button size="sm" onClick={() => handleGenerateQrCode(config.id)}>Conectar</Button>
+                      )}
+                      <Button size="sm" variant="destructive" onClick={() => handleDelete(config.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={isQRModalOpen} onOpenChange={setIsQRModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Conectar WhatsApp</DialogTitle>
+          </DialogHeader>
+          <WhatsAppQRCode
+            isGenerating={isGeneratingQr}
+            qrCodeUrl={currentQrCode || undefined}
+            error={qrError || undefined}
+            onRefresh={() => selectedConfigId && handleGenerateQrCode(selectedConfigId)}
+            onConnect={() => {
+              setIsQRModalOpen(false);
+              toast.success("WhatsApp conectado!");
+              stopMonitoring();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+      
+      {selectedInstanceName && (
+        <Dialog open={isBotSetupOpen} onOpenChange={setIsBotSetupOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                 <EvolutionBotSetup 
+                    instanceName={selectedInstanceName}
+                    onSave={() => {
+                        setIsBotSetupOpen(false);
+                        refreshData();
+                    }}
+                 />
+            </DialogContent>
+        </Dialog>
+      )}
+    </div>
+  );
 }
