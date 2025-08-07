@@ -11,41 +11,38 @@ const corsHeaders = {
 
 // Nova função para transcrever áudio 2
 async function handleTranscribe(openaiApiKey: string, audioUrl: string) {
-  if (!audioUrl) {
-    throw new Error("URL do áudio não fornecida.");
-  }
+  if (!audioUrl) { throw new Error("URL do áudio não fornecida."); }
   console.log(`🎤 Iniciando transcrição para a URL: ${audioUrl}`);
 
-  // 1. Baixar o arquivo de áudio
+  // 1. Baixar o arquivo de áudio como ArrayBuffer
   const audioResponse = await fetch(audioUrl);
   if (!audioResponse.ok) {
     throw new Error(`Falha ao baixar o áudio da URL: ${audioResponse.statusText}`);
   }
-  const audioBlob = await audioResponse.blob();
-  
-  const fileName = 'audio.ogg';
-  console.log(`🎤 Arquivo de áudio recebido como blob. Tipo: ${audioBlob.type}, Tamanho: ${audioBlob.size}, Forçando nome de arquivo: ${fileName}`);
+  const audioArrayBuffer = await audioResponse.arrayBuffer();
+  // Criar um Blob a partir do ArrayBuffer sem especificar o tipo, deixando a detecção para a OpenAI
+  const audioBlob = new Blob([audioArrayBuffer]);
 
-  // 2. Criar o FormData para enviar à API Whisper
+  const fileName = 'audio.mp3'; // Vamos tentar forçar .mp3, um formato universalmente aceito
+  console.log(`🎤 Arquivo de áudio recebido. Tamanho: ${audioBlob.size}, Forçando nome de arquivo: ${fileName}`);
+
+  // 2. Criar o FormData
   const formData = new FormData();
-  formData.append('file', audioBlob, fileName); 
-
-  formData.append('model', 'gpt-4o-mini-transcribe');
+  formData.append('file', audioBlob, fileName);
+  formData.append('model', 'whisper-1'); // Voltando para whisper-1, que é mais tolerante
   formData.append('response_format', 'text');
 
-  // 3. Chamar a API de transcrições da OpenAI
+  // 3. Chamar a API de transcrições
   const transcribeResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${openaiApiKey}`,
-    },
+    headers: { 'Authorization': `Bearer ${openaiApiKey}` },
     body: formData,
   });
 
   if (!transcribeResponse.ok) {
     const errorText = await transcribeResponse.text();
-    console.error('❌ Erro da API de Transcrição:', errorText);
-    throw new Error(`Erro na API de Transcrição: ${transcribeResponse.status} - ${errorText}`);
+    console.error('❌ Erro da API Whisper:', errorText);
+    throw new Error(`Erro na API Whisper: ${transcribeResponse.status} - ${errorText}`);
   }
 
   const transcribedText = await transcribeResponse.text();
