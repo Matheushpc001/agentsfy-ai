@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { Agent } from "@/types";
@@ -62,6 +62,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
   // Status monitoring
   const statusCheckInterval = useRef<NodeJS.Timeout | null>(null);
   const [isMonitoring, setIsMonitoring] = useState(false);
+  const monitoringInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadInitialData();
@@ -74,6 +75,56 @@ export function useEvolutionAPI(franchiseeId?: string) {
       }
     };
   }, [franchiseeId]);
+
+    const checkSingleInstanceStatus = useCallback(async (configId: string): Promise<string | null> => {
+    try {
+      console.log(`🔍 Verificando status para config ID: ${configId}`);
+      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
+        body: { action: 'check_status', config_id: configId }
+      });
+
+      if (error) {
+        console.error('Erro na verificação de status:', error);
+        return null;
+      }
+      
+      // Atualiza a lista de configs no estado local se houver mudança
+      if (data?.status) {
+         setConfigs(prevConfigs => 
+            prevConfigs.map(c => c.id === configId ? { ...c, status: data.status } : c)
+         );
+      }
+
+      return data?.status || null;
+
+    } catch (e) {
+      console.error('Falha na chamada da função check_status', e);
+      return null;
+    }
+  }, []);
+
+    const stopMonitoring = useCallback(() => {
+    if (monitoringInterval.current) {
+      clearInterval(monitoringInterval.current);
+      monitoringInterval.current = null;
+      console.log('⏹️ Monitoramento de status parado.');
+    }
+  }, []);
+
+    const startMonitoringStatus = useCallback((configId: string) => {
+    stopMonitoring(); // Garante que não haja múltiplos intervalos rodando
+    
+    console.log(`🔄 Iniciando monitoramento de status para a instância ${configId}...`);
+    
+    monitoringInterval.current = setInterval(async () => {
+      const newStatus = await checkSingleInstanceStatus(configId);
+      if (newStatus === 'connected') {
+        toast.success("WhatsApp Conectado com Sucesso!");
+        stopMonitoring();
+        await refreshData(); // Força a recarga de todos os dados
+      }
+    }, 5000); // Verifica a cada 5 segundos
+  }, [checkSingleInstanceStatus, stopMonitoring, refreshData]);
 
   const loadInitialData = async () => {
     await loadGlobalConfigs();
@@ -363,8 +414,13 @@ export function useEvolutionAPI(franchiseeId?: string) {
 
       console.log('Resposta da função connectInstance:', data);
 
-      if (!data.success) {
-        throw new Error(data.error || 'Erro ao conectar instância');
+      if (data?.success && data?.qr_code) {
+        // ### INICIA O MONITORAMENTO APÓS GERAR O QR CODE ###
+        startMonitoringStatus(configId);
+        
+        // Retorna o QR code como antes
+        const qrCode = data.qr_code || data.qrCode || data.base64;
+        return qrCode;
       }
       
       // Aguardar um pouco e recarregar os dados
@@ -553,6 +609,13 @@ export function useEvolutionAPI(franchiseeId?: string) {
     }
   };
 
+    // Certifique-se de parar o monitoramento quando o componente for desmontado
+  useEffect(() => {
+    return () => {
+      stopMonitoring();
+    };
+  }, [stopMonitoring]);
+
   const refreshData = async () => {
     setIsLoading(true);
     await loadInitialData();
@@ -582,6 +645,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
     loadConfigs,
     refreshData,
     startStatusMonitoring,
-    stopStatusMonitoring
+    stopStatusMonitoring,
+    stopMonitoring,
   };
 }
