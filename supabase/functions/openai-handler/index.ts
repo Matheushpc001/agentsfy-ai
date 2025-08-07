@@ -29,9 +29,10 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
   // ###############################################################
   // ### CORREÇÃO FINAL: USAR O MIMETYPE REAL DO PAYLOAD         ###
   // ###############################################################
-  const extension = mimetype.split('/')[1] || 'mp3'; // Pega a extensão do mimetype, ex: 'mp4' de 'audio/mp4'
+  const extension = (mimetype.split('/')[1] || 'mp3').split(';')[0]; 
   const fileName = `audio.${extension}`;
   console.log(`🎤 Arquivo de áudio recebido. Tamanho: ${audioBlob.size}, Nome de arquivo gerado: ${fileName}`);
+
 
   // 2. Criar o FormData
   const formData = new FormData();
