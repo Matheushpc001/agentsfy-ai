@@ -9,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Nova função para transcrever áudio
+// Nova função para transcrever áudio 2
 async function handleTranscribe(openaiApiKey: string, audioUrl: string) {
   if (!audioUrl) {
     throw new Error("URL do áudio não fornecida.");
@@ -23,18 +23,14 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string) {
   }
   const audioBlob = await audioResponse.blob();
   
-  // ###############################################################
-  // ### CORREÇÃO FINAL: FORÇAR A EXTENSÃO PARA .ogg             ###
-  // ###############################################################
-  // O WhatsApp geralmente usa o codec Opus em contêineres OGG.
-  // Vamos forçar essa extensão, já que a API não nos informa o tipo correto.
   const fileName = 'audio.ogg';
   console.log(`🎤 Arquivo de áudio recebido como blob. Tipo: ${audioBlob.type}, Tamanho: ${audioBlob.size}, Forçando nome de arquivo: ${fileName}`);
 
   // 2. Criar o FormData para enviar à API Whisper
   const formData = new FormData();
-  formData.append('file', audioBlob, fileName); // Usa o nome de arquivo forçado
-  formData.append('model', 'whisper-1');
+  formData.append('file', audioBlob, fileName); 
+
+  formData.append('model', 'gpt-4o-mini-transcribe');
   formData.append('response_format', 'text');
 
   // 3. Chamar a API de transcrições da OpenAI
@@ -48,8 +44,8 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string) {
 
   if (!transcribeResponse.ok) {
     const errorText = await transcribeResponse.text();
-    console.error('❌ Erro da API Whisper:', errorText);
-    throw new Error(`Erro na API Whisper: ${transcribeResponse.status} - ${errorText}`);
+    console.error('❌ Erro da API de Transcrição:', errorText);
+    throw new Error(`Erro na API de Transcrição: ${transcribeResponse.status} - ${errorText}`);
   }
 
   const transcribedText = await transcribeResponse.text();
