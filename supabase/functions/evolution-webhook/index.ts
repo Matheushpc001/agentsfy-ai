@@ -181,7 +181,7 @@ async function handleMessageUpsert(supabase, payload) {
     }
 
     try {
-      const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('generate-ai-response', {
+      const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('openai-handler', {
         body: {
           action: 'transcribe',
           openaiApiKey: anyAiAgent.openai_api_key,
@@ -317,7 +317,7 @@ async function checkAutoResponse(supabase: any, configId: string, conversationId
 
     // Invocar a função de IA para gerar a resposta
     console.log('🚀 PASSO 4: Invocando a função generate-ai-response...');
-    const { data: aiFunctionResponse, error: aiFunctionError } = await supabase.functions.invoke('generate-ai-response', {
+    const { data: aiFunctionResponse, error: aiFunctionError } = await supabase.functions.invoke('openai-handler', {
       body: {
         // ##############################################
         // ### ADICIONE A ACTION AQUI                 ###
