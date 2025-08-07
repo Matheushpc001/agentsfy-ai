@@ -1,6 +1,4 @@
-// Versão 1.1 - Forçando re-deploy para limpar cache
-// ARQUIVO: supabase/functions/generate-ai-response/index.ts
-//test
+// Versão 1.2 - Correção para transcrição de áudio WhatsApp
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -9,58 +7,99 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Nova função para transcrever áudio 2
+// Função aprimorada para transcrever áudio
 async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype: string) {
   if (!audioUrl) {
     throw new Error("URL do áudio não fornecida.");
   }
-  if (!mimetype) {
-    throw new Error("Mimetype do áudio não fornecido.");
-  }
-  console.log(`🎤 Iniciando transcrição para a URL: ${audioUrl} com mimetype: ${mimetype}`);
-
-  // 1. Baixar o arquivo de áudio
-  const audioResponse = await fetch(audioUrl);
-  if (!audioResponse.ok) {
-    throw new Error(`Falha ao baixar o áudio da URL: ${audioResponse.statusText}`);
-  }
-  const audioBlob = await audioResponse.blob();
   
-  // ###############################################################
-  // ### CORREÇÃO FINAL: USAR O MIMETYPE REAL DO PAYLOAD         ###
-  // ###############################################################
-  const extension = (mimetype.split('/')[1] || 'mp3').split(';')[0]; 
-  const fileName = `audio.${extension}`;
-  console.log(`🎤 Arquivo de áudio recebido. Tamanho: ${audioBlob.size}, Nome de arquivo gerado: ${fileName}`);
+  console.log(`🎤 Iniciando transcrição para a URL: ${audioUrl}`);
+  console.log(`📋 Mimetype recebido: ${mimetype}`);
 
+  try {
+    // 1. Baixar o arquivo de áudio
+    const audioResponse = await fetch(audioUrl);
+    if (!audioResponse.ok) {
+      throw new Error(`Falha ao baixar o áudio: ${audioResponse.status} ${audioResponse.statusText}`);
+    }
+    
+    const audioArrayBuffer = await audioResponse.arrayBuffer();
+    const audioBlob = new Blob([audioArrayBuffer]);
+    
+    console.log(`📦 Áudio baixado. Tamanho: ${audioBlob.size} bytes`);
 
-  // 2. Criar o FormData
-  const formData = new FormData();
-  formData.append('file', audioBlob, fileName);
-  formData.append('model', 'whisper-1');
-  formData.append('response_format', 'text');
+    // 2. Determinar a extensão correta do arquivo
+    let extension = 'ogg'; // Padrão para áudios do WhatsApp
+    let finalMimetype = mimetype || 'audio/ogg';
+    
+    // WhatsApp geralmente envia audio/ogg; codecs=opus
+    if (mimetype) {
+      if (mimetype.includes('opus') || mimetype.includes('ogg')) {
+        extension = 'ogg';
+        finalMimetype = 'audio/ogg';
+      } else if (mimetype.includes('mp4')) {
+        extension = 'mp4';
+        finalMimetype = 'audio/mp4';
+      } else if (mimetype.includes('mpeg') || mimetype.includes('mp3')) {
+        extension = 'mp3';
+        finalMimetype = 'audio/mpeg';
+      } else if (mimetype.includes('webm')) {
+        extension = 'webm';
+        finalMimetype = 'audio/webm';
+      }
+    }
+    
+    const fileName = `audio.${extension}`;
+    console.log(`📝 Arquivo preparado: ${fileName} com mimetype: ${finalMimetype}`);
 
-  // 3. Chamar a API de transcrições
-  const transcribeResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${openaiApiKey}` },
-    body: formData,
-  });
+    // 3. Criar o FormData corretamente
+    const formData = new FormData();
+    
+    // Criar um File object com o mimetype correto
+    const audioFile = new File([audioBlob], fileName, { type: finalMimetype });
+    
+    formData.append('file', audioFile);
+    formData.append('model', 'whisper-1');
+    formData.append('response_format', 'text');
+    formData.append('language', 'pt'); // Adicionar idioma português para melhor precisão
 
-  if (!transcribeResponse.ok) {
-    const errorText = await transcribeResponse.text();
-    console.error('❌ Erro da API Whisper:', errorText);
-    throw new Error(`Erro na API Whisper: ${transcribeResponse.status} - ${errorText}`);
+    // 4. Chamar a API Whisper
+    console.log('🚀 Enviando para API Whisper...');
+    const transcribeResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${openaiApiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!transcribeResponse.ok) {
+      const errorText = await transcribeResponse.text();
+      console.error('❌ Erro da API Whisper:', errorText);
+      
+      // Se o erro for de formato, tentar converter o áudio
+      if (errorText.includes('Invalid file format')) {
+        console.log('⚠️ Formato não suportado, tentando conversão alternativa...');
+        // Aqui você poderia implementar uma conversão usando FFmpeg ou outra biblioteca
+        throw new Error(`Formato de áudio não suportado: ${mimetype}. O áudio precisa ser convertido.`);
+      }
+      
+      throw new Error(`Erro na API Whisper: ${transcribeResponse.status} - ${errorText}`);
+    }
+
+    const transcribedText = await transcribeResponse.text();
+    console.log(`✅ Transcrição concluída com sucesso`);
+    console.log(`📝 Texto transcrito: "${transcribedText.substring(0, 100)}..."`);
+    
+    return transcribedText;
+    
+  } catch (error) {
+    console.error('❌ Erro durante a transcrição:', error);
+    throw error;
   }
-
-  const transcribedText = await transcribeResponse.text();
-  console.log(`✅ Transcrição concluída: "${transcribedText}"`);
-  return transcribedText;
 }
 
-
-
-// Função para gerar resposta de texto (código que já tínhamos)
+// Função para gerar resposta de texto (mantida como estava)
 async function handleGenerate(openaiApiKey: string, payload: any) {
     const {
       agentId,
@@ -71,6 +110,7 @@ async function handleGenerate(openaiApiKey: string, payload: any) {
     } = payload;
 
     console.log(`🤖 Gerando resposta de IA para o agente: ${agentId}`);
+    
     const messages = [];
     messages.push({ role: 'system', content: systemPrompt || 'Você é um assistente prestativo.' });
 
@@ -104,6 +144,7 @@ async function handleGenerate(openaiApiKey: string, payload: any) {
 
     const openAIData = await openAIResponse.json();
     const aiResponseContent = openAIData.choices[0]?.message?.content;
+    
     if (!aiResponseContent) {
         throw new Error('A API da OpenAI não retornou uma resposta.');
     }
@@ -115,9 +156,9 @@ async function handleGenerate(openaiApiKey: string, payload: any) {
     };
 }
 
-
-// Servidor principal da função
+// Servidor principal
 serve(async (req) => {
+  // CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -125,6 +166,8 @@ serve(async (req) => {
   try {
     const payload = await req.json();
     const { action, openaiApiKey, ...params } = payload;
+    
+    console.log(`📋 Ação recebida: ${action}`);
     
     if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
       throw new Error('Chave da API OpenAI inválida ou não fornecida.');
@@ -134,7 +177,11 @@ serve(async (req) => {
     
     switch (action) {
       case 'transcribe':
-        const transcribedText = await handleTranscribe(openaiApiKey, params.audioUrl, params.mimetype);
+        const transcribedText = await handleTranscribe(
+          openaiApiKey, 
+          params.audioUrl, 
+          params.mimetype
+        );
         responseData = { transcribedText };
         break;
       
@@ -152,8 +199,16 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error('❌ Erro na função generate-ai-response:', error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    console.error('❌ Erro na função openai-handler:', error);
+    
+    // Resposta de erro mais detalhada
+    const errorResponse = {
+      error: error.message,
+      details: error.stack,
+      timestamp: new Date().toISOString()
+    };
+    
+    return new Response(JSON.stringify(errorResponse), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
