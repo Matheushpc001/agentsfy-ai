@@ -1,3 +1,5 @@
+// ARQUIVO: supabase/functions/evolution-api-manager/index.ts
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0"
 
@@ -7,27 +9,23 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { action, ...params } = await req.json();
-    
     console.log('Evolution API Manager - Action:', action, 'Params:', params);
 
-    // Conectar ao Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    
     if (!supabaseUrl || !supabaseKey) {
       throw new Error('Supabase environment variables not configured');
     }
-    
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     switch (action) {
+      // Ações Originais
       case 'create_instance':
         return await handleCreateInstance(supabase, params);
       case 'connect_instance':
@@ -44,23 +42,41 @@ serve(async (req) => {
         return await handleTestConnection(params);
       case 'force_status_sync':
         return await handleForceStatusSync(supabase, params);
+      
+      // ### NOVAS AÇÕES PARA IA NATIVA DA EVOLUTION V2 ###
+      case 'openai_set_creds':
+        return await handleOpenAISetCreds(supabase, params);
+      case 'openai_create_bot':
+        return await handleOpenAICreateBot(supabase, params);
+      case 'openai_set_defaults':
+        return await handleOpenAISetDefaults(supabase, params);
+
       default:
-        return new Response(
-          JSON.stringify({ error: 'Ação não reconhecida' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        return new Response(JSON.stringify({ error: 'Ação não reconhecida' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
   } catch (error) {
     console.error('Erro no Evolution API Manager:', error);
-    return new Response(
-      JSON.stringify({ 
-        error: error.message || 'Erro interno do servidor',
-        details: error.toString()
-      }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: error.message || 'Erro interno do servidor', details: error.toString() }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
+
+// --- FUNÇÕES DE AJUDA ---
+async function getGlobalConfigForInstance(supabase: any, instanceName: string) {
+    const { data: config, error } = await supabase
+      .from('evolution_api_configs')
+      .select(`instance_name, evolution_global_configs (*)`)
+      .eq('instance_name', instanceName)
+      .single();
+
+    if (error || !config || !config.evolution_global_configs) {
+        throw new Error(`Configuração global não encontrada para a instância ${instanceName}. Erro: ${error?.message}`);
+    }
+    return config.evolution_global_configs;
+}
+
+// --- FUNÇÕES DE AÇÃO (EXISTENTES) ---
+// (As funções handleCreateInstance, handleConnectInstance, handleCheckStatus, etc., permanecem aqui sem alterações)
+// ... (código anterior omitido por brevidade, ele não muda)
 
 async function handleCreateInstance(supabase: any, params: any) {
   const { franchisee_id, instance_name, agent_id } = params;
@@ -646,4 +662,65 @@ async function handleTestConnection(params) {
       }
     });
   }
+}
+
+// ### NOVAS FUNÇÕES PARA IA NATIVA ###
+async function handleOpenAISetCreds(supabase: any, params: any) {
+    const { instanceName, credsName, apiKey } = params;
+    const { data: config, error } = await supabase.from('evolution_api_configs').select(`*, evolution_global_configs (*)`).eq('instance_name', instanceName).single();
+    if (error || !config.evolution_global_configs) throw new Error(`Configuração não encontrada para ${instanceName}`);
+    
+    const globalConfig = config.evolution_global_configs;
+    const response = await fetch(`${globalConfig.api_url}/openai/creds/${instanceName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': globalConfig.api_key },
+        body: JSON.stringify({ name: credsName, apiKey: apiKey }),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro ao configurar credenciais OpenAI: ${errorText}`);
+    }
+    
+    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+}
+
+async function handleOpenAICreateBot(supabase: any, params: any) {
+    const { instanceName, botConfig } = params;
+    const { data: config, error } = await supabase.from('evolution_api_configs').select(`*, evolution_global_configs (*)`).eq('instance_name', instanceName).single();
+    if (error || !config.evolution_global_configs) throw new Error(`Configuração não encontrada para ${instanceName}`);
+
+    const globalConfig = config.evolution_global_configs;
+    const response = await fetch(`${globalConfig.api_url}/openai/create/${instanceName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': globalConfig.api_key },
+        body: JSON.stringify(botConfig),
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro ao criar bot OpenAI: ${errorText}`);
+    }
+
+    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+}
+
+async function handleOpenAISetDefaults(supabase: any, params: any) {
+    const { instanceName, settings } = params;
+    const { data: config, error } = await supabase.from('evolution_api_configs').select(`*, evolution_global_configs (*)`).eq('instance_name', instanceName).single();
+    if (error || !config.evolution_global_configs) throw new Error(`Configuração não encontrada para ${instanceName}`);
+    
+    const globalConfig = config.evolution_global_configs;
+    const response = await fetch(`${globalConfig.api_url}/openai/settings/${instanceName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': globalConfig.api_key },
+        body: JSON.stringify(settings),
+    });
+    
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro ao definir configurações padrão da OpenAI: ${errorText}`);
+    }
+    
+    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }

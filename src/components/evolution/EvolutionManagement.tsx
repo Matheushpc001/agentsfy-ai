@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,7 +11,8 @@ import {
   Trash2,
   RefreshCw,
   Plus,
-  Smartphone
+  Smartphone,
+  Bot
 } from "lucide-react";
 import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
 import { toast } from "sonner";
@@ -20,6 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
+import EvolutionBotSetup from "./EvolutionBotSetup"; // Importe o novo componente
 
 interface EvolutionManagementProps {
   franchiseeId: string;
@@ -28,8 +29,10 @@ interface EvolutionManagementProps {
 export default function EvolutionManagement({ franchiseeId }: EvolutionManagementProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
+  const [isBotSetupOpen, setIsBotSetupOpen] = useState(false);
   const [newInstanceName, setNewInstanceName] = useState("");
   const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
+  const [selectedInstanceName, setSelectedInstanceName] = useState<string | null>(null);
   const [currentQrCode, setCurrentQrCode] = useState<string | null>(null);
   const [isGeneratingQr, setIsGeneratingQr] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
@@ -37,7 +40,6 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
   const { 
     configs, 
     globalConfigs, 
-    aiAgents, 
     isLoading, 
     isCreating,
     createInstance, 
@@ -45,7 +47,7 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
     disconnectInstance, 
     deleteInstance,
     sendTestMessage,
-    loadConfigs
+    refreshData
   } = useEvolutionAPI(franchiseeId);
 
   const handleCreateInstance = async () => {
@@ -101,7 +103,7 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
   };
 
   const handleDelete = async (configId: string) => {
-    if (!confirm("Tem certeza que deseja remover esta instância?")) {
+    if (!confirm("Tem certeza que deseja remover esta instância? Esta ação não pode ser desfeita.")) {
       return;
     }
 
@@ -113,33 +115,17 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
       toast.error("Erro ao remover instância");
     }
   };
-
-  const handleTestMessage = async (configId: string) => {
-    const phoneNumber = prompt("Digite o número de teste (com código do país):");
-    if (!phoneNumber) return;
-
-    try {
-      await sendTestMessage(configId, phoneNumber, "Mensagem de teste da EvolutionAPI");
-      toast.success("Mensagem de teste enviada!");
-    } catch (error) {
-      console.error('Error sending test message:', error);
-      toast.error("Erro ao enviar mensagem de teste");
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'connected': return 'bg-green-500';
-      case 'connecting': return 'bg-yellow-500';
-      case 'disconnected': return 'bg-red-500';
-      default: return 'bg-gray-500';
-    }
+  
+  const handleOpenBotSetup = (instanceName: string) => {
+      setSelectedInstanceName(instanceName);
+      setIsBotSetupOpen(true);
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'connected': return CheckCircle;
       case 'connecting': return Clock;
+      case 'qr_ready': return Clock;
       case 'disconnected': return AlertCircle;
       default: return AlertCircle;
     }
@@ -155,7 +141,6 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
 
   return (
     <div className="space-y-6">
-      {/* Status da Configuração Global */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -163,7 +148,7 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
             Status da EvolutionAPI
           </CardTitle>
           <CardDescription>
-            Configuração global da integração EvolutionAPI
+            Configuração global da integração EvolutionAPI.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -178,14 +163,13 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-red-500" />
               <span className="text-red-600 font-medium">
-                EvolutionAPI não configurada. Entre em contato com o administrador.
+                EvolutionAPI não configurada. Contate o administrador.
               </span>
             </div>
           )}
         </CardContent>
       </Card>
 
-      {/* Instâncias */}
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -195,7 +179,7 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
                 Instâncias WhatsApp
               </CardTitle>
               <CardDescription>
-                Gerencie suas instâncias de WhatsApp via EvolutionAPI
+                Gerencie suas conexões de WhatsApp via EvolutionAPI.
               </CardDescription>
             </div>
             {globalConfigs.length > 0 && (
@@ -210,7 +194,7 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
                   <DialogHeader>
                     <DialogTitle>Criar Nova Instância</DialogTitle>
                   </DialogHeader>
-                  <div className="space-y-4">
+                  <div className="space-y-4 py-4">
                     <div>
                       <Label htmlFor="instanceName">Nome da Instância</Label>
                       <Input
@@ -226,14 +210,8 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
                         disabled={isCreating}
                         className="flex-1"
                       >
-                        {isCreating ? (
-                          <>
-                            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                            Criando...
-                          </>
-                        ) : (
-                          "Criar Instância"
-                        )}
+                        {isCreating ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : null}
+                        {isCreating ? "Criando..." : "Criar Instância"}
                       </Button>
                       <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
                         Cancelar
@@ -249,75 +227,41 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
           {configs.length === 0 ? (
             <div className="text-center py-8">
               <Smartphone className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">
-                {globalConfigs.length === 0 
-                  ? "Configure a EvolutionAPI primeiro para criar instâncias"
-                  : "Nenhuma instância criada ainda"
-                }
-              </p>
+              <p className="text-muted-foreground">Nenhuma instância criada ainda.</p>
             </div>
           ) : (
             <div className="grid gap-4">
               {configs.map((config) => {
                 const StatusIcon = getStatusIcon(config.status);
-                const connectedAgents = aiAgents.filter(agent => agent.evolution_config_id === config.id);
-                
                 return (
                   <div key={config.id} className="border rounded-lg p-4">
-                    <div className="flex items-center justify-between mb-3">
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className={`w-3 h-3 rounded-full ${getStatusColor(config.status)}`} />
+                        <div className={`w-3 h-3 rounded-full ${config.status === 'connected' ? 'bg-green-500' : 'bg-red-500'}`} />
                         <div>
                           <h3 className="font-medium">{config.instance_name}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            {connectedAgents.length} agente{connectedAgents.length !== 1 ? 's' : ''} conectado{connectedAgents.length !== 1 ? 's' : ''}
-                          </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 mt-2 sm:mt-0">
                         <Badge variant={config.status === 'connected' ? 'default' : 'secondary'}>
                           <StatusIcon className="h-3 w-3 mr-1" />
-                          {config.status === 'connected' ? 'Conectado' : 
-                           config.status === 'connecting' ? 'Conectando' : 'Desconectado'}
+                          {config.status}
                         </Badge>
                       </div>
                     </div>
-                    
-                    <div className="flex gap-2">
-                      {config.status === 'disconnected' && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleGenerateQrCode(config.id)}
-                        >
-                          Conectar
-                        </Button>
-                      )}
-                      
-                      {config.status === 'connected' && (
+                    <div className="flex flex-wrap gap-2">
+                      {config.status === 'connected' ? (
                         <>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleTestMessage(config.id)}
-                          >
-                            <MessageSquare className="h-4 w-4 mr-1" />
-                            Testar
+                          <Button size="sm" onClick={() => handleOpenBotSetup(config.instance_name)}>
+                            <Bot className="h-4 w-4 mr-2" />
+                            Configurar IA
                           </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => handleDisconnect(config.id)}
-                          >
-                            Desconectar
-                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => handleDisconnect(config.id)}>Desconectar</Button>
                         </>
+                      ) : (
+                        <Button size="sm" onClick={() => handleGenerateQrCode(config.id)}>Conectar</Button>
                       )}
-                      
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(config.id)}
-                      >
+                      <Button size="sm" variant="destructive" onClick={() => handleDelete(config.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -329,7 +273,6 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
         </CardContent>
       </Card>
 
-      {/* Modal QR Code */}
       <Dialog open={isQRModalOpen} onOpenChange={setIsQRModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -347,6 +290,20 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
           />
         </DialogContent>
       </Dialog>
+      
+      {selectedInstanceName && (
+        <Dialog open={isBotSetupOpen} onOpenChange={setIsBotSetupOpen}>
+            <DialogContent className="sm:max-w-2xl">
+                 <EvolutionBotSetup 
+                    instanceName={selectedInstanceName}
+                    onSave={() => {
+                        setIsBotSetupOpen(false);
+                        refreshData();
+                    }}
+                 />
+            </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 }
