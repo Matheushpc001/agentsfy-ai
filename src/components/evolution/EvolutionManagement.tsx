@@ -43,9 +43,8 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
     isLoading, 
     isCreating,
     createInstance, 
-    connectInstance,
-    stopMonitoring,
-    disconnectInstance,
+    connectInstance, 
+    disconnectInstance, 
     deleteInstance,
     sendTestMessage,
     refreshData
@@ -287,7 +286,6 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
             onConnect={() => {
               setIsQRModalOpen(false);
               toast.success("WhatsApp conectado!");
-              stopMonitoring();
             }}
           />
         </DialogContent>
