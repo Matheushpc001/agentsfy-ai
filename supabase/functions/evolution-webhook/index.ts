@@ -51,20 +51,39 @@ async function handleMessageUpsert(supabase: any, payload: any) {
   const instanceName = payload.instance;
   const messageData = payload.data;
   const remoteJid = messageData?.key?.remoteJid;
+  const messageTypeFromAPI = messageData?.messageType;
+  const isGroup = !!remoteJid && remoteJid.endsWith('@g.us');
+  const hasMessage = !!messageData?.message;
+  const hasReaction = !!messageData?.message?.reactionMessage;
 
-  if (!remoteJid || remoteJid.endsWith('@g.us') || !messageData.message) {
+  console.log(`ℹ️ Incoming message meta -> remoteJid: ${remoteJid}, fromMe: ${messageData?.key?.fromMe}, typeFromAPI: ${messageTypeFromAPI}, hasMessage: ${hasMessage}`);
+
+  if (!remoteJid) {
+    console.log('➡️ Ignoring: remoteJid ausente.');
+    return;
+  }
+  if (isGroup) {
+    console.log(`➡️ Ignoring: mensagem de GRUPO (${remoteJid}) conforme solicitado.`);
+    return;
+  }
+  if (!hasMessage) {
+    console.log('➡️ Ignoring: payload sem "message".');
+    return;
+  }
+  if (hasReaction) {
+    console.log('➡️ Ignoring: reactionMessage (curtidas/emojis não são processados).');
     return;
   }
 
   let messageContent: string | null = null;
   let messageType = 'text';
 
-  // Verificar diferentes tipos de mensagem
-  const hasAudio = !!messageData.message?.audioMessage;
-  const hasVideo = !!messageData.message?.videoMessage;
-  const hasDocument = !!messageData.message?.documentMessage;
-  const hasImage = !!messageData.message?.imageMessage;
-  
+// Verificar diferentes tipos de mensagem
+const hasAudio = !!messageData.message?.audioMessage;
+const hasVideo = !!messageData.message?.videoMessage;
+const hasDocument = !!messageData.message?.documentMessage;
+const hasImage = !!messageData.message?.imageMessage;
+console.log(`🔎 Detecção de tipo -> audio:${hasAudio} video:${hasVideo} doc:${hasDocument} image:${hasImage}`);
   if (hasAudio) {
     messageType = 'audio';
     console.log('🎤 Processando mensagem de áudio...');
@@ -147,27 +166,31 @@ async function handleMessageUpsert(supabase: any, payload: any) {
                     messageData.message?.text;
   }
 
-  if (!messageContent || messageContent.trim().length === 0) {
-    console.log('➡️ Mensagem sem conteúdo textual válido após processamento. Ignorando.');
-    return;
-  }
+if (!messageContent || messageContent.trim().length === 0) {
+  console.log(`➡️ Mensagem sem conteúdo textual válido após processamento. Tipo detectado: ${messageType}. Ignorando.`);
+  return;
+}
   
   if (messageContent.startsWith("[")) {
       console.log(`➡️ Conteúdo inválido ('${messageContent}'), ignorando resposta da IA.`);
       // Ainda podemos salvar a mensagem para registro, se desejado.
   }
 
-  const { data: config } = await supabase.from('evolution_api_configs').select('id').eq('instance_name', instanceName).single();
-  if (!config) return;
+const { data: config } = await supabase.from('evolution_api_configs').select('id').eq('instance_name', instanceName).single();
+if (!config) {
+  console.log(`❗ Configuração não encontrada para a instância ${instanceName}.`);
+  return;
+}
 
   const contactNumber = remoteJid.split('@')[0];
   let { data: conversation } = await supabase.from('whatsapp_conversations').select('id').eq('evolution_config_id', config.id).eq('contact_number', contactNumber).single();
     
   let conversationId = conversation?.id;
-  if (!conversation) {
-    const { data: newConv } = await supabase.from('whatsapp_conversations').insert({ evolution_config_id: config.id, contact_number: contactNumber, contact_name: contactNumber }).select('id').single();
-    conversationId = newConv?.id;
-  }
+if (!conversation) {
+  const { data: newConv } = await supabase.from('whatsapp_conversations').insert({ evolution_config_id: config.id, contact_number: contactNumber, contact_name: contactNumber }).select('id').single();
+  conversationId = newConv?.id;
+  console.log(`🆕 Conversa criada para ${contactNumber}: ${conversationId}`);
+}
   
   if (!conversationId) return;
 
@@ -179,21 +202,39 @@ async function handleMessageUpsert(supabase: any, payload: any) {
     sender_type: messageData.key?.fromMe ? 'agent' : 'user',
     is_from_me: messageData.key?.fromMe || false,
   });
-  console.log(`✅ Mensagem de ${contactNumber} salva.`);
+console.log(`✅ Mensagem salva | contato: ${contactNumber} | tipo: ${messageType} | conteúdo: ${String(messageContent).slice(0, 60)}${String(messageContent).length > 60 ? '...' : ''}`);
 
-  if (!messageData.key?.fromMe && !messageContent.startsWith("[")) {
-    await checkAutoResponse(supabase, config.id, conversationId, messageContent);
-  }
+if (!messageData.key?.fromMe && !messageContent.startsWith("[")) {
+  console.log('🤖 Disparando auto-resposta da IA...');
+  await checkAutoResponse(supabase, config.id, conversationId, messageContent);
+}
 }
 
 async function checkAutoResponse(supabase: any, configId: string, conversationId: string, messageContent: string) {
   try {
-    const { data: aiAgent } = await supabase.from('ai_whatsapp_agents').select('*').eq('evolution_config_id', configId).eq('is_active', true).eq('auto_response', true).single();
-    if (!aiAgent) return;
+    console.log(`🤖 checkAutoResponse -> conversationId: ${conversationId}`);
+    const { data: aiAgent } = await supabase
+      .from('ai_whatsapp_agents')
+      .select('*')
+      .eq('evolution_config_id', configId)
+      .eq('is_active', true)
+      .eq('auto_response', true)
+      .single();
 
-    const { data: previousMessages } = await supabase.from('whatsapp_messages').select('content, sender_type').eq('conversation_id', conversationId).order('timestamp', { ascending: false }).limit(10);
-    
-    // Agora o openai-handler é usado apenas para gerar texto, o que é correto.
+    if (!aiAgent) {
+      console.log('ℹ️ Nenhum agente IA ativo com auto_response. Pulando.');
+      return;
+    }
+
+    const { data: previousMessages } = await supabase
+      .from('whatsapp_messages')
+      .select('content, sender_type')
+      .eq('conversation_id', conversationId)
+      .order('timestamp', { ascending: false })
+      .limit(10);
+    console.log(`🧾 Histórico carregado (${previousMessages?.length || 0} mensagens).`);
+
+    console.log(`🧠 Invocando openai-handler (generate) com modelo: ${aiAgent.model}`);
     const { data: aiFunctionResponse, error: aiFunctionError } = await supabase.functions.invoke('openai-handler', {
       body: {
         action: 'generate',
@@ -207,19 +248,37 @@ async function checkAutoResponse(supabase: any, configId: string, conversationId
 
     if (aiFunctionError) throw aiFunctionError;
     const { aiResponse } = aiFunctionResponse;
-    if (!aiResponse) return;
+    if (!aiResponse) {
+      console.log('ℹ️ openai-handler retornou resposta vazia.');
+      return;
+    }
 
     await supabase.from('ai_interaction_logs').insert({
-      agent_id: aiAgent.id, conversation_id: conversationId, user_message: messageContent, ai_response: aiResponse
+      agent_id: aiAgent.id,
+      conversation_id: conversationId,
+      user_message: messageContent,
+      ai_response: aiResponse
     });
 
-    const { data: conversationData } = await supabase.from('whatsapp_conversations').select('contact_number').eq('id', conversationId).single();
-    if (!conversationData?.contact_number) return;
-    
+    const { data: conversationData } = await supabase
+      .from('whatsapp_conversations')
+      .select('contact_number')
+      .eq('id', conversationId)
+      .single();
+    if (!conversationData?.contact_number) {
+      console.log('❗ Número do contato não encontrado para a conversa.');
+      return;
+    }
+
+    console.log(`📤 Enviando resposta IA para ${conversationData.contact_number}...`);
     await supabase.functions.invoke('evolution-api-manager', {
-      body: { action: 'send_message', config_id: configId, phone_number: conversationData.contact_number, message: aiResponse }
+      body: {
+        action: 'send_message',
+        config_id: configId,
+        phone_number: conversationData.contact_number,
+        message: aiResponse
+      }
     });
-
   } catch (error) {
     console.error('❌ Erro na auto-resposta da IA:', error);
   }
