@@ -59,18 +59,59 @@ async function handleMessageUpsert(supabase: any, payload: any) {
   let messageContent: string | null = null;
   let messageType = 'text';
 
-  // Verifica se é áudio E se a Evolution API já transcreveu
-  if (messageData.message?.audioMessage && messageData.message.speechToText) {
+  const isAudioMessage = !!messageData.message?.audioMessage;
+  
+  if (isAudioMessage) {
     messageType = 'audio';
-    messageContent = messageData.message.speechToText;
-    console.log(`✅ Transcrição da Evolution V2 recebida: "${messageContent}"`);
+    messageContent = messageData.message.speechToText; 
+    
+    if (messageContent) {
+      console.log(`✅ Transcrição recebida da Evolution API: "${messageContent}"`);
+    } else {
+      console.warn('⚠️ Transcrição da Evolution API ausente. Ativando fallback para openai-handler...');
+      
+      try {
+        const { data: config } = await supabase.from('evolution_api_configs').select('id').eq('instance_name', instanceName).single();
+        if (!config) throw new Error("Configuração da instância não encontrada para o fallback.");
+
+        // Busca o AI Agent associado a essa configuração para pegar a chave
+        const { data: aiAgent } = await supabase.from('ai_whatsapp_agents').select('openai_api_key').eq('evolution_config_id', config.id).single();
+        if (!aiAgent?.openai_api_key || !messageData.message.audioMessage.url) {
+            throw new Error("Chave OpenAI ou URL do áudio ausente para o fallback.");
+        }
+
+        const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('openai-handler', {
+          body: {
+            action: 'transcribe',
+            openaiApiKey: aiAgent.openai_api_key,
+            audioUrl: messageData.message.audioMessage.url,
+            mimetype: messageData.message.audioMessage.mimetype || 'audio/ogg'
+          }
+        });
+        
+        if (transcribeError) throw transcribeError;
+        
+        messageContent = transcribeData.transcribedText;
+        console.log(`✅ Transcrição via fallback bem-sucedida: "${messageContent}"`);
+
+      } catch (error) {
+        console.error('❌ Erro no fallback de transcrição:', error);
+        messageContent = "[Erro ao transcrever áudio]";
+      }
+    }
   } else {
     messageType = 'text';
     messageContent = messageData.message?.conversation || messageData.message?.extendedTextMessage?.text;
   }
 
   if (!messageContent || messageContent.trim().length === 0) {
+    console.log('➡️ Mensagem sem conteúdo textual válido após processamento. Ignorando.');
     return;
+  }
+  
+  if (messageContent.startsWith("[")) {
+      console.log(`➡️ Conteúdo inválido ('${messageContent}'), ignorando resposta da IA.`);
+      // Ainda podemos salvar a mensagem para registro, se desejado.
   }
 
   const { data: config } = await supabase.from('evolution_api_configs').select('id').eq('instance_name', instanceName).single();
@@ -97,7 +138,7 @@ async function handleMessageUpsert(supabase: any, payload: any) {
   });
   console.log(`✅ Mensagem de ${contactNumber} salva.`);
 
-  if (!messageData.key?.fromMe) {
+  if (!messageData.key?.fromMe && !messageContent.startsWith("[")) {
     await checkAutoResponse(supabase, config.id, conversationId, messageContent);
   }
 }

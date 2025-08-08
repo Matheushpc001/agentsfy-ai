@@ -11,102 +11,56 @@ const corsHeaders = {
 async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype: string) {
   if (!audioUrl) throw new Error("URL do áudio não fornecida.");
   
-  console.log(`🎤 Iniciando transcrição para a URL: ${audioUrl}`);
-  console.log(`📋 Mimetype recebido: ${mimetype}`);
+  console.log(`🎤 Iniciando transcrição (Fallback) para: ${audioUrl}`);
+  const audioResponse = await fetch(audioUrl);
+  if (!audioResponse.ok) throw new Error(`Falha ao baixar áudio: ${audioResponse.statusText}`);
+  
+  const audioArrayBuffer = await audioResponse.arrayBuffer();
+  if (audioArrayBuffer.byteLength === 0) throw new Error("Arquivo de áudio baixado está vazio.");
 
-  try {
-    // 1. Baixar o arquivo de áudio
-    const audioResponse = await fetch(audioUrl);
-    if (!audioResponse.ok) {
-      throw new Error(`Falha ao baixar o áudio: ${audioResponse.status} ${audioResponse.statusText}`);
-    }
-    
-    const audioArrayBuffer = await audioResponse.arrayBuffer();
-    console.log(`📦 Áudio baixado. Tamanho: ${audioArrayBuffer.byteLength} bytes`);
-
-    if (audioArrayBuffer.byteLength === 0) {
-      throw new Error("O arquivo de áudio baixado está vazio.");
-    }
-
-    // --- MUDANÇA CRÍTICA ---
-    // 2. Determinar a extensão e o mimetype final
-    let extension = 'ogg';
-    let finalMimetype = 'audio/ogg'; // Padrão para áudios do WhatsApp com opus
-
-    if (mimetype) {
-      if (mimetype.includes('mp4a') || mimetype.includes('mp4')) {
-        extension = 'm4a';
-        finalMimetype = 'audio/mp4';
-      } else if (mimetype.includes('mpeg') || mimetype.includes('mp3')) {
-        extension = 'mp3';
-        finalMimetype = 'audio/mpeg';
-      } else if (mimetype.includes('webm')) {
-        extension = 'webm';
-        finalMimetype = 'audio/webm';
-      }
-    }
-    const fileName = `audio.${extension}`;
-    console.log(`📝 Arquivo preparado: ${fileName} com mimetype final: ${finalMimetype}`);
-
-    // 3. Criar o FormData usando o construtor 'File' para ser explícito
-    const formData = new FormData();
-    const audioFile = new File([audioArrayBuffer], fileName, { type: finalMimetype });
-    
-    formData.append('file', audioFile);
-    formData.append('model', 'whisper-1');
-    formData.append('response_format', 'text');
-    formData.append('language', 'pt');
-    // --- FIM DA MUDANÇA CRÍTICA ---
-
-    // 4. Chamar a API Whisper
-    console.log('🚀 Enviando para a API Whisper...');
-    const transcribeResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { 
-        'Authorization': `Bearer ${openaiApiKey}`,
-      },
-      body: formData,
-    });
-
-    if (!transcribeResponse.ok) {
-      const errorText = await transcribeResponse.text();
-      console.error('❌ Erro da API Whisper:', errorText);
-      throw new Error(`Erro na API Whisper: ${transcribeResponse.status} - ${errorText}`);
-    }
-
-    const transcribedText = await transcribeResponse.text();
-    console.log(`✅ Transcrição concluída: "${transcribedText.substring(0, 100).trim()}..."`);
-    
-    return transcribedText.trim();
-    
-  } catch (error) {
-    console.error('❌ Erro detalhado durante a transcrição:', error);
-    throw error;
+  let extension = 'ogg';
+  let finalMimetype = 'audio/ogg';
+  if (mimetype && mimetype.includes('mp4')) { 
+      extension = 'm4a'; 
+      finalMimetype = 'audio/mp4'; 
   }
-}
+  const fileName = `audio.${extension}`;
+  console.log(`📝 Arquivo preparado: ${fileName} com mimetype: ${finalMimetype}`);
 
+  const formData = new FormData();
+  const audioFile = new File([audioArrayBuffer], fileName, { type: finalMimetype });
+  
+  formData.append('file', audioFile);
+  formData.append('model', 'whisper-1');
+  formData.append('language', 'pt');
+  formData.append('response_format', 'text');
+
+  const transcribeResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${openaiApiKey}` },
+    body: formData,
+  });
+
+  if (!transcribeResponse.ok) {
+    const errorText = await transcribeResponse.text();
+    console.error('❌ Erro da API Whisper:', errorText);
+    throw new Error(`Erro API Whisper: ${errorText}`);
+  }
+
+  const transcribedText = await transcribeResponse.text();
+  return transcribedText.trim();
+}
 
 // Função para gerar resposta de texto (mantida como estava)
 async function handleGenerate(openaiApiKey: string, payload: any) {
-    const {
-      agentId,
-      userMessage,
-      previousMessages,
-      systemPrompt,
-      model,
-    } = payload;
-
-    console.log(`🤖 Gerando resposta de IA para o agente: ${agentId}`);
-    
+    const { userMessage, previousMessages, systemPrompt, model } = payload;
     const messages = [];
     messages.push({ role: 'system', content: systemPrompt || 'Você é um assistente prestativo.' });
-
-    if (previousMessages && previousMessages.length > 0) {
-      const contextMessages = previousMessages.slice(-10).map((msg: any) => ({
+    if (previousMessages?.length > 0) {
+      messages.push(...previousMessages.map((msg: any) => ({
         role: msg.sender_type === 'agent' ? 'assistant' : 'user',
         content: msg.content
-      }));
-      messages.push(...contextMessages);
+      })));
     }
     messages.push({ role: 'user', content: userMessage });
 
@@ -119,14 +73,13 @@ async function handleGenerate(openaiApiKey: string, payload: any) {
       body: JSON.stringify({
         model: model || 'gpt-4o-mini',
         messages: messages,
-        max_tokens: 500,
-        temperature: 0.7,
       }),
     });
 
     if (!openAIResponse.ok) {
         const errorData = await openAIResponse.text();
         throw new Error(`Erro da API OpenAI: ${openAIResponse.status} - ${errorData}`);
+    
     }
 
     const openAIData = await openAIResponse.json();
@@ -145,7 +98,6 @@ async function handleGenerate(openaiApiKey: string, payload: any) {
 
 // Servidor principal
 serve(async (req) => {
-  // CORS
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -154,28 +106,16 @@ serve(async (req) => {
     const payload = await req.json();
     const { action, openaiApiKey, ...params } = payload;
     
-    console.log(`📋 Ação recebida: ${action}`);
-    
-    if (!openaiApiKey || !openaiApiKey.startsWith('sk-')) {
-      throw new Error('Chave da API OpenAI inválida ou não fornecida.');
-    }
+    if (!openaiApiKey) throw new Error('Chave da API OpenAI não fornecida.');
 
     let responseData;
-    
     switch (action) {
       case 'transcribe':
-        const transcribedText = await handleTranscribe(
-          openaiApiKey, 
-          params.audioUrl, 
-          params.mimetype
-        );
-        responseData = { transcribedText };
+        responseData = { transcribedText: await handleTranscribe(openaiApiKey, params.audioUrl, params.mimetype) };
         break;
-      
       case 'generate':
         responseData = await handleGenerate(openaiApiKey, params);
         break;
-
       default:
         throw new Error(`Ação desconhecida: ${action}`);
     }
@@ -184,18 +124,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
-
   } catch (error) {
     console.error('❌ Erro na função openai-handler:', error);
-    
-    // Resposta de erro mais detalhada
-    const errorResponse = {
-      error: error.message,
-      details: error.stack,
-      timestamp: new Date().toISOString()
-    };
-    
-    return new Response(JSON.stringify(errorResponse), {
+    return new Response(JSON.stringify({ error: error.message, details: error.stack }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
