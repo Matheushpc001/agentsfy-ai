@@ -9,7 +9,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Lógica de pré-verificação (OPTIONS)
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -18,29 +17,39 @@ serve(async (req) => {
     const { action, ...params } = await req.json();
     console.log('Evolution API Manager - Action:', action, 'Params:', params);
 
-    // Validação das variáveis de ambiente do Supabase
-    const supabaseUrl = Deno.env.get('SUPABASE_URL');
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     if (!supabaseUrl || !supabaseKey) {
-      throw new Error('Variáveis de ambiente do Supabase não configuradas');
+      throw new Error('Supabase environment variables not configured');
     }
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Roteamento de ações
     switch (action) {
-      case 'create_instance': return await handleCreateInstance(supabase, params);
-      case 'connect_instance': return await handleConnectInstance(supabase, params);
-      case 'check_status': return await handleCheckStatus(supabase, params);
-      case 'disconnect_instance': return await handleDisconnectInstance(supabase, params);
-      case 'delete_instance': return await handleDeleteInstance(supabase, params);
-      case 'send_message': return await handleSendMessage(supabase, params);
-      case 'test_connection': return await handleTestConnection(params);
-      case 'force_status_sync': return await handleForceStatusSync(supabase, params);
+      // Ações Originais
+      case 'create_instance':
+        return await handleCreateInstance(supabase, params);
+      case 'connect_instance':
+        return await handleConnectInstance(supabase, params);
+      case 'check_status':
+        return await handleCheckStatus(supabase, params);
+      case 'disconnect_instance':
+        return await handleDisconnectInstance(supabase, params);
+      case 'delete_instance':
+        return await handleDeleteInstance(supabase, params);
+      case 'send_message':
+        return await handleSendMessage(supabase, params);
+      case 'test_connection':
+        return await handleTestConnection(params);
+      case 'force_status_sync':
+        return await handleForceStatusSync(supabase, params);
       
-      // ### AÇÕES PARA IA NATIVA DA EVOLUTION V2 ###
-      case 'openai_set_creds': return await handleOpenAISetCreds(supabase, params);
-      case 'openai_create_bot': return await handleOpenAICreateBot(supabase, params);
-      case 'openai_set_defaults': return await handleOpenAISetDefaults(supabase, params);
+      // ### NOVAS AÇÕES PARA IA NATIVA DA EVOLUTION V2 ###
+      case 'openai_set_creds':
+        return await handleOpenAISetCreds(supabase, params);
+      case 'openai_create_bot':
+        return await handleOpenAICreateBot(supabase, params);
+      case 'openai_set_defaults':
+        return await handleOpenAISetDefaults(supabase, params);
 
       default:
         return new Response(JSON.stringify({ error: 'Ação não reconhecida' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -328,7 +337,6 @@ async function handleConnectInstance(supabase: any, params: any) {
   }
 }
 
-
 async function handleCheckStatus(supabase: any, params: any) {
   const { config_id } = params;
   
@@ -451,7 +459,6 @@ function mapEvolutionStatus(evolutionStatus: string): string {
       return 'disconnected';
   }
 }
-
 
 async function handleForceStatusSync(supabase: any, params: any) {
   const { config_id } = params;
@@ -660,18 +667,8 @@ async function handleTestConnection(params) {
 // ### NOVAS FUNÇÕES PARA IA NATIVA ###
 async function handleOpenAISetCreds(supabase: any, params: any) {
     const { instanceName, credsName, apiKey } = params;
-    console.log(`Setting OpenAI creds for instance: ${instanceName}`);
-    
-    // Busca a configuração global associada à instância
-    const { data: config, error } = await supabase
-      .from('evolution_api_configs')
-      .select(`*, evolution_global_configs (*)`)
-      .eq('instance_name', instanceName)
-      .single();
-
-    if (error || !config?.evolution_global_configs) {
-        throw new Error(`Configuração global não encontrada para a instância ${instanceName}`);
-    }
+    const { data: config, error } = await supabase.from('evolution_api_configs').select(`*, evolution_global_configs (*)`).eq('instance_name', instanceName).single();
+    if (error || !config.evolution_global_configs) throw new Error(`Configuração não encontrada para ${instanceName}`);
     
     const globalConfig = config.evolution_global_configs;
     const response = await fetch(`${globalConfig.api_url}/openai/creds/${instanceName}`, {
@@ -680,28 +677,18 @@ async function handleOpenAISetCreds(supabase: any, params: any) {
         body: JSON.stringify({ name: credsName, apiKey: apiKey }),
     });
 
-    const responseBody = await response.json();
     if (!response.ok) {
-        console.error('Error from Evolution API (set creds):', responseBody);
-        throw new Error(`Erro ao configurar credenciais OpenAI: ${responseBody.message || 'Erro desconhecido'}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ao configurar credenciais OpenAI: ${errorText}`);
     }
     
-    console.log('✅ OpenAI creds set successfully. Response:', responseBody);
-    return new Response(JSON.stringify(responseBody), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }
 
 async function handleOpenAICreateBot(supabase: any, params: any) {
     const { instanceName, botConfig } = params;
-    console.log(`Creating bot for instance: ${instanceName}`);
-
-    const { data: config, error } = await supabase
-      .from('evolution_api_configs')
-      .select(`*, evolution_global_configs (*)`)
-      .eq('instance_name', instanceName)
-      .single();
-    if (error || !config?.evolution_global_configs) {
-        throw new Error(`Configuração global não encontrada para ${instanceName}`);
-    }
+    const { data: config, error } = await supabase.from('evolution_api_configs').select(`*, evolution_global_configs (*)`).eq('instance_name', instanceName).single();
+    if (error || !config.evolution_global_configs) throw new Error(`Configuração não encontrada para ${instanceName}`);
 
     const globalConfig = config.evolution_global_configs;
     const response = await fetch(`${globalConfig.api_url}/openai/create/${instanceName}`, {
@@ -710,29 +697,18 @@ async function handleOpenAICreateBot(supabase: any, params: any) {
         body: JSON.stringify(botConfig),
     });
 
-    const responseBody = await response.json();
     if (!response.ok) {
-        console.error('Error from Evolution API (create bot):', responseBody);
-        throw new Error(`Erro ao criar bot OpenAI: ${responseBody.message || 'Erro desconhecido'}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ao criar bot OpenAI: ${errorText}`);
     }
 
-    console.log('✅ Bot created successfully. Response:', responseBody);
-    return new Response(JSON.stringify(responseBody), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }
 
 async function handleOpenAISetDefaults(supabase: any, params: any) {
     const { instanceName, settings } = params;
-    console.log(`Setting defaults for instance: ${instanceName} with speechToText=${settings.speechToText}`);
-
-    const { data: config, error } = await supabase
-      .from('evolution_api_configs')
-      .select(`*, evolution_global_configs (*)`)
-      .eq('instance_name', instanceName)
-      .single();
-
-    if (error || !config?.evolution_global_configs) {
-      throw new Error(`Configuração global não encontrada para ${instanceName}`);
-    }
+    const { data: config, error } = await supabase.from('evolution_api_configs').select(`*, evolution_global_configs (*)`).eq('instance_name', instanceName).single();
+    if (error || !config.evolution_global_configs) throw new Error(`Configuração não encontrada para ${instanceName}`);
     
     const globalConfig = config.evolution_global_configs;
     const response = await fetch(`${globalConfig.api_url}/openai/settings/${instanceName}`, {
@@ -741,12 +717,10 @@ async function handleOpenAISetDefaults(supabase: any, params: any) {
         body: JSON.stringify(settings),
     });
     
-    const responseBody = await response.json();
     if (!response.ok) {
-        console.error('Error from Evolution API (set defaults):', responseBody);
-        throw new Error(`Erro ao definir configurações padrão da OpenAI: ${responseBody.message || 'Erro desconhecido'}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ao definir configurações padrão da OpenAI: ${errorText}`);
     }
     
-    console.log('✅ Defaults set successfully. Response:', responseBody);
-    return new Response(JSON.stringify(responseBody), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }
