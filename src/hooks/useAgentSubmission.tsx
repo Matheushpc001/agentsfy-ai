@@ -40,6 +40,7 @@ export function useAgentSubmission({
   setIsCustomerPortalModalOpen,
 }: UseAgentSubmissionProps) {
 
+  // NOVA LÓGICA UNIFICADA DE SUBMISSÃO
   const handleSubmitAgent = async (
     agentData: Partial<Agent>, 
     customerData?: Partial<Customer>, 
@@ -49,6 +50,7 @@ export function useAgentSubmission({
     const toastId = toast.loading(isEditing ? "Atualizando agente..." : "Criando agente e configurando IA...");
 
     try {
+      // --- ETAPA 1: Lidar com Cliente e Agente no nosso DB ---
       let customerId = "";
       let customer: Customer | undefined;
 
@@ -74,7 +76,8 @@ export function useAgentSubmission({
       let finalAgent: Agent;
 
       if (isEditing) {
-        toast.loading("Atualizando dados do agente...", { id: toastId });
+        // --- LÓGICA DE ATUALIZAÇÃO ---
+        toast.loading("Passo 2 de 4: Atualizando dados do agente...", { id: toastId });
         const updateRequest: Partial<CreateAgentRequest> = {
           name: agentData.name,
           sector: agentData.sector,
@@ -85,9 +88,11 @@ export function useAgentSubmission({
         finalAgent = await agentService.updateAgent(currentAgent.id, updateRequest);
         setAgents(agents.map(a => a.id === currentAgent.id ? finalAgent : a));
         toast.success("Agente atualizado com sucesso!");
-        // A lógica para re-configurar a IA na Evolution se a chave mudar iria aqui.
+        // Em edição, não reconfiguramos a IA a menos que a chave mude.
+        // A lógica de reconfiguração seria adicionada aqui se necessário.
       } else {
-        toast.loading("Passo 2 de 4: Salvando agente...", { id: toastId });
+        // --- LÓGICA DE CRIAÇÃO ---
+        toast.loading("Passo 2 de 4: Salvando agente no sistema...", { id: toastId });
         const createAgentRequest: CreateAgentRequest = {
           name: agentData.name!,
           sector: agentData.sector!,
@@ -99,12 +104,14 @@ export function useAgentSubmission({
         finalAgent = await agentService.createAgent(createAgentRequest, franchiseeId);
         setAgents(prev => [...prev, finalAgent]);
 
+        // --- ETAPA 2: Criar Instância e Configurar IA na Evolution API ---
         await configureEvolutionAI(finalAgent, toastId);
         
         const customerPortal = generateCustomerPortalAccess(customer);
         setCurrentCustomerPortal(customerPortal);
       }
 
+      // --- ETAPA FINAL: Fechar Modais e Notificar ---
       toast.dismiss(toastId);
       toast.success(`Agente "${finalAgent.name}" ${isEditing ? 'atualizado' : 'criado e configurado'} com sucesso!`);
       
@@ -114,8 +121,7 @@ export function useAgentSubmission({
       if (!isEditing) {
         setCurrentAgent(finalAgent);
         setCurrentCustomer(customer);
-        // Após a configuração bem-sucedida, mostramos o modal para conectar o QR Code
-        setIsWhatsAppModalOpen(true);
+        setIsCustomerPortalModalOpen(true); // Abre o modal com os dados do portal
       }
 
     } catch (error) {
@@ -125,9 +131,12 @@ export function useAgentSubmission({
     }
   };
 
+  // NOVA FUNÇÃO AUXILIAR PARA CONFIGURAR A EVOLUTION API
   const configureEvolutionAI = async (agent: Agent, toastId: any) => {
+    // Gera um nome de instância único para evitar conflitos
     const instanceName = `agent_${agent.id.substring(0, 8)}_${Date.now()}`;
 
+    // Passo 2.1: Criar a instância na Evolution API
     toast.loading("Passo 2 de 4: Criando instância no WhatsApp...", { id: toastId });
     const { data: instanceResult, error: instanceError } = await supabase.functions.invoke('evolution-api-manager', {
       body: { action: 'create_instance', franchisee_id: franchiseeId, instance_name: instanceName }
@@ -136,6 +145,7 @@ export function useAgentSubmission({
       throw new Error(instanceError?.message || instanceResult?.error || 'Falha ao criar instância na Evolution API.');
     }
 
+    // Passo 2.2: Configurar Credenciais OpenAI na Instância
     toast.loading("Passo 3 de 4: Configurando credenciais de IA...", { id: toastId });
     const { data: credsData, error: credsError } = await supabase.functions.invoke('evolution-api-manager', {
       body: { action: 'openai_set_creds', instanceName, credsName: `creds-${instanceName}`, apiKey: agent.openAiKey }
@@ -145,36 +155,43 @@ export function useAgentSubmission({
     }
     const openAICredsId = credsData.id;
 
+    // Passo 2.3: Configurar o Bot na Instância
     toast.loading("Passo 4 de 4: Ativando bot e transcrição...", { id: toastId });
     const { error: botError } = await supabase.functions.invoke('evolution-api-manager', {
       body: {
         action: 'openai_create_bot',
         instanceName,
         botConfig: {
-          enabled: true, openaiCredsId, botType: 'chatCompletion',
-          model: 'gpt-4o-mini', systemMessages: [agent.prompt || 'Você é um assistente prestativo.'],
+          enabled: true,
+          openaiCredsId,
+          botType: 'chatCompletion',
+          model: 'gpt-4o-mini',
+          systemMessages: [agent.prompt || 'Você é um assistente prestativo.'],
           triggerType: 'all',
         },
       },
     });
-    if (botError) throw new Error(botError.message || 'Falha ao criar o bot.');
+    if (botError) throw new Error(botError.message || 'Falha ao criar o bot na Evolution API.');
 
+    // Passo 2.4: Configurar Padrões (incluindo Transcrição de Áudio)
     const { error: defaultsError } = await supabase.functions.invoke('evolution-api-manager', {
       body: {
         action: 'openai_set_defaults',
         instanceName,
         settings: {
           openaiCredsId,
-          speechToText: agent.enableVoiceRecognition,
+          speechToText: agent.enableVoiceRecognition, // Usa o valor do switch
         },
       },
     });
-    if (defaultsError) throw new Error(defaultsError.message || 'Falha ao ativar a transcrição.');
+    if (defaultsError) throw new Error(defaultsError.message || 'Falha ao ativar a transcrição de áudio.');
   };
 
-  const handleConnectWhatsApp = () => {
-    if (!currentAgent) return;
-    setIsWhatsAppModalOpen(true);
+  const handleConnectWhatsApp = async () => {
+      // Esta função pode ser simplificada ou removida, pois a conexão agora é parte do fluxo de criação.
+      // Mantemos por enquanto para reconexão.
+      if (!currentAgent) return;
+      setIsWhatsAppModalOpen(true);
   };
   
   const handleClosePortalModal = () => {
