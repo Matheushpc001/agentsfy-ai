@@ -134,32 +134,91 @@ async function handleMessageUpsert(supabase: any, payload: any) {
   const messageData = payload.data;
   const remoteJid = messageData?.key?.remoteJid;
 
-  // Ignorar mensagens de grupo
-  if (remoteJid && remoteJid.endsWith('@g.us')) {
-    console.log('🗣️ Mensagem de grupo ignorada.');
+  // Ignorar mensagens de grupo e de status
+  if (!remoteJid || remoteJid.endsWith('@g.us') || remoteJid.endsWith('@broadcast')) {
+    console.log('🗣️ Mensagem de grupo ou status ignorada.');
+    return;
+  }
+  
+  // Ignorar mensagens sem conteúdo relevante (ex: chamadas perdidas)
+  if (!messageData.message) {
+    console.log('ℹ️ Mensagem sem conteúdo relevante ignorada.');
     return;
   }
 
-  // Encontrar a configuração da instância
-  const { data: config } = await supabase
+  // --- BUSCAR CONFIGURAÇÃO DA INSTÂNCIA E AGENTE DE IA ---
+  const { data: config, error: configError } = await supabase
     .from('evolution_api_configs')
-    .select('id')
+    .select('id, franchisee_id')
     .eq('instance_name', instanceName)
     .single();
-    
-  if (!config) {
-    console.error(`❌ Configuração não encontrada para a instância: ${instanceName}`);
+
+  if (configError || !config) {
+    console.error(`❌ Configuração não encontrada para a instância: ${instanceName}`, configError);
     return;
   }
+  
+  const { data: aiAgent, error: agentError } = await supabase
+    .from('ai_whatsapp_agents')
+    .select('id, openai_api_key')
+    .eq('evolution_config_id', config.id)
+    .eq('is_active', true)
+    .single();
 
-  const contactNumber = remoteJid?.replace('@s.whatsapp.net', '');
+  if (agentError || !aiAgent?.openai_api_key) {
+    console.log(`ℹ️ Nenhum agente de IA ativo com chave OpenAI para a instância: ${instanceName}`);
+    // Poderíamos parar aqui ou continuar salvando a mensagem sem IA
+  }
+  
+  // --- PROCESSAMENTO E TRANSCRIÇÃO DA MENSAGEM ---
+  let messageContent = "[Mídia não suportada]";
+  let messageType = 'text';
+
+  const isAudioMessage = !!messageData.message?.audioMessage;
+  
+  if (isAudioMessage) {
+    messageType = 'audio';
+    console.log('🎤 Mensagem de áudio recebida. Tentando transcrever...');
+    
+    // VERIFICA SE A EVOLUTION API JÁ TRANSCRITOU (FALLBACK)
+    if (messageData.message.speechToText) {
+        console.log('✅ Transcrição encontrada no payload da Evolution API.');
+        messageContent = messageData.message.speechToText;
+    } 
+    // SE NÃO, CHAMA NOSSA FUNÇÃO DE TRANSCRIÇÃO
+    else if (aiAgent?.openai_api_key && messageData.message.audioMessage.url) {
+      try {
+        const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('openai-handler', {
+          body: {
+            action: 'transcribe',
+            openaiApiKey: aiAgent.openai_api_key,
+            audioUrl: messageData.message.audioMessage.url,
+            mimetype: messageData.message.audioMessage.mimetype || 'audio/ogg'
+          }
+        });
+        
+        if (transcribeError) throw transcribeError;
+        
+        messageContent = transcribeData.transcribedText;
+        console.log(`✅ Transcrição bem-sucedida: "${messageContent.substring(0, 50)}..."`);
+        
+      } catch (error) {
+        console.error('❌ Erro ao invocar a função de transcrição:', error);
+        messageContent = "[Erro ao transcrever áudio]";
+      }
+    } else {
+        console.warn('⚠️ Não foi possível transcrever: Chave OpenAI ou URL do áudio ausente.');
+        messageContent = "[Áudio recebido, transcrição indisponível]";
+    }
+  } else {
+    messageType = 'text';
+    messageContent = messageData.message?.conversation || messageData.message?.extendedTextMessage?.text || "[Tipo de mensagem não suportado]";
+  }
+
+  // --- SALVAR MENSAGEM E CONVERSA ---
+  const contactNumber = remoteJid.split('@')[0];
   if (!contactNumber) return;
 
-  // Extrair conteúdo da mensagem (incluindo transcrição de áudio)
-  const messageContent = messageData.message?.speechToText || messageData.message?.conversation || messageData.message?.extendedTextMessage?.text || "[Mídia não suportada]";
-  const messageType = messageData.message?.audioMessage ? 'audio' : 'text';
-
-  // Encontrar ou criar a conversa
   const { data: conversation } = await supabase
     .from('whatsapp_conversations')
     .select('id')
@@ -188,7 +247,6 @@ async function handleMessageUpsert(supabase: any, payload: any) {
     return;
   }
 
-  // Salvar a mensagem no banco de dados
   const { error: insertMsgError } = await supabase.from('whatsapp_messages').insert({
     conversation_id: conversationId,
     message_id: messageData.key?.id,
@@ -202,21 +260,19 @@ async function handleMessageUpsert(supabase: any, payload: any) {
     console.error('❌ Erro ao salvar mensagem:', insertMsgError);
     return;
   }
+  console.log(`✅ Mensagem de ${contactNumber} salva com sucesso. Tipo: ${messageType}`);
 
-  console.log(`✅ Mensagem de ${contactNumber} salva com sucesso.`);
-
-  // ##################################################
-  // ### CORREÇÃO APLICADA AQUI ###
-  // ##################################################
-  // Se a mensagem NÃO foi enviada por nós (é de um usuário),
-  // aciona o fluxo de verificação de auto-resposta da IA.
-  if (!messageData.key?.fromMe && messageContent) {
+  // --- ACIONAR RESPOSTA DA IA ---
+  if (!messageData.key?.fromMe && messageContent && !messageContent.startsWith("[")) {
     console.log('➡️ Mensagem de usuário recebida. Acionando verificação de auto-resposta da IA...');
     await checkAutoResponse(supabase, config.id, conversationId, messageContent);
   } else {
-    console.log('➡️ Mensagem do agente ou sem conteúdo. Ignorando auto-resposta.');
+    console.log('➡️ Mensagem do agente ou sem conteúdo válido. Ignorando auto-resposta.');
   }
 }
+
+
+
 async function handleQRCodeUpdate(supabase, payload) {
   console.log('📱 Processing QR code update:', payload);
   const instanceName = payload.instance;

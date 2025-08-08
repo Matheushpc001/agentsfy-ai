@@ -1,4 +1,4 @@
-// Versão 1.2 - Correção para transcrição de áudio WhatsApp
+// Versão 1.2 - Correção para transcrição de áudio WhatsApp v1
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -9,9 +9,7 @@ const corsHeaders = {
 
 // Função aprimorada para transcrever áudio
 async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype: string) {
-  if (!audioUrl) {
-    throw new Error("URL do áudio não fornecida.");
-  }
+  if (!audioUrl) throw new Error("URL do áudio não fornecida.");
   
   console.log(`🎤 Iniciando transcrição para a URL: ${audioUrl}`);
   console.log(`📋 Mimetype recebido: ${mimetype}`);
@@ -23,48 +21,34 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
       throw new Error(`Falha ao baixar o áudio: ${audioResponse.status} ${audioResponse.statusText}`);
     }
     
-    const audioArrayBuffer = await audioResponse.arrayBuffer();
-    const audioBlob = new Blob([audioArrayBuffer]);
-    
+    const audioBlob = new Blob([await audioResponse.arrayBuffer()]);
     console.log(`📦 Áudio baixado. Tamanho: ${audioBlob.size} bytes`);
 
-    // 2. Determinar a extensão correta do arquivo
-    let extension = 'ogg'; // Padrão para áudios do WhatsApp
-    let finalMimetype = mimetype || 'audio/ogg';
-    
-    // WhatsApp geralmente envia audio/ogg; codecs=opus
-    if (mimetype) {
-      if (mimetype.includes('opus') || mimetype.includes('ogg')) {
-        extension = 'ogg';
-        finalMimetype = 'audio/ogg';
-      } else if (mimetype.includes('mp4')) {
-        extension = 'mp4';
-        finalMimetype = 'audio/mp4';
-      } else if (mimetype.includes('mpeg') || mimetype.includes('mp3')) {
-        extension = 'mp3';
-        finalMimetype = 'audio/mpeg';
-      } else if (mimetype.includes('webm')) {
-        extension = 'webm';
-        finalMimetype = 'audio/webm';
-      }
+    if (audioBlob.size === 0) {
+      throw new Error("O arquivo de áudio baixado está vazio.");
     }
-    
-    const fileName = `audio.${extension}`;
-    console.log(`📝 Arquivo preparado: ${fileName} com mimetype: ${finalMimetype}`);
 
-    // 3. Criar o FormData corretamente
+    // 2. Determinar a extensão correta do arquivo
+    // WhatsApp envia audio/ogg; codecs=opus. Whisper aceita .ogg.
+    let extension = 'ogg'; 
+    if (mimetype) {
+      if (mimetype.includes('mp4a') || mimetype.includes('mp4')) extension = 'm4a';
+      else if (mimetype.includes('mpeg') || mimetype.includes('mp3')) extension = 'mp3';
+      else if (mimetype.includes('webm')) extension = 'webm';
+      else if (mimetype.includes('wav')) extension = 'wav';
+    }
+    const fileName = `audio.${extension}`;
+    console.log(`📝 Arquivo preparado: ${fileName}`);
+
+    // 3. Criar o FormData
     const formData = new FormData();
-    
-    // Criar um File object com o mimetype correto
-    const audioFile = new File([audioBlob], fileName, { type: finalMimetype });
-    
-    formData.append('file', audioFile);
+    formData.append('file', audioBlob, fileName);
     formData.append('model', 'whisper-1');
     formData.append('response_format', 'text');
-    formData.append('language', 'pt'); // Adicionar idioma português para melhor precisão
+    formData.append('language', 'pt'); // Forçar português para maior precisão
 
     // 4. Chamar a API Whisper
-    console.log('🚀 Enviando para API Whisper...');
+    console.log('🚀 Enviando para a API Whisper...');
     const transcribeResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
       headers: { 
@@ -76,25 +60,16 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
     if (!transcribeResponse.ok) {
       const errorText = await transcribeResponse.text();
       console.error('❌ Erro da API Whisper:', errorText);
-      
-      // Se o erro for de formato, tentar converter o áudio
-      if (errorText.includes('Invalid file format')) {
-        console.log('⚠️ Formato não suportado, tentando conversão alternativa...');
-        // Aqui você poderia implementar uma conversão usando FFmpeg ou outra biblioteca
-        throw new Error(`Formato de áudio não suportado: ${mimetype}. O áudio precisa ser convertido.`);
-      }
-      
       throw new Error(`Erro na API Whisper: ${transcribeResponse.status} - ${errorText}`);
     }
 
     const transcribedText = await transcribeResponse.text();
-    console.log(`✅ Transcrição concluída com sucesso`);
-    console.log(`📝 Texto transcrito: "${transcribedText.substring(0, 100)}..."`);
+    console.log(`✅ Transcrição concluída: "${transcribedText.substring(0, 100)}..."`);
     
-    return transcribedText;
+    return transcribedText.trim();
     
   } catch (error) {
-    console.error('❌ Erro durante a transcrição:', error);
+    console.error('❌ Erro detalhado durante a transcrição:', error);
     throw error;
   }
 }
