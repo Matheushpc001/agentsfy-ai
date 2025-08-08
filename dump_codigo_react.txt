@@ -1,6 +1,6 @@
 =============================================
  DUMP DO PROJETO: React Project
- GERADO EM: Fri Aug  8 05:34:14 UTC 2025
+ GERADO EM: Thu Aug  7 20:27:24 UTC 2025
 =============================================\n
 ================================================================================
 ARQUIVO: ./vite.config.ts
@@ -165,92 +165,44 @@ async function handleConnectionUpdate(supabase, payload) {
   }
 }
 async function handleMessageUpsert(supabase: any, payload: any) {
-  const instanceName = payload.instance;
-  const messageData = payload.data;
-  const remoteJid = messageData?.key?.remoteJid;
+    const instanceName = payload.instance;
+    const messageData = payload.data;
+    const remoteJid = messageData?.key?.remoteJid;
 
-  // Ignorar mensagens de grupo
-  if (remoteJid && remoteJid.endsWith('@g.us')) {
-    console.log('🗣️ Mensagem de grupo ignorada.');
-    return;
-  }
-
-  // Encontrar a configuração da instância
-  const { data: config } = await supabase
-    .from('evolution_api_configs')
-    .select('id')
-    .eq('instance_name', instanceName)
-    .single();
-    
-  if (!config) {
-    console.error(`❌ Configuração não encontrada para a instância: ${instanceName}`);
-    return;
-  }
-
-  const contactNumber = remoteJid?.replace('@s.whatsapp.net', '');
-  if (!contactNumber) return;
-
-  // Extrair conteúdo da mensagem (incluindo transcrição de áudio)
-  const messageContent = messageData.message?.speechToText || messageData.message?.conversation || messageData.message?.extendedTextMessage?.text || "[Mídia não suportada]";
-  const messageType = messageData.message?.audioMessage ? 'audio' : 'text';
-
-  // Encontrar ou criar a conversa
-  const { data: conversation } = await supabase
-    .from('whatsapp_conversations')
-    .select('id')
-    .eq('evolution_config_id', config.id)
-    .eq('contact_number', contactNumber)
-    .single();
-    
-  let conversationId = conversation?.id;
-
-  if (!conversation) {
-    const { data: newConversation, error: createConvError } = await supabase
-      .from('whatsapp_conversations')
-      .insert({ evolution_config_id: config.id, contact_number: contactNumber, contact_name: contactNumber })
-      .select('id')
-      .single();
-      
-    if (createConvError) {
-      console.error('❌ Erro ao criar nova conversa:', createConvError);
-      return;
+    if (remoteJid && remoteJid.endsWith('@g.us')) {
+        console.log('🗣️ Mensagem de grupo ignorada.');
+        return;
     }
-    conversationId = newConversation?.id;
-  }
-  
-  if (!conversationId) {
-    console.error('❌ ID da conversa não pôde ser determinado.');
-    return;
-  }
 
-  // Salvar a mensagem no banco de dados
-  const { error: insertMsgError } = await supabase.from('whatsapp_messages').insert({
-    conversation_id: conversationId,
-    message_id: messageData.key?.id,
-    content: messageContent,
-    message_type: messageType,
-    sender_type: messageData.key?.fromMe ? 'agent' : 'user',
-    is_from_me: messageData.key?.fromMe || false,
-  });
+    const { data: config } = await supabase.from('evolution_api_configs').select('id').eq('instance_name', instanceName).single();
+    if (!config) return;
 
-  if(insertMsgError) {
-    console.error('❌ Erro ao salvar mensagem:', insertMsgError);
-    return;
-  }
+    const contactNumber = remoteJid?.replace('@s.whatsapp.net', '');
+    if (!contactNumber) return;
+    
+    // A Evolution V2 envia o texto transcrito na propriedade 'speechToText'
+    const messageContent = messageData.message?.speechToText || messageData.message?.conversation || messageData.message?.extendedTextMessage?.text || "[Mídia não suportada]";
+    const messageType = messageData.message?.audioMessage ? 'audio' : 'text';
 
-  console.log(`✅ Mensagem de ${contactNumber} salva com sucesso.`);
+    const { data: conversation } = await supabase.from('whatsapp_conversations').select('id').eq('evolution_config_id', config.id).eq('contact_number', contactNumber).single();
+    let conversationId = conversation?.id;
 
-  // ##################################################
-  // ### CORREÇÃO APLICADA AQUI ###
-  // ##################################################
-  // Se a mensagem NÃO foi enviada por nós (é de um usuário),
-  // aciona o fluxo de verificação de auto-resposta da IA.
-  if (!messageData.key?.fromMe && messageContent) {
-    console.log('➡️ Mensagem de usuário recebida. Acionando verificação de auto-resposta da IA...');
-    await checkAutoResponse(supabase, config.id, conversationId, messageContent);
-  } else {
-    console.log('➡️ Mensagem do agente ou sem conteúdo. Ignorando auto-resposta.');
-  }
+    if (!conversation) {
+        const { data: newConversation } = await supabase.from('whatsapp_conversations').insert({ evolution_config_id: config.id, contact_number: contactNumber, contact_name: contactNumber }).select('id').single();
+        conversationId = newConversation?.id;
+    }
+    
+    if (!conversationId) return;
+
+    await supabase.from('whatsapp_messages').insert({
+        conversation_id: conversationId,
+        message_id: messageData.key?.id,
+        content: messageContent,
+        message_type: messageType,
+        sender_type: messageData.key?.fromMe ? 'agent' : 'user',
+        is_from_me: messageData.key?.fromMe || false,
+    });
+    console.log(`✅ Mensagem de ${contactNumber} salva com sucesso.`);
 }
 async function handleQRCodeUpdate(supabase, payload) {
   console.log('📱 Processing QR code update:', payload);

@@ -677,14 +677,12 @@ async function handleOpenAISetCreds(supabase: any, params: any) {
         body: JSON.stringify({ name: credsName, apiKey: apiKey }),
     });
 
-    const responseBody = await response.json(); // Sempre parsear o JSON
     if (!response.ok) {
-        const errorText = responseBody.message || await response.text();
+        const errorText = await response.text();
         throw new Error(`Erro ao configurar credenciais OpenAI: ${errorText}`);
     }
     
-    // Retornar o corpo da resposta, que contém o ID
-    return new Response(JSON.stringify(responseBody), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }
 
 async function handleOpenAICreateBot(supabase: any, params: any) {
