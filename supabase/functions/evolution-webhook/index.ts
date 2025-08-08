@@ -203,7 +203,13 @@ async function handleMessageUpsert(supabase: any, payload: any) {
         console.log(`✅ Transcrição bem-sucedida: "${messageContent.substring(0, 50)}..."`);
         
       } catch (error) {
+        // --- LOG DE ERRO APRIMORADO ---
         console.error('❌ Erro ao invocar a função de transcrição:', error);
+        if (error.context && error.context.json) {
+            const errorJson = await error.context.json();
+            console.error('Detalhes do erro da função openai-handler:', JSON.stringify(errorJson, null, 2));
+        }
+        // --- FIM DO APRIMORAMENTO ---
         messageContent = "[Erro ao transcrever áudio]";
       }
     } else {

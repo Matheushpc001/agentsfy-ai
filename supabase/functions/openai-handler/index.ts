@@ -21,31 +21,42 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
       throw new Error(`Falha ao baixar o áudio: ${audioResponse.status} ${audioResponse.statusText}`);
     }
     
-    const audioBlob = new Blob([await audioResponse.arrayBuffer()]);
-    console.log(`📦 Áudio baixado. Tamanho: ${audioBlob.size} bytes`);
+    const audioArrayBuffer = await audioResponse.arrayBuffer();
+    console.log(`📦 Áudio baixado. Tamanho: ${audioArrayBuffer.byteLength} bytes`);
 
-    if (audioBlob.size === 0) {
+    if (audioArrayBuffer.byteLength === 0) {
       throw new Error("O arquivo de áudio baixado está vazio.");
     }
 
-    // 2. Determinar a extensão correta do arquivo
-    // WhatsApp envia audio/ogg; codecs=opus. Whisper aceita .ogg.
-    let extension = 'ogg'; 
+    // --- MUDANÇA CRÍTICA ---
+    // 2. Determinar a extensão e o mimetype final
+    let extension = 'ogg';
+    let finalMimetype = 'audio/ogg'; // Padrão para áudios do WhatsApp com opus
+
     if (mimetype) {
-      if (mimetype.includes('mp4a') || mimetype.includes('mp4')) extension = 'm4a';
-      else if (mimetype.includes('mpeg') || mimetype.includes('mp3')) extension = 'mp3';
-      else if (mimetype.includes('webm')) extension = 'webm';
-      else if (mimetype.includes('wav')) extension = 'wav';
+      if (mimetype.includes('mp4a') || mimetype.includes('mp4')) {
+        extension = 'm4a';
+        finalMimetype = 'audio/mp4';
+      } else if (mimetype.includes('mpeg') || mimetype.includes('mp3')) {
+        extension = 'mp3';
+        finalMimetype = 'audio/mpeg';
+      } else if (mimetype.includes('webm')) {
+        extension = 'webm';
+        finalMimetype = 'audio/webm';
+      }
     }
     const fileName = `audio.${extension}`;
-    console.log(`📝 Arquivo preparado: ${fileName}`);
+    console.log(`📝 Arquivo preparado: ${fileName} com mimetype final: ${finalMimetype}`);
 
-    // 3. Criar o FormData
+    // 3. Criar o FormData usando o construtor 'File' para ser explícito
     const formData = new FormData();
-    formData.append('file', audioBlob, fileName);
+    const audioFile = new File([audioArrayBuffer], fileName, { type: finalMimetype });
+    
+    formData.append('file', audioFile);
     formData.append('model', 'whisper-1');
     formData.append('response_format', 'text');
-    formData.append('language', 'pt'); // Forçar português para maior precisão
+    formData.append('language', 'pt');
+    // --- FIM DA MUDANÇA CRÍTICA ---
 
     // 4. Chamar a API Whisper
     console.log('🚀 Enviando para a API Whisper...');
@@ -64,7 +75,7 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
     }
 
     const transcribedText = await transcribeResponse.text();
-    console.log(`✅ Transcrição concluída: "${transcribedText.substring(0, 100)}..."`);
+    console.log(`✅ Transcrição concluída: "${transcribedText.substring(0, 100).trim()}..."`);
     
     return transcribedText.trim();
     
@@ -73,6 +84,7 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
     throw error;
   }
 }
+
 
 // Função para gerar resposta de texto (mantida como estava)
 async function handleGenerate(openaiApiKey: string, payload: any) {
