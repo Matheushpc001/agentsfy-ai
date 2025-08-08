@@ -1,4 +1,4 @@
-// ARQUIVO: supabase/functions/evolution-api-manager/index.ts v24
+// ARQUIVO: supabase/functions/evolution-api-manager/index.ts v25
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0"
@@ -66,48 +66,46 @@ serve(async (req) => {
 async function handleSetupOpenAITranscription(supabase: any, params: any) {
   const { instanceName, openaiApiKey } = params;
   
-  // Validação inicial
-  if (!instanceName) throw new Error("instanceName é obrigatório.");
-  if (!openaiApiKey) throw new Error("openaiApiKey é obrigatório para a configuração inicial.");
-
+  if (!instanceName || !openaiApiKey) {
+    throw new Error("instanceName e openaiApiKey são obrigatórios.");
+  }
+  
   console.log(`🤖 Iniciando configuração COMPLETA de IA e transcrição para: ${instanceName}`);
 
   try {
-    // Passo 1: Configurar (ou garantir que exista) as credenciais
-    console.log("   -> Passo 1: Configurando credenciais OpenAI...");
     let openaiCredsId: string;
+    
+    // Obter a configuração global para as chamadas de API
+    const { data: config, error: configError } = await supabase.from('evolution_api_configs').select(`*, evolution_global_configs (*)`).eq('instance_name', instanceName).single();
+    if (configError || !config.evolution_global_configs) throw new Error(`Configuração não encontrada para ${instanceName}`);
+    const globalConfig = config.evolution_global_configs;
 
-    // Tenta criar a credencial. Se já existir, a API dará erro, então vamos capturar e buscar o ID.
-    try {
-        const credsResponse = await handleOpenAISetCreds(supabase, {
-            instanceName,
-            credsName: `creds-${instanceName}`,
-            apiKey: openaiApiKey,
+    // Passo 1: Tenta criar a credencial
+    console.log("   -> Passo 1: Tentando criar/configurar credenciais OpenAI...");
+    const credsResponse = await fetch(`${globalConfig.api_url}/openai/creds/${instanceName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': globalConfig.api_key },
+        body: JSON.stringify({ name: `creds-${instanceName}`, apiKey: openaiApiKey }),
+    });
+
+    const credsData = await credsResponse.json();
+
+    if (credsResponse.ok && credsData.id) {
+        openaiCredsId = credsData.id;
+        console.log(`   -> Credencial criada com sucesso com ID: ${openaiCredsId}`);
+    } else if (credsResponse.status === 400 && JSON.stringify(credsData).includes("already registered")) {
+        console.log("   -> Credencial já existe. Buscando ID existente...");
+        const credsListResponse = await fetch(`${globalConfig.api_url}/openai/creds/${instanceName}`, {
+            method: 'GET',
+            headers: { 'apikey': globalConfig.api_key },
         });
-        if (!credsResponse.ok) {
-             const errorData = await credsResponse.json();
-             if (JSON.stringify(errorData).includes("already registered")) {
-                console.log("   -> Credencial já existe. Buscando ID...");
-                // Se já existe, busca a credencial
-                const { data: config, error } = await supabase.from('evolution_api_configs').select(`*, evolution_global_configs (*)`).eq('instance_name', instanceName).single();
-                if (error || !config.evolution_global_configs) throw new Error(`Configuração não encontrada para ${instanceName}`);
-                const globalConfig = config.evolution_global_configs;
-                const credsListResponse = await fetch(`${globalConfig.api_url}/openai/creds/${instanceName}`, { headers: { 'apikey': globalConfig.api_key } });
-                const credsList = await credsListResponse.json();
-                if (!credsList || credsList.length === 0) throw new Error("Credencial já registrada, mas não foi possível encontrá-la.");
-                openaiCredsId = credsList[0].id;
-             } else {
-                throw new Error("Falha ao configurar credenciais.");
-             }
-        } else {
-            const credsData = await credsResponse.json();
-            openaiCredsId = credsData.id;
-        }
-    } catch(e) {
-         throw new Error("Erro no processo de criação/verificação de credenciais: " + e.message);
+        const credsList = await credsListResponse.json();
+        if (!credsList || credsList.length === 0) throw new Error("Credencial já registrada, mas não foi possível encontrá-la.");
+        openaiCredsId = credsList[0].id;
+        console.log(`   -> Usando credencial encontrada com ID: ${openaiCredsId}`);
+    } else {
+        throw new Error(`Falha ao configurar credenciais: ${JSON.stringify(credsData)}`);
     }
-
-    console.log(`   -> Usando credencial com ID: ${openaiCredsId}`);
 
     // Passo 2: Definir as configurações padrão, ativando speechToText e incluindo todos os campos
     console.log("   -> Passo 2: Habilitando speech-to-text com payload completo...");
@@ -115,7 +113,6 @@ async function handleSetupOpenAITranscription(supabase: any, params: any) {
     const settingsPayload = {
         openaiCredsId,
         speechToText: true,
-        // --- CAMPOS OBRIGATÓRIOS ADICIONADOS ---
         expire: 20,
         keywordFinish: "#SAIR",
         delayMessage: 1000,
@@ -127,9 +124,10 @@ async function handleSetupOpenAITranscription(supabase: any, params: any) {
         ignoreJids: [],
     };
 
-    const settingsResponse = await handleOpenAISetDefaults(supabase, {
-      instanceName,
-      settings: settingsPayload,
+    const settingsResponse = await fetch(`${globalConfig.api_url}/openai/settings/${instanceName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': globalConfig.api_key },
+        body: JSON.stringify(settingsPayload),
     });
     
     if (!settingsResponse.ok) {
