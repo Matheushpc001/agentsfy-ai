@@ -1,4 +1,4 @@
-// ARQUIVO: supabase/functions/evolution-api-manager/index.ts
+// ARQUIVO: supabase/functions/evolution-api-manager/index.ts v22
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0"
@@ -50,6 +50,8 @@ serve(async (req) => {
         return await handleOpenAICreateBot(supabase, params);
       case 'openai_set_defaults':
         return await handleOpenAISetDefaults(supabase, params);
+      case 'setup_openai_transcription':
+        return await handleSetupOpenAITranscription(supabase, params);
 
       default:
         return new Response(JSON.stringify({ error: 'Ação não reconhecida' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -59,6 +61,58 @@ serve(async (req) => {
     return new Response(JSON.stringify({ error: error.message || 'Erro interno do servidor', details: error.toString() }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
+
+
+async function handleSetupOpenAITranscription(supabase: any, params: any) {
+  const { instanceName, openaiApiKey } = params;
+  
+  if (!instanceName || !openaiApiKey) {
+    throw new Error("instanceName e openaiApiKey são obrigatórios.");
+  }
+  
+  console.log(`🤖 Iniciando configuração de transcrição para a instância: ${instanceName}`);
+
+  try {
+    // Passo 1: Configurar as credenciais
+    console.log("   -> Passo 1: Configurando credenciais OpenAI...");
+    const credsResponse = await handleOpenAISetCreds(supabase, {
+      instanceName,
+      credsName: `creds-${instanceName}`, // Nome único para a credencial
+      apiKey: openaiApiKey,
+    });
+    
+    if (!credsResponse.ok) throw new Error("Falha ao configurar credenciais.");
+    const credsData = await credsResponse.json();
+    const openaiCredsId = credsData.id;
+    console.log(`   -> Credenciais configuradas com ID: ${openaiCredsId}`);
+
+    // Passo 2: Definir as configurações padrão, ativando speechToText
+    console.log("   -> Passo 2: Habilitando speech-to-text...");
+    const settingsResponse = await handleOpenAISetDefaults(supabase, {
+      instanceName,
+      settings: {
+        openaiCredsId,
+        speechToText: true,
+      },
+    });
+    
+    if (!settingsResponse.ok) throw new Error("Falha ao habilitar speech-to-text.");
+    
+    console.log(`✅ Configuração de transcrição concluída para ${instanceName}`);
+
+    return new Response(JSON.stringify({ success: true, message: 'Transcrição de áudio ativada com sucesso!' }), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (error) {
+    console.error(`❌ Erro GERAL ao configurar transcrição para ${instanceName}:`, error);
+    return new Response(JSON.stringify({ error: error.message || 'Erro interno do servidor' }), {
+      status: 500,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+}
 
 // --- FUNÇÕES DE AJUDA ---
 async function getGlobalConfigForInstance(supabase: any, instanceName: string) {
@@ -677,12 +731,25 @@ async function handleOpenAISetCreds(supabase: any, params: any) {
         body: JSON.stringify({ name: credsName, apiKey: apiKey }),
     });
 
+    const responseData = await response.json(); // <-- Adicionado para capturar a resposta
+
     if (!response.ok) {
-        const errorText = await response.text();
+        const errorText = JSON.stringify(responseData);
         throw new Error(`Erro ao configurar credenciais OpenAI: ${errorText}`);
     }
     
-    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+    // Certifique-se de que a resposta contém o ID da credencial
+    if (!responseData.id) {
+        throw new Error("A API da Evolution não retornou um ID para a credencial criada.");
+    }
+    
+    console.log(`✅ Credencial OpenAI criada com ID: ${responseData.id}`);
+    
+    // Retorna o corpo completo da resposta, que deve incluir o ID
+    return new Response(JSON.stringify(responseData), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+    });
 }
 
 async function handleOpenAICreateBot(supabase: any, params: any) {
