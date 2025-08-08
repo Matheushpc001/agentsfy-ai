@@ -1,4 +1,4 @@
-// ARQUIVO REFINADO E FINAL: src/components/evolution/AIAgentSetup.tsx
+// ARQUIVO COMPLETO E ATUALIZADO: src/components/evolution/AIAgentSetup.tsx
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -17,7 +17,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { RefreshCw } from "lucide-react";
 import { Agent } from "@/types";
 
-// Schema de validação
+// Schema de validação Zod
 const agentSchema = z.object({
   agent_id: z.string().uuid({ message: "Selecione um agente válido." }),
   evolution_config_id: z.string().uuid({ message: "Selecione uma instância do WhatsApp." }),
@@ -32,7 +32,7 @@ interface AIAgentSetupProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: () => void;
-  existingAgent?: any | null;
+  existingAgent?: any | null; // Agente da tabela `ai_whatsapp_agents`
   franchiseeId: string;
 }
 
@@ -43,7 +43,6 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
 
   const form = useForm<AgentFormValues>({
     resolver: zodResolver(agentSchema),
-    // O defaultValues agora é mais simples
     defaultValues: {
       agent_id: '',
       evolution_config_id: '',
@@ -52,54 +51,54 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
       speechToText: true,
     }
   });
-  
-  // ==========================================================
-  // ### CORREÇÃO PARA O MODO DE EDIÇÃO APLICADA AQUI ###
-  // ==========================================================
-  // Novo useEffect para popular o formulário QUANDO o modal abre para edição
-  useEffect(() => {
-    if (isOpen && existingAgent) {
-      console.log("📝 Populando formulário para edição com dados do agente:", existingAgent);
-      form.reset({
-        agent_id: existingAgent.agent_id,
-        evolution_config_id: existingAgent.evolution_config_id,
-        system_prompt: existingAgent.system_prompt,
-        speechToText: existingAgent.auto_response, // Assumindo que speechToText está mapeado aqui
-        openai_api_key: '' // Sempre limpo, pois usaremos a chave salva
-      });
-      // Seta o `selectedTraditionalAgent` para que a lógica da chave funcione
-      const agent = traditionalAgents.find(a => a.id === existingAgent.agent_id);
-      if(agent) setSelectedTraditionalAgent(agent);
-
-    } else if (isOpen && !existingAgent) {
-       // Reseta o formulário se abriu para criação
-       form.reset({
-          agent_id: '',
-          evolution_config_id: '',
-          openai_api_key: '',
-          system_prompt: 'Você é um assistente virtual profissional.',
-          speechToText: true,
-       });
-       setSelectedTraditionalAgent(null);
-    }
-  }, [isOpen, existingAgent, traditionalAgents, form]);
 
   const selectedAgentId = form.watch('agent_id');
 
+  // CORREÇÃO: useEffect para popular/resetar o formulário quando o modal abre
   useEffect(() => {
-    if (selectedAgentId && traditionalAgents.length > 0) {
+    if (isOpen) {
+      if (existingAgent && traditionalAgents.length > 0) {
+        // MODO DE EDIÇÃO
+        console.log("📝 Populando formulário para EDIÇÃO com dados:", existingAgent);
+        form.reset({
+          agent_id: existingAgent.agent_id,
+          evolution_config_id: existingAgent.evolution_config_id,
+          system_prompt: existingAgent.system_prompt,
+          speechToText: existingAgent.auto_response, // Mapear para o campo correto
+          openai_api_key: '' // Limpa o campo de chave, pois usaremos a já salva
+        });
+        
+        // Encontra o agente correspondente para obter a chave salva
+        const agent = traditionalAgents.find(a => a.id === existingAgent.agent_id);
+        if(agent) setSelectedTraditionalAgent(agent);
+
+      } else {
+        // MODO DE CRIAÇÃO
+        console.log("📝 Resetando formulário para CRIAÇÃO.");
+        form.reset({
+           agent_id: '',
+           evolution_config_id: '',
+           openai_api_key: '',
+           system_prompt: 'Você é um assistente virtual profissional.',
+           speechToText: true,
+        });
+        setSelectedTraditionalAgent(null);
+      }
+    }
+  }, [isOpen, existingAgent, traditionalAgents, form]);
+
+  // useEffect para lidar com a seleção no modo de CRIAÇÃO
+  useEffect(() => {
+    // Só executa se NÃO estivermos no modo de edição
+    if (!existingAgent && selectedAgentId && traditionalAgents.length > 0) {
       const agent = traditionalAgents.find(a => a.id === selectedAgentId);
       setSelectedTraditionalAgent(agent || null);
       if (agent) {
         form.setValue('system_prompt', agent.prompt);
-        // Se o agente já tem uma chave, o campo de input não aparecerá.
-        // Se não tem, o campo aparecerá e o usuário deverá preenchê-lo.
       }
-    } else {
-      setSelectedTraditionalAgent(null);
     }
-  }, [selectedAgentId, traditionalAgents, form]);
-  
+  }, [selectedAgentId, traditionalAgents, form, existingAgent]);
+
   const onSubmit = async (values: AgentFormValues) => {
     setIsSubmitting(true);
     const toastId = toast.loading("Configurando agente IA...");
@@ -107,9 +106,7 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
     try {
       toast.loading("Validando dados...", { id: toastId });
 
-      // **LÓGICA DE OBTENÇÃO DA CHAVE - PONTO CENTRAL DA CORREÇÃO**
       let finalApiKey: string | undefined;
-
       if (selectedTraditionalAgent?.openAiKey) {
         console.log("🔑 Usando chave da API do 'Agente do Sistema' pré-cadastrado.");
         finalApiKey = selectedTraditionalAgent.openAiKey;
@@ -126,8 +123,6 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
       if (!instance) throw new Error("Instância do WhatsApp selecionada não foi encontrada.");
       const instanceName = instance.instance_name;
 
-      // ... [O restante da lógica de 3 passos permanece a mesma] ...
-      
       toast.loading("Passo 1/3: Enviando credenciais...", { id: toastId });
       const { data: credsData, error: credsError } = await supabase.functions.invoke('evolution-api-manager', {
         body: { action: 'openai_set_creds', instanceName, credsName: `creds-${instanceName}`, apiKey: finalApiKey },
@@ -193,12 +188,16 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
-              {/* ... [Restante do formulário como estava, o campo condicional está correto] ... */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="agent_id" render={({ field }) => (
                     <FormItem>
                       <FormLabel>Agente do Sistema</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value} disabled={!!existingAgent}>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        value={field.value} 
+                        // Desabilita a troca de agente no modo de edição
+                        disabled={!!existingAgent}
+                      >
                         <FormControl><SelectTrigger><SelectValue placeholder="Selecione o agente" /></SelectTrigger></FormControl>
                         <SelectContent>{traditionalAgents?.map(agent => (<SelectItem key={agent.id} value={agent.id}>{agent.name}</SelectItem>))}</SelectContent>
                       </Select>
@@ -216,8 +215,8 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
                     </FormItem>
                 )}/>
               </div>
-
-              {/* **CAMPO CONDICIONAL CORRETO** */}
+              
+              {/* O campo só aparece se um agente for selecionado e ele NÃO tiver chave */}
               {selectedTraditionalAgent && !selectedTraditionalAgent.openAiKey && (
                 <FormField control={form.control} name="openai_api_key" render={({ field }) => (
                   <FormItem>
