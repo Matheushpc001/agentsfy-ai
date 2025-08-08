@@ -1,4 +1,4 @@
-// ARQUIVO CORRIGIDO E FINAL: src/components/evolution/AIAgentSetup.tsx
+// ARQUIVO CORRIGIDO E FINAL v2: src/components/evolution/AIAgentSetup.tsx
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { supabase } from "@/integrations/supabase/client";
@@ -17,15 +17,14 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { RefreshCw } from "lucide-react";
 import { Agent } from "@/types";
 
-// ### PASSO 1: Tornar a API Key opcional na validação inicial do Zod ###
-// Faremos a validação obrigatória manualmente depois.
+// Schema com API Key opcional para validação flexível
 const agentSchema = z.object({
   agent_id: z.string().uuid({ message: "Selecione um agente válido." }),
   evolution_config_id: z.string().uuid({ message: "Selecione uma instância do WhatsApp." }),
-  openai_api_key: z.string().optional(), // Agora é opcional no schema
+  openai_api_key: z.string().optional(),
   system_prompt: z.string().min(10, { message: "O prompt deve ter pelo menos 10 caracteres." }),
   speechToText: z.boolean().default(true),
-  // Campos que não estão no form mas são úteis
+  // Campos auxiliares
   phone_number: z.string().optional(),
   model: z.string().default('gpt-4o-mini'),
   auto_response: z.boolean().default(true),
@@ -45,8 +44,6 @@ interface AIAgentSetupProps {
 export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, franchiseeId }: AIAgentSetupProps) {
   const { configs: evolutionConfigs, agents: traditionalAgents, isLoading } = useEvolutionAPI(franchiseeId);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // ### PASSO 2: Manter um estado para o agente selecionado para ter acesso fácil aos seus dados ###
   const [selectedTraditionalAgent, setSelectedTraditionalAgent] = useState<Agent | null>(null);
 
   const form = useForm<AgentFormValues>({
@@ -62,39 +59,43 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
 
   const selectedAgentId = form.watch('agent_id');
 
-  // ### PASSO 3: Simplificar e robustecer a lógica de preenchimento automático ###
+  // Lógica de preenchimento automático, agora CORRIGIDA
   useEffect(() => {
-    // Roda sempre que a lista de agentes ou o agente selecionado mudar
     if (selectedAgentId && traditionalAgents.length > 0) {
       const agent = traditionalAgents.find(a => a.id === selectedAgentId);
       if (agent) {
         setSelectedTraditionalAgent(agent);
-        // Preenche os campos do formulário com os dados do agente encontrado
         form.setValue('system_prompt', agent.prompt);
-        // Não preenchemos a API Key aqui para o campo não precisar existir no form
+        
+        // ### A CORREÇÃO ESTÁ AQUI ###
+        // Se o agente JÁ TEM uma chave, limpamos o campo do formulário para evitar
+        // que um valor antigo (digitado anteriormente) permaneça no estado.
+        if (agent.openAiKey) {
+          form.setValue('openai_api_key', ''); // Limpa o valor do formulário
+        }
       }
     } else {
       setSelectedTraditionalAgent(null);
     }
   }, [selectedAgentId, traditionalAgents, form]);
-  
-  // Lógica de `onSubmit` robustecida
+
+  // Lógica de `onSubmit` robusta
   const onSubmit = async (values: AgentFormValues) => {
     setIsSubmitting(true);
     const toastId = toast.loading("Configurando agente IA...");
 
     try {
-      // ### PASSO 4: Validação manual e unificação da API Key ###
+      // Validação final da API Key
       const apiKey = selectedTraditionalAgent?.openAiKey || values.openai_api_key;
       if (!apiKey || !apiKey.startsWith('sk-')) {
-        throw new Error("Chave da API OpenAI não encontrada ou inválida. Verifique o cadastro do agente.");
+        throw new Error("Chave da API OpenAI não encontrada ou inválida. Verifique o cadastro do agente ou digite-a no campo.");
       }
 
       const instance = evolutionConfigs.find(c => c.id === values.evolution_config_id);
       if (!instance) throw new Error("Instância selecionada não encontrada.");
       const instanceName = instance.instance_name;
 
-      // ---- Início do fluxo de 3 passos para a Evolution API ----
+      // ---- Fluxo de 3 passos para a Evolution API ----
       toast.loading("Passo 1 de 3: Configurando credenciais...", { id: toastId });
       const { data: credsData, error: credsError } = await supabase.functions.invoke('evolution-api-manager', {
         body: { action: 'openai_set_creds', instanceName, credsName: `creds-${instanceName}`, apiKey: apiKey },
@@ -114,13 +115,13 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
       await supabase.functions.invoke('evolution-api-manager', {
         body: { action: 'openai_set_defaults', instanceName, settings: { openaiCredsId, speechToText: values.speechToText } },
       }).then(({ error }) => { if (error) throw error; });
-      // ---- Fim do fluxo Evolution API ----
+      // ---- Fim do fluxo ----
 
-      // Salva a associação no nosso banco de dados
+      // Salva a associação no banco de dados
       const payloadToSave = {
         agent_id: values.agent_id,
         evolution_config_id: values.evolution_config_id,
-        phone_number: instance.instance_name, // Ou outro campo relevante
+        phone_number: instance.instance_name,
         openai_api_key: apiKey,
         model: 'gpt-4o-mini',
         system_prompt: values.system_prompt,
@@ -183,7 +184,6 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
                 )}/>
               </div>
               
-              {/* ### PASSO 5: Mostrar o campo da API Key apenas se não for encontrada no agente tradicional ### */}
               {!selectedTraditionalAgent?.openAiKey && (
                 <FormField control={form.control} name="openai_api_key" render={({ field }) => (
                   <FormItem>
