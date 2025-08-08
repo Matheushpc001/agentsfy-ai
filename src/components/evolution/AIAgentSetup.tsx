@@ -1,4 +1,4 @@
-// ARQUIVO CORRIGIDO E FINAL: src/components/evolution/AIAgentSetup.tsx
+// ARQUIVO REFINADO E FINAL: src/components/evolution/AIAgentSetup.tsx
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
@@ -17,12 +17,11 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { RefreshCw } from "lucide-react";
 import { Agent } from "@/types";
 
-// Schema com API Key opcional para validação flexível no formulário,
-// a validação final será feita na função de submissão.
+// Schema de validação
 const agentSchema = z.object({
   agent_id: z.string().uuid({ message: "Selecione um agente válido." }),
   evolution_config_id: z.string().uuid({ message: "Selecione uma instância do WhatsApp." }),
-  openai_api_key: z.string().optional(),
+  openai_api_key: z.string().optional(), // A chave é opcional no formulário, pois pode vir do agente
   system_prompt: z.string().min(10, { message: "O prompt deve ter pelo menos 10 caracteres." }),
   speechToText: z.boolean().default(true),
 });
@@ -40,8 +39,6 @@ interface AIAgentSetupProps {
 export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, franchiseeId }: AIAgentSetupProps) {
   const { configs: evolutionConfigs, agents: traditionalAgents, isLoading } = useEvolutionAPI(franchiseeId);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  
-  // Estado para guardar o agente selecionado e suas propriedades
   const [selectedTraditionalAgent, setSelectedTraditionalAgent] = useState<Agent | null>(null);
 
   const form = useForm<AgentFormValues>({
@@ -49,7 +46,7 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
     defaultValues: {
       agent_id: existingAgent?.agent_id || '',
       evolution_config_id: existingAgent?.evolution_config_id || '',
-      openai_api_key: '', // Sempre começa vazio
+      openai_api_key: '',
       system_prompt: existingAgent?.system_prompt || 'Você é um assistente virtual profissional.',
       speechToText: existingAgent?.speechToText ?? true,
     }
@@ -57,92 +54,96 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
 
   const selectedAgentId = form.watch('agent_id');
 
-  // **LÓGICA CORRIGIDA PARA PREENCHIMENTO AUTOMÁTICO**
   useEffect(() => {
     if (selectedAgentId && traditionalAgents.length > 0) {
       const agent = traditionalAgents.find(a => a.id === selectedAgentId);
+      setSelectedTraditionalAgent(agent || null);
       if (agent) {
-        setSelectedTraditionalAgent(agent);
-        // Preenche o prompt automaticamente
         form.setValue('system_prompt', agent.prompt);
-        // Limpa o campo de API Key, pois vamos usar a do agente selecionado se existir
-        form.setValue('openai_api_key', ''); 
+        // Se o agente já tem uma chave, o campo de input não aparecerá.
+        // Se não tem, o campo aparecerá e o usuário deverá preenchê-lo.
       }
     } else {
       setSelectedTraditionalAgent(null);
     }
   }, [selectedAgentId, traditionalAgents, form]);
   
-  // **LÓGICA DE SUBMISSÃO ROBUSTA**
   const onSubmit = async (values: AgentFormValues) => {
     setIsSubmitting(true);
     const toastId = toast.loading("Configurando agente IA...");
 
     try {
-      // **Validação final e explícita da API Key**
-      // 1. Tenta pegar a chave do agente selecionado.
-      // 2. Se não existir, pega do campo do formulário.
-      const apiKey = selectedTraditionalAgent?.openAiKey || values.openai_api_key;
+      toast.loading("Validando dados...", { id: toastId });
+
+      // **LÓGICA DE OBTENÇÃO DA CHAVE - PONTO CENTRAL DA CORREÇÃO**
+      let finalApiKey: string | undefined;
+
+      if (selectedTraditionalAgent?.openAiKey) {
+        console.log("🔑 Usando chave da API do 'Agente do Sistema' pré-cadastrado.");
+        finalApiKey = selectedTraditionalAgent.openAiKey;
+      } else {
+        console.log("🔑 Usando chave da API digitada no formulário.");
+        finalApiKey = values.openai_api_key;
+      }
       
-      if (!apiKey || !apiKey.startsWith('sk-')) {
-        throw new Error("Chave da API OpenAI não encontrada ou inválida. Verifique o cadastro do Agente do Sistema ou insira uma chave no campo.");
+      if (!finalApiKey || !finalApiKey.startsWith('sk-')) {
+        throw new Error("Chave da API OpenAI é inválida. Verifique o cadastro do Agente ou o valor digitado.");
       }
 
       const instance = evolutionConfigs.find(c => c.id === values.evolution_config_id);
       if (!instance) throw new Error("Instância do WhatsApp selecionada não foi encontrada.");
       const instanceName = instance.instance_name;
 
-      // ---- Início do Fluxo de 3 Passos para a Evolution API ----
-      toast.loading("Passo 1 de 3: Configurando credenciais...", { id: toastId });
-      const { data: credsData, error: credsError } = await supabase.functions.invoke('evolution-api-manager', {
-        body: { action: 'openai_set_creds', instanceName, credsName: `creds-${instanceName}`, apiKey: apiKey },
-      });
-      if (credsError || !credsData?.id) throw new Error(credsError?.message || 'Falha ao configurar credenciais na Evolution API.');
-      const openAICredsId = credsData.id;
+      // ... [O restante da lógica de 3 passos permanece a mesma] ...
       
-      toast.loading("Passo 2 de 3: Criando o bot na instância...", { id: toastId });
+      toast.loading("Passo 1/3: Enviando credenciais...", { id: toastId });
+      const { data: credsData, error: credsError } = await supabase.functions.invoke('evolution-api-manager', {
+        body: { action: 'openai_set_creds', instanceName, credsName: `creds-${instanceName}`, apiKey: finalApiKey },
+      });
+      if (credsError) throw credsError;
+      const openAICredsId = credsData.id;
+      if (!openAICredsId) throw new Error("ID da credencial OpenAI não retornado pela API.");
+
+      toast.loading("Passo 2/3: Criando bot...", { id: toastId });
       const { error: botError } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
           action: 'openai_create_bot', instanceName,
           botConfig: { enabled: true, openaiCredsId, botType: 'chatCompletion', model: 'gpt-4o-mini', systemMessages: [values.system_prompt], triggerType: 'all' },
         },
       });
-      if (botError) throw new Error(`Erro ao criar bot: ${botError.message}`);
+      if (botError) throw botError;
 
-      toast.loading("Passo 3 de 3: Ativando configurações padrão...", { id: toastId });
+      toast.loading("Passo 3/3: Ativando transcrição...", { id: toastId });
       const { error: settingsError } = await supabase.functions.invoke('evolution-api-manager', {
         body: { action: 'openai_set_defaults', instanceName, settings: { openaiCredsId, speechToText: values.speechToText } },
       });
-      if (settingsError) throw new Error(`Erro ao ativar transcrição: ${settingsError.message}`);
-      // ---- Fim do Fluxo ----
+      if (settingsError) throw settingsError;
 
-      // **Salvando a associação no nosso banco de dados (Supabase)**
+      toast.loading("Finalizando e salvando...", { id: toastId });
       const payloadToSave = {
         agent_id: values.agent_id,
         evolution_config_id: values.evolution_config_id,
-        phone_number: instanceName, // O número de telefone é o nome da instância
-        openai_api_key: apiKey, // Salva a chave que foi usada
+        phone_number: instanceName,
+        openai_api_key: finalApiKey,
         model: 'gpt-4o-mini',
         system_prompt: values.system_prompt,
         auto_response: true,
         is_active: true,
       };
 
-      if (existingAgent) {
-        await supabase.from('ai_whatsapp_agents').update(payloadToSave).eq('id', existingAgent.id).throwOnError();
-        toast.success("Agente IA atualizado com sucesso!");
-      } else {
-        await supabase.from('ai_whatsapp_agents').insert(payloadToSave).throwOnError();
-        toast.success("Agente IA criado e configurado com sucesso!");
-      }
+      const { error: dbError } = existingAgent 
+        ? await supabase.from('ai_whatsapp_agents').update(payloadToSave).eq('id', existingAgent.id)
+        : await supabase.from('ai_whatsapp_agents').insert(payloadToSave);
 
-      toast.dismiss(toastId);
+      if (dbError) throw dbError;
+
+      toast.success(existingAgent ? "Agente IA atualizado com sucesso!" : "Agente IA criado com sucesso!", { id: toastId });
       onSave();
       onClose();
 
     } catch (error: any) {
-      toast.dismiss(toastId);
-      toast.error(`Erro: ${error.message}`);
+      toast.error(`Erro: ${error.message}`, { id: toastId });
+      console.error("Detalhes do erro na submissão:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -160,6 +161,7 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
         ) : (
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+              {/* ... [Restante do formulário como estava, o campo condicional está correto] ... */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField control={form.control} name="agent_id" render={({ field }) => (
                     <FormItem>
@@ -182,8 +184,8 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
                     </FormItem>
                 )}/>
               </div>
-              
-              {/* **CAMPO CONDICIONAL CORRIGIDO** */}
+
+              {/* **CAMPO CONDICIONAL CORRETO** */}
               {selectedTraditionalAgent && !selectedTraditionalAgent.openAiKey && (
                 <FormField control={form.control} name="openai_api_key" render={({ field }) => (
                   <FormItem>
