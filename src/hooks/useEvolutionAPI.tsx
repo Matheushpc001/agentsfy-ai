@@ -553,6 +553,39 @@ export function useEvolutionAPI(franchiseeId?: string) {
     }
   };
 
+  const configureSpeechToText = async (instanceName: string, openaiApiKey: string) => {
+    try {
+      console.log('🎤 Configurando speech-to-text para:', instanceName);
+      
+      const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
+        body: {
+          action: 'configure_speech_to_text',
+          instanceName,
+          openaiApiKey,
+          enableSpeechToText: true
+        }
+      });
+
+      if (error) {
+        console.error('❌ Erro na configuração de speech-to-text:', error);
+        throw error;
+      }
+
+      if (!data?.success) {
+        throw new Error(data?.error || 'Falha na configuração de speech-to-text');
+      }
+
+      console.log('✅ Speech-to-text configurado com sucesso:', data);
+      toast.success('Transcrição de áudio configurada com sucesso!');
+      
+      return data;
+    } catch (error) {
+      console.error('❌ Erro ao configurar speech-to-text:', error);
+      toast.error(`Erro ao configurar transcrição: ${error.message}`);
+      throw error;
+    }
+  };
+
   const refreshData = async () => {
     setIsLoading(true);
     await loadInitialData();
@@ -582,6 +615,7 @@ export function useEvolutionAPI(franchiseeId?: string) {
     loadConfigs,
     refreshData,
     startStatusMonitoring,
-    stopStatusMonitoring
+    stopStatusMonitoring,
+    configureSpeechToText
   };
 }

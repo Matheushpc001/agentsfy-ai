@@ -61,7 +61,7 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
           instanceName,
           botConfig: {
             enabled: true,
-            openaiCredsId,
+            openaiCredsId: openAICredsId,
             botType: 'chatCompletion',
             model: 'gpt-4o-mini',
             systemMessages: [values.systemPrompt],
@@ -77,7 +77,7 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
           action: 'openai_set_defaults',
           instanceName,
           settings: {
-            openaiCredsId,
+            openaiCredsId: openAICredsId,
             speechToText: values.speechToText,
           },
         },

@@ -85,11 +85,14 @@ export default function AIAgentConfig({
           {/* Formulário de criação/edição */}
           {showCreateForm && (
             <AIAgentSetup
-              evolutionConfigId={evolutionConfigId}
-              onCreateAgent={handleCreateAgent}
-              onUpdateAgent={handleUpdateAgent}
+              isOpen={true}
+              onClose={() => setShowCreateForm(false)}
+              onSave={() => {
+                setShowCreateForm(false);
+                setEditingAgent(null);
+              }}
               existingAgent={editingAgent}
-              agents={aiAgents}
+              franchiseeId="temp"
             />
           )}
 

@@ -7,48 +7,126 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Função aprimorada para transcrever áudio
+// Função aprimorada para transcrever áudio com melhor detecção de formato
 async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype: string) {
+  if (!openaiApiKey) throw new Error("Chave da API OpenAI não fornecida.");
   if (!audioUrl) throw new Error("URL do áudio não fornecida.");
   
-  console.log(`🎤 Iniciando transcrição (Fallback) para: ${audioUrl}`);
-  const audioResponse = await fetch(audioUrl);
-  if (!audioResponse.ok) throw new Error(`Falha ao baixar áudio: ${audioResponse.statusText}`);
+  console.log(`🎤 Iniciando transcrição para: ${audioUrl}`);
+  console.log(`📱 Mimetype recebido: ${mimetype}`);
   
-  const audioArrayBuffer = await audioResponse.arrayBuffer();
-  if (audioArrayBuffer.byteLength === 0) throw new Error("Arquivo de áudio baixado está vazio.");
-
-  let extension = 'ogg';
-  let finalMimetype = 'audio/ogg';
-  if (mimetype && mimetype.includes('mp4')) { 
-      extension = 'm4a'; 
-      finalMimetype = 'audio/mp4'; 
-  }
-  const fileName = `audio.${extension}`;
-  console.log(`📝 Arquivo preparado: ${fileName} com mimetype: ${finalMimetype}`);
-
-  const formData = new FormData();
-  const audioFile = new File([audioArrayBuffer], fileName, { type: finalMimetype });
+  // Download do áudio com timeout
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
   
-  formData.append('file', audioFile);
-  formData.append('model', 'whisper-1');
-  formData.append('language', 'pt');
-  formData.append('response_format', 'text');
+  try {
+    const audioResponse = await fetch(audioUrl, { 
+      signal: controller.signal,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; AudioBot/1.0)'
+      }
+    });
+    clearTimeout(timeoutId);
+    
+    if (!audioResponse.ok) {
+      throw new Error(`Falha ao baixar áudio: ${audioResponse.status} ${audioResponse.statusText}`);
+    }
+    
+    const contentLength = audioResponse.headers.get('content-length');
+    console.log(`📊 Tamanho do áudio: ${contentLength} bytes`);
+    
+    const audioArrayBuffer = await audioResponse.arrayBuffer();
+    if (audioArrayBuffer.byteLength === 0) {
+      throw new Error("Arquivo de áudio baixado está vazio.");
+    }
+    
+    if (audioArrayBuffer.byteLength > 25 * 1024 * 1024) { // 25MB limit
+      throw new Error("Arquivo de áudio muito grande (máximo 25MB).");
+    }
 
-  const transcribeResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${openaiApiKey}` },
-    body: formData,
-  });
+    // Detecção inteligente do formato do áudio
+    let extension = 'ogg';
+    let finalMimetype = 'audio/ogg';
+    
+    if (mimetype) {
+      if (mimetype.includes('mp4') || mimetype.includes('m4a')) {
+        extension = 'm4a';
+        finalMimetype = 'audio/mp4';
+      } else if (mimetype.includes('mpeg') || mimetype.includes('mp3')) {
+        extension = 'mp3';
+        finalMimetype = 'audio/mpeg';
+      } else if (mimetype.includes('wav')) {
+        extension = 'wav';
+        finalMimetype = 'audio/wav';
+      } else if (mimetype.includes('webm')) {
+        extension = 'webm';
+        finalMimetype = 'audio/webm';
+      }
+    }
+    
+    // Fallback: detectar pelo magic number (primeiros bytes)
+    const firstBytes = new Uint8Array(audioArrayBuffer.slice(0, 12));
+    const header = Array.from(firstBytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    if (header.startsWith('667479704d34')) { // ftypisom
+      extension = 'm4a';
+      finalMimetype = 'audio/mp4';
+    } else if (header.startsWith('494433') || header.startsWith('fffb')) { // ID3 ou MP3
+      extension = 'mp3';
+      finalMimetype = 'audio/mpeg';
+    } else if (header.startsWith('52494646') && header.includes('57415645')) { // RIFF WAVE
+      extension = 'wav';
+      finalMimetype = 'audio/wav';
+    }
+    
+    const fileName = `audio_${Date.now()}.${extension}`;
+    console.log(`📝 Arquivo preparado: ${fileName} (${finalMimetype}) - ${audioArrayBuffer.byteLength} bytes`);
 
-  if (!transcribeResponse.ok) {
-    const errorText = await transcribeResponse.text();
-    console.error('❌ Erro da API Whisper:', errorText);
-    throw new Error(`Erro API Whisper: ${errorText}`);
+    const formData = new FormData();
+    const audioFile = new File([audioArrayBuffer], fileName, { type: finalMimetype });
+    
+    formData.append('file', audioFile);
+    formData.append('model', 'whisper-1');
+    formData.append('language', 'pt');
+    formData.append('response_format', 'text');
+    formData.append('temperature', '0');
+
+    console.log(`🔄 Enviando para Whisper API...`);
+    const transcribeResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: { 
+        'Authorization': `Bearer ${openaiApiKey}`,
+      },
+      body: formData,
+    });
+
+    if (!transcribeResponse.ok) {
+      const errorText = await transcribeResponse.text();
+      console.error('❌ Erro da API Whisper:', {
+        status: transcribeResponse.status,
+        statusText: transcribeResponse.statusText,
+        error: errorText
+      });
+      throw new Error(`Erro API Whisper (${transcribeResponse.status}): ${errorText}`);
+    }
+
+    const transcribedText = await transcribeResponse.text();
+    const cleanText = transcribedText.trim();
+    
+    if (!cleanText || cleanText.length === 0) {
+      throw new Error("Transcrição retornou vazia");
+    }
+    
+    console.log(`✅ Transcrição concluída: "${cleanText}"`);
+    return cleanText;
+    
+  } catch (error) {
+    clearTimeout(timeoutId);
+    if (error.name === 'AbortError') {
+      throw new Error("Timeout ao baixar áudio");
+    }
+    throw error;
   }
-
-  const transcribedText = await transcribeResponse.text();
-  return transcribedText.trim();
 }
 
 // Função para gerar resposta de texto (mantida como estava)

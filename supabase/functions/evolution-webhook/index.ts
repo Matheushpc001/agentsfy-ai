@@ -59,37 +59,68 @@ async function handleMessageUpsert(supabase: any, payload: any) {
   let messageContent: string | null = null;
   let messageType = 'text';
 
-  const isAudioMessage = !!messageData.message?.audioMessage;
+  // Verificar diferentes tipos de mensagem
+  const hasAudio = !!messageData.message?.audioMessage;
+  const hasVideo = !!messageData.message?.videoMessage;
+  const hasDocument = !!messageData.message?.documentMessage;
+  const hasImage = !!messageData.message?.imageMessage;
   
-  if (isAudioMessage) {
+  if (hasAudio) {
     messageType = 'audio';
-    messageContent = messageData.message.speechToText; 
+    console.log('🎤 Processando mensagem de áudio...');
     
-    if (messageContent) {
-      console.log(`✅ Transcrição recebida da Evolution API: "${messageContent}"`);
+    // Primeiro, verificar se a Evolution API já fez a transcrição
+    messageContent = messageData.message?.audioMessage?.speechToText || 
+                    messageData.message?.speechToText ||
+                    messageData.speechToText;
+    
+    if (messageContent && messageContent.trim().length > 0) {
+      console.log(`✅ Transcrição obtida da Evolution API: "${messageContent}"`);
     } else {
-      console.warn('⚠️ Transcrição da Evolution API ausente. Ativando fallback para openai-handler...');
+      console.log('⚠️ Transcrição não encontrada na Evolution API. Tentando fallback...');
       
       try {
         const { data: config } = await supabase.from('evolution_api_configs').select('id').eq('instance_name', instanceName).single();
-        if (!config) throw new Error("Configuração da instância não encontrada para o fallback.");
+        if (!config) throw new Error("Configuração da instância não encontrada");
 
-        // Busca o AI Agent associado a essa configuração para pegar a chave
-        const { data: aiAgent } = await supabase.from('ai_whatsapp_agents').select('openai_api_key').eq('evolution_config_id', config.id).single();
-        if (!aiAgent?.openai_api_key || !messageData.message.audioMessage.url) {
-            throw new Error("Chave OpenAI ou URL do áudio ausente para o fallback.");
+        // Buscar agente IA ativo com chave OpenAI
+        const { data: aiAgent } = await supabase
+          .from('ai_whatsapp_agents')
+          .select('openai_api_key')
+          .eq('evolution_config_id', config.id)
+          .eq('is_active', true)
+          .single();
+          
+        if (!aiAgent?.openai_api_key) {
+          throw new Error("Nenhum agente IA ativo com chave OpenAI encontrado");
         }
 
+        const audioUrl = messageData.message?.audioMessage?.url;
+        const mimetype = messageData.message?.audioMessage?.mimetype || 'audio/ogg';
+        
+        if (!audioUrl) {
+          throw new Error("URL do áudio não encontrada");
+        }
+
+        console.log(`🔄 Iniciando transcrição via fallback para: ${audioUrl}`);
+        
         const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('openai-handler', {
           body: {
             action: 'transcribe',
             openaiApiKey: aiAgent.openai_api_key,
-            audioUrl: messageData.message.audioMessage.url,
-            mimetype: messageData.message.audioMessage.mimetype || 'audio/ogg'
+            audioUrl: audioUrl,
+            mimetype: mimetype
           }
         });
         
-        if (transcribeError) throw transcribeError;
+        if (transcribeError) {
+          console.error('❌ Erro na função de transcrição:', transcribeError);
+          throw transcribeError;
+        }
+        
+        if (!transcribeData?.transcribedText) {
+          throw new Error("Transcrição retornou vazia");
+        }
         
         messageContent = transcribeData.transcribedText;
         console.log(`✅ Transcrição via fallback bem-sucedida: "${messageContent}"`);
@@ -99,9 +130,21 @@ async function handleMessageUpsert(supabase: any, payload: any) {
         messageContent = "[Erro ao transcrever áudio]";
       }
     }
+  } else if (hasVideo) {
+    messageType = 'video';
+    messageContent = messageData.message?.videoMessage?.caption || '[Vídeo enviado]';
+  } else if (hasDocument) {
+    messageType = 'document';
+    messageContent = messageData.message?.documentMessage?.caption || 
+                    `[Documento: ${messageData.message?.documentMessage?.fileName || 'arquivo'}]`;
+  } else if (hasImage) {
+    messageType = 'image';
+    messageContent = messageData.message?.imageMessage?.caption || '[Imagem enviada]';
   } else {
     messageType = 'text';
-    messageContent = messageData.message?.conversation || messageData.message?.extendedTextMessage?.text;
+    messageContent = messageData.message?.conversation || 
+                    messageData.message?.extendedTextMessage?.text ||
+                    messageData.message?.text;
   }
 
   if (!messageContent || messageContent.trim().length === 0) {

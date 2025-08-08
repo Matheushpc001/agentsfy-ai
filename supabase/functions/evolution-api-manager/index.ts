@@ -52,6 +52,8 @@ serve(async (req) => {
         return await handleOpenAISetDefaults(supabase, params);
       case 'setup_openai_transcription':
         return await handleSetupOpenAITranscription(supabase, params);
+      case 'configure_speech_to_text':
+        return await handleConfigureSpeechToText(supabase, params);
 
       default:
         return new Response(JSON.stringify({ error: 'Ação não reconhecida' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
@@ -827,4 +829,112 @@ async function handleOpenAISetDefaults(supabase: any, params: any) {
     }
     
     return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+}
+
+// Nova função para configurar speech-to-text automaticamente
+async function handleConfigureSpeechToText(supabase: any, params: any) {
+    const { instanceName, openaiApiKey, enableSpeechToText = true } = params;
+    
+    console.log(`🎤 Configurando speech-to-text para ${instanceName}...`);
+    
+    try {
+        const { data: config, error } = await supabase.from('evolution_api_configs')
+            .select(`*, evolution_global_configs (*)`)
+            .eq('instance_name', instanceName)
+            .single();
+            
+        if (error || !config.evolution_global_configs) {
+            throw new Error(`Configuração não encontrada para ${instanceName}`);
+        }
+
+        const globalConfig = config.evolution_global_configs;
+        
+        // 1. Configurar credenciais OpenAI se fornecidas
+        let openaiCredsId = null;
+        if (openaiApiKey) {
+            const credsPayload = {
+                name: `speech-creds-${instanceName}`,
+                apiKey: openaiApiKey
+            };
+            
+            const credsResponse = await fetch(`${globalConfig.api_url}/openai/creds/${instanceName}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': globalConfig.api_key },
+                body: JSON.stringify(credsPayload),
+            });
+            
+            if (credsResponse.ok) {
+                const credsData = await credsResponse.json();
+                openaiCredsId = credsData.id;
+                console.log(`✅ Credenciais OpenAI configuradas: ${openaiCredsId}`);
+            } else if (credsResponse.status === 400) {
+                // Credencial já existe, buscar ID
+                const listResponse = await fetch(`${globalConfig.api_url}/openai/creds/${instanceName}`, {
+                    method: 'GET',
+                    headers: { 'apikey': globalConfig.api_key },
+                });
+                
+                if (listResponse.ok) {
+                    const credsList = await listResponse.json();
+                    if (credsList && credsList.length > 0) {
+                        openaiCredsId = credsList[0].id;
+                        console.log(`✅ Usando credencial existente: ${openaiCredsId}`);
+                    }
+                }
+            }
+        }
+        
+        // 2. Configurar settings com speech-to-text habilitado
+        const settingsPayload = {
+            speechToText: enableSpeechToText,
+            expire: 20,
+            keywordFinish: "#SAIR",
+            delayMessage: 1000,
+            unknownMessage: "Desculpe, não entendi. Poderia repetir?",
+            listeningFromMe: false,
+            stopBotFromMe: false,
+            keepOpen: false,
+            debounceTime: 0,
+            ignoreJids: []
+        };
+        
+        if (openaiCredsId) {
+            settingsPayload.openaiCredsId = openaiCredsId;
+        }
+        
+        console.log(`🔧 Aplicando configurações:`, settingsPayload);
+        
+        const settingsResponse = await fetch(`${globalConfig.api_url}/openai/settings/${instanceName}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': globalConfig.api_key },
+            body: JSON.stringify(settingsPayload),
+        });
+        
+        if (!settingsResponse.ok) {
+            const errorText = await settingsResponse.text();
+            throw new Error(`Erro ao configurar settings: ${errorText}`);
+        }
+        
+        const settingsResult = await settingsResponse.json();
+        console.log(`✅ Speech-to-text configurado com sucesso para ${instanceName}`);
+        
+        return new Response(JSON.stringify({
+            success: true,
+            message: 'Speech-to-text configurado com sucesso',
+            openaiCredsId,
+            settings: settingsResult
+        }), { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+        
+    } catch (error) {
+        console.error(`❌ Erro ao configurar speech-to-text para ${instanceName}:`, error);
+        return new Response(JSON.stringify({
+            error: error.message || 'Erro ao configurar speech-to-text'
+        }), { 
+            status: 500, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+    }
 }

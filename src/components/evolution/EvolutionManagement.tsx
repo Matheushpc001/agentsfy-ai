@@ -20,7 +20,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
-import EvolutionBotSetup from "./EvolutionBotSetup"; // Importe o novo componente
+import EvolutionBotSetup from "./EvolutionBotSetup";
+import AudioTranscriptionSetup from "./AudioTranscriptionSetup";
 
 interface EvolutionManagementProps {
   franchiseeId: string;
@@ -30,6 +31,7 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
   const [isBotSetupOpen, setIsBotSetupOpen] = useState(false);
+  const [isTranscriptionSetupOpen, setIsTranscriptionSetupOpen] = useState(false);
   const [newInstanceName, setNewInstanceName] = useState("");
   const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
   const [selectedInstanceName, setSelectedInstanceName] = useState<string | null>(null);
@@ -119,6 +121,11 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
   const handleOpenBotSetup = (instanceName: string) => {
       setSelectedInstanceName(instanceName);
       setIsBotSetupOpen(true);
+  };
+
+  const handleOpenTranscriptionSetup = (instanceName: string) => {
+      setSelectedInstanceName(instanceName);
+      setIsTranscriptionSetupOpen(true);
   };
 
   const getStatusIcon = (status: string) => {
@@ -252,10 +259,14 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
                     <div className="flex flex-wrap gap-2">
                       {config.status === 'connected' ? (
                         <>
-                          <Button size="sm" onClick={() => handleOpenBotSetup(config.instance_name)}>
-                            <Bot className="h-4 w-4 mr-2" />
-                            Configurar IA
-                          </Button>
+                           <Button size="sm" onClick={() => handleOpenBotSetup(config.instance_name)}>
+                             <Bot className="h-4 w-4 mr-2" />
+                             Configurar IA
+                           </Button>
+                           <Button size="sm" variant="outline" onClick={() => handleOpenTranscriptionSetup(config.instance_name)}>
+                             <MessageSquare className="h-4 w-4 mr-2" />
+                             Transcrição
+                           </Button>
                           <Button size="sm" variant="outline" onClick={() => handleDisconnect(config.id)}>Desconectar</Button>
                         </>
                       ) : (
@@ -292,17 +303,31 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
       </Dialog>
       
       {selectedInstanceName && (
-        <Dialog open={isBotSetupOpen} onOpenChange={setIsBotSetupOpen}>
-            <DialogContent className="sm:max-w-2xl">
-                 <EvolutionBotSetup 
-                    instanceName={selectedInstanceName}
-                    onSave={() => {
-                        setIsBotSetupOpen(false);
-                        refreshData();
-                    }}
-                 />
-            </DialogContent>
-        </Dialog>
+        <>
+          <Dialog open={isBotSetupOpen} onOpenChange={setIsBotSetupOpen}>
+              <DialogContent className="sm:max-w-2xl">
+                   <EvolutionBotSetup 
+                      instanceName={selectedInstanceName}
+                      onSave={() => {
+                          setIsBotSetupOpen(false);
+                          refreshData();
+                      }}
+                   />
+              </DialogContent>
+          </Dialog>
+          
+          <Dialog open={isTranscriptionSetupOpen} onOpenChange={setIsTranscriptionSetupOpen}>
+              <DialogContent className="sm:max-w-lg">
+                   <AudioTranscriptionSetup 
+                      instanceName={selectedInstanceName}
+                      onSuccess={() => {
+                          setIsTranscriptionSetupOpen(false);
+                          refreshData();
+                      }}
+                   />
+              </DialogContent>
+          </Dialog>
+        </>
       )}
     </div>
   );
