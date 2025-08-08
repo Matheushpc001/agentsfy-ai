@@ -1,4 +1,4 @@
-// ARQUIVO: supabase/functions/evolution-api-manager/index.ts v1
+// ARQUIVO: supabase/functions/evolution-api-manager/index.ts
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0"
@@ -677,27 +677,16 @@ async function handleOpenAISetCreds(supabase: any, params: any) {
         body: JSON.stringify({ name: credsName, apiKey: apiKey }),
     });
 
-    const responseText = await response.text();
-
+    const responseBody = await response.json(); // Sempre parsear o JSON
     if (!response.ok) {
-        // Log aprimorado para sabermos exatamente o que a Evolution API retornou
-        console.error(`❌ Erro da Evolution API [${response.status}]:`, responseText);
-        
-        let errorMessage = responseText;
-        try {
-            const errorJson = JSON.parse(responseText);
-            // Extrai a mensagem de dentro do JSON de erro, se existir
-            errorMessage = errorJson.response?.message || errorJson.message || responseText;
-        } catch (e) {
-            // Ignora o erro se não for JSON, apenas usa o texto bruto.
-        }
-        throw new Error(`Erro ao configurar credenciais OpenAI: ${errorMessage}`);
+        const errorText = responseBody.message || await response.text();
+        throw new Error(`Erro ao configurar credenciais OpenAI: ${errorText}`);
     }
     
-    const responseBody = JSON.parse(responseText);
-    
+    // Retornar o corpo da resposta, que contém o ID
     return new Response(JSON.stringify(responseBody), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }
+
 async function handleOpenAICreateBot(supabase: any, params: any) {
     const { instanceName, botConfig } = params;
     const { data: config, error } = await supabase.from('evolution_api_configs').select(`*, evolution_global_configs (*)`).eq('instance_name', instanceName).single();
@@ -710,14 +699,12 @@ async function handleOpenAICreateBot(supabase: any, params: any) {
         body: JSON.stringify(botConfig),
     });
 
-    // Aplicando o mesmo padrão robusto aqui
-    const responseText = await response.text();
     if (!response.ok) {
-        console.error(`❌ Erro da Evolution API [${response.status}] ao criar bot:`, responseText);
-        throw new Error(`Erro ao criar bot OpenAI: ${responseText}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ao criar bot OpenAI: ${errorText}`);
     }
-    const responseBody = JSON.parse(responseText);
-    return new Response(JSON.stringify(responseBody), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+
+    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }
 
 async function handleOpenAISetDefaults(supabase: any, params: any) {
@@ -732,12 +719,10 @@ async function handleOpenAISetDefaults(supabase: any, params: any) {
         body: JSON.stringify(settings),
     });
     
-    // Aplicando o mesmo padrão robusto aqui
-    const responseText = await response.text();
     if (!response.ok) {
-        console.error(`❌ Erro da Evolution API [${response.status}] ao definir padrões:`, responseText);
-        throw new Error(`Erro ao definir configurações padrão da OpenAI: ${responseText}`);
+        const errorText = await response.text();
+        throw new Error(`Erro ao definir configurações padrão da OpenAI: ${errorText}`);
     }
-    const responseBody = JSON.parse(responseText);
-    return new Response(JSON.stringify(responseBody), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+    
+    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }

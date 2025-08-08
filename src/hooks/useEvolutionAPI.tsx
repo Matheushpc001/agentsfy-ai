@@ -486,38 +486,27 @@ export function useEvolutionAPI(franchiseeId?: string) {
 
   const createAgentWithAutoInstance = async (agentId: string, agentName: string, phoneNumber?: string) => {
     try {
-      console.log('Solicitada criação de instância automática para o agente:', agentId);
+      console.log('Criando instância automática para agente:', agentId);
       
-      // ==========================================================
-      // ### CORREÇÃO ANTI-DUPLICAÇÃO APLICADA AQUI ###
-      // ==========================================================
-      // Passo 1: Forçar uma nova busca dos dados para garantir que temos o estado mais recente.
-      await loadConfigs();
-      
-      // Passo 2: Verificar se já existe uma instância que contenha o ID do agente no nome.
-      // Isso é crucial para evitar chamadas duplicadas em rápida sucessão.
-      const existingConfig = configs.find(c => c.instance_name.includes(agentId.replace(/-/g, '_')));
+      // Verificar se já existe uma instância para este agente
+      const existingConfig = configs.find(c => c.instance_name.includes(agentId));
       
       if (existingConfig) {
-        console.log('⚠️ Instância já existe para este agente. Retornando a existente:', existingConfig.id);
-        toast.info("Instância já existente foi encontrada e será utilizada.");
-        return existingConfig; // Retorna a instância que já existe.
+        console.log('Using existing configuration:', existingConfig.id);
+        return existingConfig;
       }
       
-      console.log('✅ Nenhuma instância encontrada. Prosseguindo com a criação...');
-      
-      // Criar nome único para a instância para evitar colisões
+      // Criar nome único para a instância
       const instanceName = `agent_${agentId.replace(/-/g, '_')}_${Date.now()}`;
       
-      // Chamar a função que cria a instância (que já estava correta)
+      // Criar instância com configuração automática
       const evolutionConfig = await createInstanceWithAutoConfig(instanceName, agentId);
       
-      console.log('Instância criada para o agente:', evolutionConfig);
+      console.log('Instância criada para agente:', evolutionConfig);
       
       return evolutionConfig;
-
     } catch (error) {
-      console.error('Erro ao criar instância automática para o agente:', error);
+      console.error('Erro ao criar instância automática para agente:', error);
       throw error;
     }
   };
