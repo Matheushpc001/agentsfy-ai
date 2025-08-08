@@ -1,12 +1,18 @@
-// ARQUIVO: src/components/evolution/EvolutionManagement.tsx
-
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { 
-  AlertCircle, CheckCircle, Clock, Settings, Trash2,
-  RefreshCw, Plus, Smartphone, Bot
+  AlertCircle, 
+  CheckCircle, 
+  Clock, 
+  MessageSquare, 
+  Settings, 
+  Trash2,
+  RefreshCw,
+  Plus,
+  Smartphone,
+  Bot
 } from "lucide-react";
 import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
 import { toast } from "sonner";
@@ -14,7 +20,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import WhatsAppQRCode from "@/components/whatsapp/WhatsAppQRCode";
-import EvolutionBotSetup from "./EvolutionBotSetup";
+import EvolutionBotSetup from "./EvolutionBotSetup"; // Importe o novo componente
 
 interface EvolutionManagementProps {
   franchiseeId: string;
@@ -23,8 +29,7 @@ interface EvolutionManagementProps {
 export default function EvolutionManagement({ franchiseeId }: EvolutionManagementProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isQRModalOpen, setIsQRModalOpen] = useState(false);
-  // ### ALTERAÇÃO 1: Renomear para clareza ###
-  const [isBotEditOpen, setIsBotEditOpen] = useState(false);
+  const [isBotSetupOpen, setIsBotSetupOpen] = useState(false);
   const [newInstanceName, setNewInstanceName] = useState("");
   const [selectedConfigId, setSelectedConfigId] = useState<string | null>(null);
   const [selectedInstanceName, setSelectedInstanceName] = useState<string | null>(null);
@@ -33,9 +38,16 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
   const [qrError, setQrError] = useState<string | null>(null);
 
   const { 
-    configs, globalConfigs, isLoading, isCreating,
-    createInstance, connectInstance, disconnectInstance, 
-    deleteInstance, refreshData
+    configs, 
+    globalConfigs, 
+    isLoading, 
+    isCreating,
+    createInstance, 
+    connectInstance, 
+    disconnectInstance, 
+    deleteInstance,
+    sendTestMessage,
+    refreshData
   } = useEvolutionAPI(franchiseeId);
 
   const handleCreateInstance = async () => {
@@ -43,12 +55,14 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
       toast.error("Nome da instância é obrigatório");
       return;
     }
+
     try {
       await createInstance(newInstanceName.trim());
       setNewInstanceName("");
       setIsCreateModalOpen(false);
-      toast.success("Instância criada com sucesso! Agora configure a IA se necessário.");
+      toast.success("Instância criada com sucesso!");
     } catch (error) {
+      console.error('Error creating instance:', error);
       toast.error("Erro ao criar instância");
     }
   };
@@ -59,95 +73,197 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
     setQrError(null);
     setCurrentQrCode(null);
     setIsQRModalOpen(true);
+
     try {
       const qrCodeData = await connectInstance(configId);
+      
       if (qrCodeData) {
-        let qrCodeUrl = `data:image/png;base64,${qrCodeData}`;
+        let qrCodeUrl = qrCodeData;
+        if (typeof qrCodeData === 'string' && !qrCodeData.startsWith('data:') && !qrCodeData.startsWith('http')) {
+          qrCodeUrl = `data:image/png;base64,${qrCodeData}`;
+        }
         setCurrentQrCode(qrCodeUrl);
       }
     } catch (error) {
+      console.error('Error generating QR code:', error);
       setQrError("Erro ao gerar QR code");
     } finally {
       setIsGeneratingQr(false);
     }
   };
-  
-  // ### ALTERAÇÃO 2: Renomear função para clareza ###
-  const handleOpenBotEdit = (instanceName: string) => {
-      setSelectedInstanceName(instanceName);
-      setIsBotEditOpen(true);
-  };
-  
-  // (O resto das funções como handleDelete, handleDisconnect permanecem iguais)
-  const handleDelete = async (configId: string) => {
-    if (!confirm("Tem certeza que deseja remover esta instância? Esta ação não pode ser desfeita.")) return;
-    try {
-      await deleteInstance(configId);
-      toast.success("Instância removida");
-    } catch (error) {
-      toast.error("Erro ao remover instância");
-    }
-  };
-  
+
   const handleDisconnect = async (configId: string) => {
     try {
       await disconnectInstance(configId);
       toast.success("Instância desconectada");
     } catch (error) {
+      console.error('Error disconnecting:', error);
       toast.error("Erro ao desconectar instância");
     }
+  };
+
+  const handleDelete = async (configId: string) => {
+    if (!confirm("Tem certeza que deseja remover esta instância? Esta ação não pode ser desfeita.")) {
+      return;
+    }
+
+    try {
+      await deleteInstance(configId);
+      toast.success("Instância removida");
+    } catch (error) {
+      console.error('Error deleting instance:', error);
+      toast.error("Erro ao remover instância");
+    }
+  };
+  
+  const handleOpenBotSetup = (instanceName: string) => {
+      setSelectedInstanceName(instanceName);
+      setIsBotSetupOpen(true);
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'connected': return CheckCircle;
+      case 'connecting': return Clock;
       case 'qr_ready': return Clock;
+      case 'disconnected': return AlertCircle;
       default: return AlertCircle;
     }
   };
 
-  if (isLoading) return <div className="flex justify-center p-8"><RefreshCw className="h-8 w-8 animate-spin" /></div>;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <RefreshCw className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* CARD de Status e Criação de Instância (Manual) */}
       <Card>
         <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle className="flex items-center gap-2"><Smartphone className="h-5 w-5" />Instâncias WhatsApp</CardTitle>
-              <CardDescription>Gerencie suas conexões. A criação de agentes agora cria instâncias automaticamente.</CardDescription>
+          <CardTitle className="flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Status da EvolutionAPI
+          </CardTitle>
+          <CardDescription>
+            Configuração global da integração EvolutionAPI.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {globalConfigs.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <span className="text-green-600 font-medium">
+                EvolutionAPI configurada ({globalConfigs.length} configuração{globalConfigs.length > 1 ? 'ões' : ''})
+              </span>
             </div>
-            {/* O botão de "Nova Instância" pode ser mantido para casos manuais/avançados */}
+          ) : (
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-red-500" />
+              <span className="text-red-600 font-medium">
+                EvolutionAPI não configurada. Contate o administrador.
+              </span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Smartphone className="h-5 w-5" />
+                Instâncias WhatsApp
+              </CardTitle>
+              <CardDescription>
+                Gerencie suas conexões de WhatsApp via EvolutionAPI.
+              </CardDescription>
+            </div>
+            {globalConfigs.length > 0 && (
+              <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nova Instância
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Criar Nova Instância</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div>
+                      <Label htmlFor="instanceName">Nome da Instância</Label>
+                      <Input
+                        id="instanceName"
+                        value={newInstanceName}
+                        onChange={(e) => setNewInstanceName(e.target.value)}
+                        placeholder="Ex: whatsapp-vendas"
+                      />
+                    </div>
+                    <div className="flex gap-2">
+                      <Button 
+                        onClick={handleCreateInstance}
+                        disabled={isCreating}
+                        className="flex-1"
+                      >
+                        {isCreating ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : null}
+                        {isCreating ? "Criando..." : "Criar Instância"}
+                      </Button>
+                      <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+                        Cancelar
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
           </div>
         </CardHeader>
         <CardContent>
           {configs.length === 0 ? (
-            <div className="text-center py-8"><Smartphone className="h-12 w-12 mx-auto text-muted-foreground mb-4" /><p className="text-muted-foreground">Nenhuma instância criada ainda.</p></div>
+            <div className="text-center py-8">
+              <Smartphone className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">Nenhuma instância criada ainda.</p>
+            </div>
           ) : (
             <div className="grid gap-4">
               {configs.map((config) => {
                 const StatusIcon = getStatusIcon(config.status);
                 return (
                   <div key={config.id} className="border rounded-lg p-4">
-                    <div className="flex flex-col sm:flex-row justify-between mb-3">
-                      <h3 className="font-medium">{config.instance_name}</h3>
-                      <Badge variant={config.status === 'connected' ? 'default' : 'secondary'}><StatusIcon className="h-3 w-3 mr-1" />{config.status}</Badge>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${config.status === 'connected' ? 'bg-green-500' : 'bg-red-500'}`} />
+                        <div>
+                          <h3 className="font-medium">{config.instance_name}</h3>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2 sm:mt-0">
+                        <Badge variant={config.status === 'connected' ? 'default' : 'secondary'}>
+                          <StatusIcon className="h-3 w-3 mr-1" />
+                          {config.status}
+                        </Badge>
+                      </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
                       {config.status === 'connected' ? (
                         <>
-                          {/* ### ALTERAÇÃO 3: Mudar botão e função chamada ### */}
-                          <Button size="sm" onClick={() => handleOpenBotEdit(config.instance_name)}>
+                          <Button size="sm" onClick={() => handleOpenBotSetup(config.instance_name)}>
                             <Bot className="h-4 w-4 mr-2" />
-                            Editar IA
+                            Configurar IA
                           </Button>
                           <Button size="sm" variant="outline" onClick={() => handleDisconnect(config.id)}>Desconectar</Button>
                         </>
                       ) : (
                         <Button size="sm" onClick={() => handleGenerateQrCode(config.id)}>Conectar</Button>
                       )}
-                      <Button size="sm" variant="destructive" onClick={() => handleDelete(config.id)}><Trash2 className="h-4 w-4" /></Button>
+                      <Button size="sm" variant="destructive" onClick={() => handleDelete(config.id)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
                 );
@@ -159,18 +275,31 @@ export default function EvolutionManagement({ franchiseeId }: EvolutionManagemen
 
       <Dialog open={isQRModalOpen} onOpenChange={setIsQRModalOpen}>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader><DialogTitle>Conectar WhatsApp</DialogTitle></DialogHeader>
-          <WhatsAppQRCode isGenerating={isGeneratingQr} qrCodeUrl={currentQrCode || undefined} error={qrError || undefined} onRefresh={() => selectedConfigId && handleGenerateQrCode(selectedConfigId)} onConnect={() => { setIsQRModalOpen(false); toast.success("WhatsApp conectado!"); }} />
+          <DialogHeader>
+            <DialogTitle>Conectar WhatsApp</DialogTitle>
+          </DialogHeader>
+          <WhatsAppQRCode
+            isGenerating={isGeneratingQr}
+            qrCodeUrl={currentQrCode || undefined}
+            error={qrError || undefined}
+            onRefresh={() => selectedConfigId && handleGenerateQrCode(selectedConfigId)}
+            onConnect={() => {
+              setIsQRModalOpen(false);
+              toast.success("WhatsApp conectado!");
+            }}
+          />
         </DialogContent>
       </Dialog>
       
-      {/* ### ALTERAÇÃO 4: Usar o novo estado para abrir o modal de edição ### */}
       {selectedInstanceName && (
-        <Dialog open={isBotEditOpen} onOpenChange={setIsBotEditOpen}>
+        <Dialog open={isBotSetupOpen} onOpenChange={setIsBotSetupOpen}>
             <DialogContent className="sm:max-w-2xl">
                  <EvolutionBotSetup 
                     instanceName={selectedInstanceName}
-                    onSave={() => { setIsBotEditOpen(false); refreshData(); }}
+                    onSave={() => {
+                        setIsBotSetupOpen(false);
+                        refreshData();
+                    }}
                  />
             </DialogContent>
         </Dialog>
