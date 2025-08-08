@@ -43,14 +43,46 @@ export default function AIAgentSetup({ isOpen, onClose, onSave, existingAgent, f
 
   const form = useForm<AgentFormValues>({
     resolver: zodResolver(agentSchema),
+    // O defaultValues agora é mais simples
     defaultValues: {
-      agent_id: existingAgent?.agent_id || '',
-      evolution_config_id: existingAgent?.evolution_config_id || '',
+      agent_id: '',
+      evolution_config_id: '',
       openai_api_key: '',
-      system_prompt: existingAgent?.system_prompt || 'Você é um assistente virtual profissional.',
-      speechToText: existingAgent?.speechToText ?? true,
+      system_prompt: 'Você é um assistente virtual profissional.',
+      speechToText: true,
     }
   });
+  
+  // ==========================================================
+  // ### CORREÇÃO PARA O MODO DE EDIÇÃO APLICADA AQUI ###
+  // ==========================================================
+  // Novo useEffect para popular o formulário QUANDO o modal abre para edição
+  useEffect(() => {
+    if (isOpen && existingAgent) {
+      console.log("📝 Populando formulário para edição com dados do agente:", existingAgent);
+      form.reset({
+        agent_id: existingAgent.agent_id,
+        evolution_config_id: existingAgent.evolution_config_id,
+        system_prompt: existingAgent.system_prompt,
+        speechToText: existingAgent.auto_response, // Assumindo que speechToText está mapeado aqui
+        openai_api_key: '' // Sempre limpo, pois usaremos a chave salva
+      });
+      // Seta o `selectedTraditionalAgent` para que a lógica da chave funcione
+      const agent = traditionalAgents.find(a => a.id === existingAgent.agent_id);
+      if(agent) setSelectedTraditionalAgent(agent);
+
+    } else if (isOpen && !existingAgent) {
+       // Reseta o formulário se abriu para criação
+       form.reset({
+          agent_id: '',
+          evolution_config_id: '',
+          openai_api_key: '',
+          system_prompt: 'Você é um assistente virtual profissional.',
+          speechToText: true,
+       });
+       setSelectedTraditionalAgent(null);
+    }
+  }, [isOpen, existingAgent, traditionalAgents, form]);
 
   const selectedAgentId = form.watch('agent_id');
 
