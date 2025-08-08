@@ -15,11 +15,10 @@ import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { RefreshCw } from 'lucide-react';
 
-// ### MODIFICAÇÃO 1: ADICIONAR speechToText AO SCHEMA DE VALIDAÇÃO ###
 const botSchema = z.object({
   apiKey: z.string().startsWith('sk-', { message: "A chave da OpenAI deve começar com 'sk-'." }),
   systemPrompt: z.string().min(10, { message: "O prompt do sistema é muito curto." }),
-  speechToText: z.boolean().default(false), // Adicionado para controlar a transcrição
+  speechToText: z.boolean().default(false),
 });
 
 type BotFormValues = z.infer<typeof botSchema>;
@@ -34,82 +33,47 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
   
   const form = useForm<BotFormValues>({
     resolver: zodResolver(botSchema),
-    defaultValues: { 
-      apiKey: '', 
-      systemPrompt: 'Você é um assistente virtual prestativo e profissional.', 
-      speechToText: true // Padrão para true para melhor experiência
-    },
+    defaultValues: { apiKey: '', systemPrompt: '', speechToText: false },
   });
 
-  // ### MODIFICAÇÃO 2: ATUALIZAR A LÓGICA DE SUBMISSÃO ###
+  // A lógica de onSubmit permanece a mesma, pois ela sobrescreve as configurações existentes.
   const onSubmit = async (values: BotFormValues) => {
     setIsSubmitting(true);
-    const loadingToast = toast.loading("Configurando IA na Evolution API...");
+    const loadingToast = toast.loading("Atualizando configuração de IA...");
 
     try {
-      // Passo 1: Configurar as credenciais e obter o ID
-      console.log('Passo 1: Configurando credenciais...');
       const { data: credsData, error: credsError } = await supabase.functions.invoke('evolution-api-manager', {
-        body: {
-          action: 'openai_set_creds',
-          instanceName,
-          credsName: `creds-${instanceName}`,
-          apiKey: values.apiKey,
-        },
+        body: { action: 'openai_set_creds', instanceName, credsName: `creds-${instanceName}`, apiKey: values.apiKey },
       });
-
       if (credsError) throw new Error(`Erro ao salvar credenciais: ${credsError.message}`);
-      if (!credsData?.id) throw new Error('A API não retornou um ID para as credenciais.');
-      
       const openAICredsId = credsData.id;
-      console.log(`✅ Credenciais salvas com ID: ${openAICredsId}`);
-      toast.dismiss(loadingToast);
-      toast.loading("Passo 2 de 3: Criando bot...");
 
-      // Passo 2: Criar o "Bot" de resposta automática
-      console.log('Passo 2: Criando o bot...');
       const { error: botError } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
-          action: 'openai_create_bot',
-          instanceName,
+          action: 'openai_create_bot', instanceName,
           botConfig: {
-            enabled: true,
-            openaiCredsId, // Usar o ID obtido no passo 1
-            botType: 'chatCompletion',
-            model: 'gpt-4o-mini',
-            systemMessages: [values.systemPrompt],
-            triggerType: 'all', // Ativar para todas as mensagens
+            enabled: true, openaiCredsId, botType: 'chatCompletion', model: 'gpt-4o-mini',
+            systemMessages: [values.systemPrompt], triggerType: 'all',
           },
         },
       });
       if (botError) throw new Error(`Erro ao criar bot: ${botError.message}`);
-      
-      console.log('✅ Bot criado com sucesso.');
-      toast.dismiss(loadingToast);
-      toast.loading("Passo 3 de 3: Ativando transcrição de áudio...");
 
-      // Passo 3: Habilitar a transcrição de áudio (speech-to-text)
-      console.log(`Passo 3: Configurando speechToText=${values.speechToText}`);
       const { error: settingsError } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
-          action: 'openai_set_defaults',
-          instanceName,
-          settings: {
-            openaiCredsId, // Usar o ID obtido no passo 1
-            speechToText: values.speechToText, // Usar o valor do formulário
-          },
+          action: 'openai_set_defaults', instanceName,
+          settings: { openaiCredsId, speechToText: values.speechToText },
         },
       });
-      if (settingsError) throw new Error(`Erro ao habilitar speech-to-text: ${settingsError.message}`);
+      if (settingsError) throw new Error(`Erro ao configurar transcrição: ${settingsError.message}`);
 
-      console.log('✅ Configurações padrão salvas.');
       toast.dismiss(loadingToast);
-      toast.success("Agente IA configurado com sucesso na Evolution API!");
+      toast.success("Configuração de IA atualizada com sucesso!");
       onSave();
 
     } catch (error: any) {
       toast.dismiss(loadingToast);
-      toast.error(`Falha na configuração: ${error.message}`);
+      toast.error(`Falha na atualização: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -118,9 +82,11 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Configurar IA Nativa da Evolution</CardTitle>
+        {/* ### ALTERAÇÃO 5: Mudar título para refletir edição ### */}
+        <CardTitle>Editar IA Nativa da Evolution</CardTitle>
         <CardDescription>
-          Configure a IA para a instância <span className="font-bold">{instanceName}</span>.
+          Altere a configuração de IA para a instância <span className="font-bold">{instanceName}</span>. 
+          As novas informações irão sobrescrever as existentes.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -131,7 +97,7 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
               name="apiKey"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Chave da API OpenAI *</FormLabel>
+                  <FormLabel>Nova Chave da API OpenAI</FormLabel>
                   <FormControl>
                     <Input type="password" placeholder="sk-..." {...field} />
                   </FormControl>
@@ -144,7 +110,7 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
               name="systemPrompt"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Personalidade (System Prompt) *</FormLabel>
+                  <FormLabel>Personalidade (System Prompt)</FormLabel>
                   <FormControl>
                     <Textarea placeholder="Você é um assistente virtual..." {...field} rows={5} />
                   </FormControl>
@@ -152,7 +118,6 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
                 </FormItem>
               )}
             />
-            {/* ### MODIFICAÇÃO 3: ADICIONAR O SWITCH NA INTERFACE ### */}
             <FormField
               control={form.control}
               name="speechToText"
@@ -161,7 +126,7 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">Habilitar Transcrição de Áudio</FormLabel>
                     <p className="text-sm text-muted-foreground">
-                      Permite que a Evolution API transcreva áudios recebidos.
+                      Permitir que a Evolution API transcreva áudios recebidos.
                     </p>
                   </div>
                   <FormControl>
@@ -173,7 +138,7 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
             <div className="flex justify-end">
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar e Ativar IA
+                Salvar Alterações
               </Button>
             </div>
           </form>
