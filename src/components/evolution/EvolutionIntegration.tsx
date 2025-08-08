@@ -1,10 +1,9 @@
-// ARQUIVO: src/components/evolution/EvolutionIntegration.tsx
+// ARQUIVO MODIFICADO: src/components/evolution/EvolutionIntegration.tsx
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Bot, MessageSquare, Settings, Smartphone, BarChart3 } from "lucide-react";
+import { Bot, MessageSquare, Settings, BarChart3 } from "lucide-react";
 import EvolutionManagement from "./EvolutionManagement";
-import EvolutionAgents from "./EvolutionAgents"; // Verifique se a importação está correta
 import EvolutionMessages from "./EvolutionMessages";
 import EvolutionDashboard from "./EvolutionDashboard";
 
@@ -27,8 +26,11 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
         </CardHeader>
       </Card>
 
+      {/* ### MODIFICAÇÃO APLICADA AQUI: REMOÇÃO DA ABA "AGENTES IA" ### */}
+      {/* O gerenciamento de agentes agora é feito na tela principal de agentes. */}
+      {/* A configuração da IA é feita na edição da instância. */}
       <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="dashboard" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Dashboard
@@ -36,10 +38,6 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
           <TabsTrigger value="management" className="flex items-center gap-2">
             <Settings className="h-4 w-4" />
             Gerenciamento
-          </TabsTrigger>
-          <TabsTrigger value="agents" className="flex items-center gap-2">
-            <Bot className="h-4 w-4" /> {/* Ícone alterado para Bot */}
-            Agentes IA
           </TabsTrigger>
           <TabsTrigger value="messages" className="flex items-center gap-2">
             <MessageSquare className="h-4 w-4" />
@@ -54,14 +52,6 @@ export default function EvolutionIntegration({ franchiseeId }: EvolutionIntegrat
         <TabsContent value="management">
           <EvolutionManagement franchiseeId={franchiseeId} />
         </TabsContent>
-
-        {/* ################################################## */}
-        {/* ### ALTERAÇÃO PRINCIPAL APLICADA AQUI          ### */}
-        {/* ################################################## */}
-        <TabsContent value="agents">
-          <EvolutionAgents />
-        </TabsContent>
-        {/* ################################################## */}
 
         <TabsContent value="messages">
           <EvolutionMessages franchiseeId={franchiseeId} />
