@@ -1,4 +1,4 @@
-// Versão 1.2 - Correção para transcrição de áudio WhatsApp v1
+// Versão 1.2 - Correção para transcrição de áudio WhatsApp v666
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
