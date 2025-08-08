@@ -677,13 +677,31 @@ async function handleOpenAISetCreds(supabase: any, params: any) {
         body: JSON.stringify({ name: credsName, apiKey: apiKey }),
     });
 
-    const responseBody = await response.json(); // Sempre parsear o JSON
+    // ##################################################
+    // ### CORREÇÃO APLICADA AQUI (Body already consumed) ###
+    // ##################################################
+    // Passo 1: Ler o corpo da resposta como texto. Isso é seguro e só pode ser feito uma vez.
+    const responseText = await response.text();
+
+    // Passo 2: Verificar se a requisição foi bem-sucedida.
     if (!response.ok) {
-        const errorText = responseBody.message || await response.text();
-        throw new Error(`Erro ao configurar credenciais OpenAI: ${errorText}`);
+        // Se deu erro, a 'responseText' contém a mensagem de erro da API.
+        console.error(`❌ Erro da Evolution API [${response.status}]:`, responseText);
+        // Tenta extrair a mensagem de erro se for um JSON, senão usa o texto puro.
+        let errorMessage = responseText;
+        try {
+            const errorJson = JSON.parse(responseText);
+            errorMessage = errorJson.message || errorMessage;
+        } catch (e) {
+            // Ignora o erro se não for JSON, apenas usa o texto bruto.
+        }
+        throw new Error(`Erro ao configurar credenciais OpenAI: ${errorMessage}`);
     }
     
-    // Retornar o corpo da resposta, que contém o ID
+    // Passo 3: Se a requisição foi OK, agora podemos converter o texto para JSON com segurança.
+    const responseBody = JSON.parse(responseText);
+    
+    // Retorna o corpo da resposta, que contém o ID da credencial criada.
     return new Response(JSON.stringify(responseBody), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }
 
@@ -699,12 +717,14 @@ async function handleOpenAICreateBot(supabase: any, params: any) {
         body: JSON.stringify(botConfig),
     });
 
+    // Aplicando o mesmo padrão robusto aqui
+    const responseText = await response.text();
     if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erro ao criar bot OpenAI: ${errorText}`);
+        console.error(`❌ Erro da Evolution API [${response.status}] ao criar bot:`, responseText);
+        throw new Error(`Erro ao criar bot OpenAI: ${responseText}`);
     }
-
-    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+    const responseBody = JSON.parse(responseText);
+    return new Response(JSON.stringify(responseBody), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }
 
 async function handleOpenAISetDefaults(supabase: any, params: any) {
@@ -719,10 +739,12 @@ async function handleOpenAISetDefaults(supabase: any, params: any) {
         body: JSON.stringify(settings),
     });
     
+    // Aplicando o mesmo padrão robusto aqui
+    const responseText = await response.text();
     if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Erro ao definir configurações padrão da OpenAI: ${errorText}`);
+        console.error(`❌ Erro da Evolution API [${response.status}] ao definir padrões:`, responseText);
+        throw new Error(`Erro ao definir configurações padrão da OpenAI: ${responseText}`);
     }
-    
-    return new Response(JSON.stringify(await response.json()), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
+    const responseBody = JSON.parse(responseText);
+    return new Response(JSON.stringify(responseBody), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' }});
 }
