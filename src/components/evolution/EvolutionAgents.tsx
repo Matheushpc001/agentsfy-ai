@@ -1,9 +1,9 @@
-// ARQUIVO CORRIGIDO: src/components/evolution/EvolutionAgents.tsx
+// ARQUIVO: src/components/evolution/EvolutionAgents.tsx
 
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bot, Settings, RefreshCw } from "lucide-react";
+import { Bot, Plus, Settings, RefreshCw } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useEvolutionAPI } from "@/hooks/useEvolutionAPI";
 import AIAgentSetup from "./AIAgentSetup";
@@ -16,7 +16,11 @@ export default function EvolutionAgents() {
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [editingAgent, setEditingAgent] = useState<any | null>(null);
 
-  // A função de criar foi removida. A criação é feita pelo fluxo principal.
+  const handleOpenCreateModal = () => {
+    setEditingAgent(null);
+    setIsSetupModalOpen(true);
+  };
+
   const handleOpenEditModal = (agent: any) => {
     setEditingAgent(agent);
     setIsSetupModalOpen(true);
@@ -39,10 +43,13 @@ export default function EvolutionAgents() {
               <Bot className="h-5 w-5" />
               <CardTitle>Agentes IA do WhatsApp</CardTitle>
             </div>
-            {/* O botão "+ Novo Agente IA" foi REMOVIDO daqui */}
+            <Button onClick={handleOpenCreateModal}>
+              <Plus className="h-4 w-4 mr-2" />
+              Novo Agente IA
+            </Button>
           </div>
           <CardDescription>
-            Visualize os agentes de IA que foram criados e associados a uma instância do WhatsApp. A criação é feita na tela "Agentes Tradicionais".
+            Configure os agentes de IA que responderão automaticamente nas suas instâncias do WhatsApp.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -64,6 +71,9 @@ export default function EvolutionAgents() {
                       <p className="text-sm text-muted-foreground">
                         Instância: {associatedConfig?.instance_name || 'Desconhecida'}
                       </p>
+                      <p className="text-xs text-muted-foreground">
+                        Modelo: {agent.model}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2">
                        <Badge variant={agent.is_active ? 'default' : 'secondary'}>
@@ -71,7 +81,7 @@ export default function EvolutionAgents() {
                         </Badge>
                        <Button variant="outline" size="sm" onClick={() => handleOpenEditModal(agent)}>
                          <Settings className="h-4 w-4 mr-2" />
-                         Editar
+                         Configurar
                        </Button>
                     </div>
                   </div>
@@ -82,7 +92,7 @@ export default function EvolutionAgents() {
         </CardContent>
       </Card>
 
-      {/* Este modal agora é apenas para EDIÇÃO */}
+      {/* Modal de Criação/Edição */}
       <AIAgentSetup
           isOpen={isSetupModalOpen}
           onClose={() => setIsSetupModalOpen(false)}
