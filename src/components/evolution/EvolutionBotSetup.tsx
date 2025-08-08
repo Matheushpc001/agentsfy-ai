@@ -1,4 +1,4 @@
-// ARQUIVO: src/components/evolution/EvolutionBotSetup.tsx
+// ARQUIVO FINAL: src/components/evolution/EvolutionBotSetup.tsx
 
 import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
@@ -13,9 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { RefreshCw, Save } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 
-// Schema para validação
 const botSchema = z.object({
   apiKey: z.string().startsWith('sk-', { message: "Chave da OpenAI inválida." }),
   systemPrompt: z.string().min(10, { message: "Prompt muito curto." }),
@@ -39,58 +38,38 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
 
   const onSubmit = async (values: BotFormValues) => {
     setIsSubmitting(true);
-    const loadingToast = toast.loading("Configurando IA na Evolution API...");
+    const loadingToast = toast.loading("Atualizando configuração de IA na Evolution API...");
 
     try {
-      // 1. Configurar as credenciais na Evolution API
       const { data: credsData, error: credsError } = await supabase.functions.invoke('evolution-api-manager', {
-        body: {
-          action: 'openai_set_creds',
-          instanceName,
-          credsName: `creds-${instanceName}`,
-          apiKey: values.apiKey,
-        },
+        body: { action: 'openai_set_creds', instanceName, credsName: `creds-${instanceName}`, apiKey: values.apiKey },
       });
       if (credsError) throw new Error(`Erro ao salvar credenciais: ${credsError.message}`);
       const openAICredsId = credsData.id;
 
-      // 2. Criar o "Bot" na Evolution API
       const { error: botError } = await supabase.functions.invoke('evolution-api-manager', {
         body: {
-          action: 'openai_create_bot',
-          instanceName,
+          action: 'openai_create_bot', instanceName,
           botConfig: {
-            enabled: true,
-            openaiCredsId,
-            botType: 'chatCompletion',
-            model: 'gpt-4o-mini',
-            systemMessages: [values.systemPrompt],
-            triggerType: 'all',
+            enabled: true, openaiCredsId, botType: 'chatCompletion', model: 'gpt-4o-mini',
+            systemMessages: [values.systemPrompt], triggerType: 'all',
           },
         },
       });
       if (botError) throw new Error(`Erro ao criar bot: ${botError.message}`);
 
-      // 3. Habilitar (ou não) a transcrição de áudio
       const { error: settingsError } = await supabase.functions.invoke('evolution-api-manager', {
-        body: {
-          action: 'openai_set_defaults',
-          instanceName,
-          settings: {
-            openaiCredsId,
-            speechToText: values.speechToText,
-          },
-        },
+        body: { action: 'openai_set_defaults', instanceName, settings: { openaiCredsId, speechToText: values.speechToText } },
       });
       if (settingsError) throw new Error(`Erro ao habilitar speech-to-text: ${settingsError.message}`);
 
       toast.dismiss(loadingToast);
-      toast.success("Agente IA configurado com sucesso na Evolution API!");
+      toast.success("Configuração de IA atualizada com sucesso!");
       onSave();
 
     } catch (error: any) {
       toast.dismiss(loadingToast);
-      toast.error(`Falha na configuração: ${error.message}`);
+      toast.error(`Falha na atualização: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -99,9 +78,10 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Configurar IA Nativa da Evolution</CardTitle>
+        <CardTitle>Editar IA Nativa da Evolution</CardTitle>
         <CardDescription>
-          Configure a IA para a instância <span className="font-bold">{instanceName}</span>.
+          Altere a configuração de IA para a instância <span className="font-bold">{instanceName}</span>. 
+          As novas informações irão sobrescrever as existentes.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -153,7 +133,7 @@ export default function EvolutionBotSetup({ instanceName, onSave }: EvolutionBot
             <div className="flex justify-end">
               <Button type="submit" disabled={isSubmitting}>
                 {isSubmitting && <RefreshCw className="mr-2 h-4 w-4 animate-spin" />}
-                Salvar e Ativar IA
+                Salvar Alterações
               </Button>
             </div>
           </form>
