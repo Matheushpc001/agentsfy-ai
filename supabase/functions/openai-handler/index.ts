@@ -8,7 +8,7 @@ const corsHeaders = {
 };
 
 // Função aprimorada para transcrever áudio com melhor detecção de formato
-async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype: string) {
+async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype: string, fetchHeaders?: Record<string, string>) {
   if (!openaiApiKey) throw new Error("Chave da API OpenAI não fornecida.");
   if (!audioUrl) throw new Error("URL do áudio não fornecida.");
   
@@ -20,11 +20,14 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
   const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
   
   try {
+    const baseHeaders: Record<string, string> = {
+      'User-Agent': 'Mozilla/5.0 (compatible; AudioBot/1.0)'
+    };
+    const mergedHeaders = fetchHeaders ? { ...baseHeaders, ...fetchHeaders } : baseHeaders;
+    console.log(`🌐 Baixando áudio com headers: ${Object.keys(mergedHeaders).join(', ') || 'nenhum'}`);
     const audioResponse = await fetch(audioUrl, { 
       signal: controller.signal,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (compatible; AudioBot/1.0)'
-      }
+      headers: mergedHeaders
     });
     clearTimeout(timeoutId);
     
@@ -189,7 +192,7 @@ serve(async (req) => {
     let responseData;
     switch (action) {
       case 'transcribe':
-        responseData = { transcribedText: await handleTranscribe(openaiApiKey, params.audioUrl, params.mimetype) };
+        responseData = { transcribedText: await handleTranscribe(openaiApiKey, params.audioUrl, params.mimetype, params.fetchHeaders) };
         break;
       case 'generate':
         responseData = await handleGenerate(openaiApiKey, params);

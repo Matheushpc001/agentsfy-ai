@@ -122,13 +122,17 @@ console.log(`🔎 Detecção de tipo -> audio:${hasAudio} video:${hasVideo} doc:
         }
 
         console.log(`🔄 Iniciando transcrição via fallback para: ${audioUrl}`);
-        
+        const extraHeaders = payload?.apikey
+          ? { apikey: payload.apikey, 'x-api-key': payload.apikey, Authorization: `Bearer ${payload.apikey}` }
+          : undefined;
+        console.log(`🛡️ Headers de download para transcrição: ${extraHeaders ? Object.keys(extraHeaders).join(', ') : 'nenhum'}`);
         const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('openai-handler', {
           body: {
             action: 'transcribe',
             openaiApiKey: aiAgent.openai_api_key,
             audioUrl: audioUrl,
-            mimetype: mimetype
+            mimetype: mimetype,
+            fetchHeaders: extraHeaders
           }
         });
         
