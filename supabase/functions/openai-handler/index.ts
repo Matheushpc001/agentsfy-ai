@@ -132,6 +132,70 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
   }
 }
 
+// Nova função para transcrever a partir de bytes/base64 (evita download de URL criptografada)
+async function handleTranscribeBase64(openaiApiKey: string, fileBase64: string, mimetype?: string, filename?: string) {
+  if (!openaiApiKey) throw new Error("Chave da API OpenAI não fornecida.");
+  if (!fileBase64) throw new Error("Conteúdo do áudio (base64) não fornecido.");
+
+  // Remover prefixo data URL se existir
+  const cleaned = fileBase64.includes(',') ? fileBase64.split(',').pop()! : fileBase64;
+  const binary = atob(cleaned);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+  if (bytes.byteLength === 0) throw new Error("Arquivo de áudio vazio (base64).");
+  if (bytes.byteLength > 25 * 1024 * 1024) throw new Error("Arquivo de áudio muito grande (máximo 25MB).");
+
+  // Tentativa de inferir extensão
+  let extension = 'ogg';
+  let finalMimetype = mimetype || 'audio/ogg';
+  const header = Array.from(bytes.slice(0, 12)).map(b => b.toString(16).padStart(2, '0')).join('');
+  if (finalMimetype.includes('mp3') || header.startsWith('494433') || header.startsWith('fffb')) {
+    extension = 'mp3';
+    finalMimetype = 'audio/mpeg';
+  } else if (finalMimetype.includes('wav') || (header.startsWith('52494646') && header.includes('57415645'))) {
+    extension = 'wav';
+    finalMimetype = 'audio/wav';
+  } else if (finalMimetype.includes('mp4') || finalMimetype.includes('m4a') || header.startsWith('667479704d34')) {
+    extension = 'm4a';
+    finalMimetype = 'audio/mp4';
+  } else if (finalMimetype.includes('webm')) {
+    extension = 'webm';
+    finalMimetype = 'audio/webm';
+  } else if (finalMimetype.includes('oga') || finalMimetype.includes('ogg')) {
+    extension = 'ogg';
+    finalMimetype = 'audio/ogg';
+  }
+
+  const formData = new FormData();
+  const fileName = filename || `audio_${Date.now()}.${extension}`;
+  const audioFile = new File([bytes], fileName, { type: finalMimetype });
+  formData.append('file', audioFile);
+  formData.append('model', 'whisper-1');
+  formData.append('language', 'pt');
+  formData.append('response_format', 'text');
+  formData.append('temperature', '0');
+
+  console.log(`🔄 Enviando (base64) para Whisper API como ${fileName} (${finalMimetype}) - ${bytes.byteLength} bytes`);
+  const transcribeResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${openaiApiKey}` },
+    body: formData,
+  });
+
+  if (!transcribeResponse.ok) {
+    const errorText = await transcribeResponse.text();
+    console.error('❌ Erro da API Whisper (base64):', { status: transcribeResponse.status, statusText: transcribeResponse.statusText, error: errorText });
+    throw new Error(`Erro API Whisper (${transcribeResponse.status}): ${errorText}`);
+  }
+
+  const transcribedText = await transcribeResponse.text();
+  const cleanText = transcribedText.trim();
+  if (!cleanText) throw new Error('Transcrição (base64) retornou vazia');
+  console.log(`✅ Transcrição (base64) concluída: "${cleanText}"`);
+  return cleanText;
+}
+
 // Função para gerar resposta de texto (mantida como estava)
 async function handleGenerate(openaiApiKey: string, payload: any) {
     const { userMessage, previousMessages, systemPrompt, model } = payload;
