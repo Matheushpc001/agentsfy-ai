@@ -214,11 +214,20 @@ if (!messageContent || messageContent.trim().length === 0) {
   console.log(`➡️ Mensagem sem conteúdo textual válido após processamento. Tipo detectado: ${messageType}. Ignorando.`);
   return;
 }
-  
-  if (messageContent.startsWith("[")) {
-      console.log(`➡️ Conteúdo inválido ('${messageContent}'), ignorando resposta da IA.`);
-      // Ainda podemos salvar a mensagem para registro, se desejado.
-  }
+
+// Sanitizar prefixos como "[audio] ..." vindos da Evolution
+const originalContent = messageContent;
+const cleanedContent = String(messageContent).replace(/^\[[^\]]+\]\s*/g, '').trim();
+if (cleanedContent !== originalContent) {
+  console.log(`🧹 Limpeza de prefixo detectada: "${originalContent}" -> "${cleanedContent}"`);
+  messageContent = cleanedContent;
+}
+
+// Se após limpar continuar vazio, não responder
+if (!messageContent || messageContent.trim().length === 0) {
+  console.log('➡️ Conteúdo vazio após limpeza. Ignorando resposta da IA.');
+  return;
+}
 
 const { data: config } = await supabase.from('evolution_api_configs').select('id').eq('instance_name', instanceName).single();
 if (!config) {
