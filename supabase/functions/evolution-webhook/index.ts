@@ -99,54 +99,94 @@ console.log(`🔎 Detecção de tipo -> audio:${hasAudio} video:${hasVideo} doc:
       console.log('⚠️ Transcrição não encontrada na Evolution API. Tentando fallback...');
       
       try {
-        const { data: config } = await supabase.from('evolution_api_configs').select('id').eq('instance_name', instanceName).single();
-        if (!config) throw new Error("Configuração da instância não encontrada");
+        // Obter config + global (para baixar mídia descriptografada via Evolution API)
+        const { data: configFull, error: cfgErr } = await supabase
+          .from('evolution_api_configs')
+          .select('id, instance_name, evolution_global_configs ( api_url, api_key )')
+          .eq('instance_name', instanceName)
+          .single();
+        if (cfgErr || !configFull?.evolution_global_configs) throw new Error("Configuração da instância não encontrada");
+        const configId = configFull.id;
+        const globalCfg = configFull.evolution_global_configs;
 
         // Buscar agente IA ativo com chave OpenAI
         const { data: aiAgent } = await supabase
           .from('ai_whatsapp_agents')
           .select('openai_api_key')
-          .eq('evolution_config_id', config.id)
+          .eq('evolution_config_id', configId)
           .eq('is_active', true)
           .single();
-          
-        if (!aiAgent?.openai_api_key) {
-          throw new Error("Nenhum agente IA ativo com chave OpenAI encontrado");
-        }
+        if (!aiAgent?.openai_api_key) throw new Error("Nenhum agente IA ativo com chave OpenAI encontrado");
 
-        const audioUrl = messageData.message?.audioMessage?.url;
-        const mimetype = messageData.message?.audioMessage?.mimetype || 'audio/ogg';
-        
-        if (!audioUrl) {
-          throw new Error("URL do áudio não encontrada");
-        }
+        // Tentar baixar mídia já descriptografada pela Evolution API
+        const messageId = messageData.key?.id;
+        const tryEndpoints = [
+          `${globalCfg.api_url}/message/download/${instanceName}/${messageId}`,
+          `${globalCfg.api_url}/message/downloadMedia/${instanceName}/${messageId}`,
+        ];
+        let base64Audio: string | null = null;
+        let mimeFromApi: string | undefined;
+        let fileNameFromApi: string | undefined;
 
-        console.log(`🔄 Iniciando transcrição via fallback para: ${audioUrl}`);
-        const extraHeaders = payload?.apikey
-          ? { apikey: payload.apikey, 'x-api-key': payload.apikey, Authorization: `Bearer ${payload.apikey}` }
-          : undefined;
-        console.log(`🛡️ Headers de download para transcrição: ${extraHeaders ? Object.keys(extraHeaders).join(', ') : 'nenhum'}`);
-        const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('openai-handler', {
-          body: {
-            action: 'transcribe',
-            openaiApiKey: aiAgent.openai_api_key,
-            audioUrl: audioUrl,
-            mimetype: mimetype,
-            fetchHeaders: extraHeaders
+        for (const endpoint of tryEndpoints) {
+          try {
+            console.log(`📥 Tentando baixar mídia em: ${endpoint}`);
+            const resp = await fetch(endpoint, { headers: { apikey: globalCfg.api_key } });
+            if (!resp.ok) {
+              console.log(`➡️ Endpoint falhou (${resp.status}).`);
+              continue;
+            }
+            const data = await resp.json().catch(() => ({}));
+            const possible = data?.base64 || data?.file || data?.data || data?.audio || null;
+            if (possible && typeof possible === 'string') {
+              base64Audio = possible.includes(',') ? possible.split(',').pop() : possible;
+              mimeFromApi = data?.mimetype || data?.mimeType || undefined;
+              fileNameFromApi = data?.fileName || data?.filename || undefined;
+              break;
+            }
+          } catch (e) {
+            console.log('➡️ Falha ao baixar em endpoint:', e);
           }
-        });
-        
-        if (transcribeError) {
-          console.error('❌ Erro na função de transcrição:', transcribeError);
-          throw transcribeError;
         }
-        
-        if (!transcribeData?.transcribedText) {
-          throw new Error("Transcrição retornou vazia");
+
+        if (base64Audio) {
+          console.log('🎧 Mídia obtida via Evolution API. Enviando para transcribe_base64...');
+          const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('openai-handler', {
+            body: {
+              action: 'transcribe_base64',
+              openaiApiKey: aiAgent.openai_api_key,
+              fileBase64: base64Audio,
+              mimetype: mimeFromApi || messageData.message?.audioMessage?.mimetype || 'audio/ogg',
+              filename: fileNameFromApi || `audio_${messageId}.ogg`
+            }
+          });
+          if (transcribeError) throw transcribeError;
+          if (!transcribeData?.transcribedText) throw new Error('Transcrição retornou vazia');
+          messageContent = transcribeData.transcribedText;
+          console.log(`✅ Transcrição (base64) bem-sucedida: "${messageContent}"`);
+        } else {
+          // Fallback final: usar URL direta (com headers via payload)
+          const audioUrl = messageData.message?.audioMessage?.url;
+          const mimetype = messageData.message?.audioMessage?.mimetype || 'audio/ogg';
+          if (!audioUrl) throw new Error('URL do áudio não encontrada');
+          console.log(`🔁 Fallback final via URL: ${audioUrl}`);
+          const extraHeaders = payload?.apikey
+            ? { apikey: payload.apikey, 'x-api-key': payload.apikey, Authorization: `Bearer ${payload.apikey}` }
+            : undefined;
+          const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('openai-handler', {
+            body: {
+              action: 'transcribe',
+              openaiApiKey: aiAgent.openai_api_key,
+              audioUrl,
+              mimetype,
+              fetchHeaders: extraHeaders
+            }
+          });
+          if (transcribeError) throw transcribeError;
+          if (!transcribeData?.transcribedText) throw new Error('Transcrição retornou vazia');
+          messageContent = transcribeData.transcribedText;
+          console.log(`✅ Transcrição via URL bem-sucedida: "${messageContent}"`);
         }
-        
-        messageContent = transcribeData.transcribedText;
-        console.log(`✅ Transcrição via fallback bem-sucedida: "${messageContent}"`);
 
       } catch (error) {
         console.error('❌ Erro no fallback de transcrição:', error);

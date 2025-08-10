@@ -258,6 +258,9 @@ serve(async (req) => {
       case 'transcribe':
         responseData = { transcribedText: await handleTranscribe(openaiApiKey, params.audioUrl, params.mimetype, params.fetchHeaders) };
         break;
+      case 'transcribe_base64':
+        responseData = { transcribedText: await handleTranscribeBase64(openaiApiKey, params.fileBase64, params.mimetype, params.filename) };
+        break;
       case 'generate':
         responseData = await handleGenerate(openaiApiKey, params);
         break;

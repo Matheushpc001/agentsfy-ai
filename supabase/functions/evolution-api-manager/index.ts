@@ -884,8 +884,29 @@ async function handleConfigureSpeechToText(supabase: any, params: any) {
             }
         }
         
-        // 2. Configurar settings com speech-to-text habilitado
-        const settingsPayload = {
+        // 2. Garantir openaiCredsId SEMPRE presente
+        if (!openaiCredsId) {
+            try {
+                const listResponse = await fetch(`${globalConfig.api_url}/openai/creds/${instanceName}`, {
+                    method: 'GET',
+                    headers: { 'apikey': globalConfig.api_key },
+                });
+                if (listResponse.ok) {
+                    const credsList = await listResponse.json();
+                    if (credsList && credsList.length > 0) {
+                        openaiCredsId = credsList[0].id;
+                        console.log(`✅ Usando credencial existente: ${openaiCredsId}`);
+                    }
+                }
+            } catch (_) {}
+        }
+        if (!openaiCredsId) {
+            throw new Error('Nenhuma credencial OpenAI configurada na Evolution para esta instância. Configure via openai_set_creds ou informe openaiApiKey.');
+        }
+
+        // 3. Configurar settings com speech-to-text habilitado
+        const settingsPayload: Record<string, any> = {
+            openaiCredsId,
             speechToText: enableSpeechToText,
             expire: 20,
             keywordFinish: "#SAIR",
@@ -897,12 +918,6 @@ async function handleConfigureSpeechToText(supabase: any, params: any) {
             debounceTime: 0,
             ignoreJids: []
         };
-        
-        if (openaiCredsId) {
-            settingsPayload.openaiCredsId = openaiCredsId;
-        }
-        
-        console.log(`🔧 Aplicando configurações:`, settingsPayload);
         
         const settingsResponse = await fetch(`${globalConfig.api_url}/openai/settings/${instanceName}`, {
             method: 'POST',
