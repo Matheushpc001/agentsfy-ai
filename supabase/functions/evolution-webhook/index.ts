@@ -301,8 +301,9 @@ async function checkAutoResponse(supabase: any, configId: string, conversationId
 
     if (aiFunctionError) throw aiFunctionError;
     const { aiResponse } = aiFunctionResponse;
-    if (!aiResponse) {
-      console.log('ℹ️ openai-handler retornou resposta vazia.');
+    const finalText = String(aiResponse || '').trim();
+    if (!finalText) {
+      console.log('ℹ️ openai-handler retornou resposta vazia ou inválida.');
       return;
     }
 
@@ -310,7 +311,7 @@ async function checkAutoResponse(supabase: any, configId: string, conversationId
       agent_id: aiAgent.id,
       conversation_id: conversationId,
       user_message: messageContent,
-      ai_response: aiResponse
+      ai_response: finalText
     });
 
     const { data: conversationData } = await supabase
@@ -324,14 +325,19 @@ async function checkAutoResponse(supabase: any, configId: string, conversationId
     }
 
     console.log(`📤 Enviando resposta IA para ${conversationData.contact_number}...`);
-    await supabase.functions.invoke('evolution-api-manager', {
+    const { data: sendResult, error: sendError } = await supabase.functions.invoke('evolution-api-manager', {
       body: {
         action: 'send_message',
         config_id: configId,
         phone_number: conversationData.contact_number,
-        message: aiResponse
+        message: finalText
       }
     });
+    if (sendError) {
+      console.error('❌ Falha ao enviar mensagem pela Evolution API:', sendError);
+    } else {
+      console.log('✅ Mensagem enviada pela Evolution API:', sendResult);
+    }
   } catch (error) {
     console.error('❌ Erro na auto-resposta da IA:', error);
   }

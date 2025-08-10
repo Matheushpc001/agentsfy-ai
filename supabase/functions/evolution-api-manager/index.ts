@@ -693,11 +693,18 @@ async function handleSendMessage(supabase, params) {
       body: JSON.stringify(messagePayload)
     });
     if (!sendResponse.ok) {
-      throw new Error(`Erro ao enviar mensagem: ${sendResponse.status}`);
+      const errText = await sendResponse.text().catch(() => '');
+      throw new Error(`Erro ao enviar mensagem: ${sendResponse.status} ${errText}`);
     }
-    const sendResult = await sendResponse.json();
+    let sendResult: any = null;
+    const rawBody = await sendResponse.text().catch(() => '');
+    if (rawBody && rawBody.trim().length > 0) {
+      try { sendResult = JSON.parse(rawBody); } catch { sendResult = rawBody; }
+    }
+    console.log('✅ Mensagem enviada. Status:', sendResponse.status, 'Resultado:', sendResult || '(sem corpo)');
     return new Response(JSON.stringify({
       success: true,
+      status: sendResponse.status,
       result: sendResult
     }), {
       status: 200,
