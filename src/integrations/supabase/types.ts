@@ -457,9 +457,77 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      admin_agents_view: {
+        Row: {
+          created_at: string | null
+          customer_id: string | null
+          franchisee_id: string | null
+          has_api_key: boolean | null
+          id: string | null
+          is_active: boolean | null
+          message_count: number | null
+          name: string | null
+          open_ai_key_masked: string | null
+          phone_number: string | null
+          response_time: number | null
+          sector: string | null
+          updated_at: string | null
+          whatsapp_connected: boolean | null
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id?: string | null
+          franchisee_id?: string | null
+          has_api_key?: never
+          id?: string | null
+          is_active?: boolean | null
+          message_count?: number | null
+          name?: string | null
+          open_ai_key_masked?: never
+          phone_number?: string | null
+          response_time?: number | null
+          sector?: string | null
+          updated_at?: string | null
+          whatsapp_connected?: boolean | null
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string | null
+          franchisee_id?: string | null
+          has_api_key?: never
+          id?: string | null
+          is_active?: boolean | null
+          message_count?: number | null
+          name?: string | null
+          open_ai_key_masked?: never
+          phone_number?: string | null
+          response_time?: number | null
+          sector?: string | null
+          updated_at?: string | null
+          whatsapp_connected?: boolean | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      admin_safe_agents: {
+        Args: Record<PropertyKey, never>
+        Returns: {
+          id: string
+          name: string
+          sector: string
+          customer_id: string
+          franchisee_id: string
+          whatsapp_connected: boolean
+          is_active: boolean
+          message_count: number
+          response_time: number
+          phone_number: string
+          created_at: string
+          updated_at: string
+          api_key_status: string
+        }[]
+      }
       debug_user_status: {
         Args: Record<PropertyKey, never>
         Returns: {
@@ -467,6 +535,10 @@ export type Database = {
           has_admin_role: boolean
           user_roles_count: number
         }[]
+      }
+      encrypt_api_key: {
+        Args: { api_key: string }
+        Returns: string
       }
       get_active_ai_agents: {
         Args: { config_id_param: string }
@@ -487,6 +559,10 @@ export type Database = {
           api_url: string
           status: string
         }[]
+      }
+      get_agent_api_key: {
+        Args: { agent_id_param: string }
+        Returns: string
       }
       get_franchisees_details: {
         Args: Record<PropertyKey, never>
@@ -511,6 +587,10 @@ export type Database = {
       }
       is_admin: {
         Args: { user_id: string }
+        Returns: boolean
+      }
+      verify_api_key: {
+        Args: { api_key: string; encrypted_key: string }
         Returns: boolean
       }
     }
