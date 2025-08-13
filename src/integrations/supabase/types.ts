@@ -457,57 +457,7 @@ export type Database = {
       }
     }
     Views: {
-      admin_agents_view: {
-        Row: {
-          created_at: string | null
-          customer_id: string | null
-          franchisee_id: string | null
-          has_api_key: boolean | null
-          id: string | null
-          is_active: boolean | null
-          message_count: number | null
-          name: string | null
-          open_ai_key_masked: string | null
-          phone_number: string | null
-          response_time: number | null
-          sector: string | null
-          updated_at: string | null
-          whatsapp_connected: boolean | null
-        }
-        Insert: {
-          created_at?: string | null
-          customer_id?: string | null
-          franchisee_id?: string | null
-          has_api_key?: never
-          id?: string | null
-          is_active?: boolean | null
-          message_count?: number | null
-          name?: string | null
-          open_ai_key_masked?: never
-          phone_number?: string | null
-          response_time?: number | null
-          sector?: string | null
-          updated_at?: string | null
-          whatsapp_connected?: boolean | null
-        }
-        Update: {
-          created_at?: string | null
-          customer_id?: string | null
-          franchisee_id?: string | null
-          has_api_key?: never
-          id?: string | null
-          is_active?: boolean | null
-          message_count?: number | null
-          name?: string | null
-          open_ai_key_masked?: never
-          phone_number?: string | null
-          response_time?: number | null
-          sector?: string | null
-          updated_at?: string | null
-          whatsapp_connected?: boolean | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       admin_safe_agents: {
