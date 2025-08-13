@@ -556,7 +556,6 @@ export type Database = {
         Returns: {
           id: string
           instance_name: string
-          api_url: string
           status: string
         }[]
       }
