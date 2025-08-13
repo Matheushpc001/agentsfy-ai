@@ -1,4 +1,4 @@
-// Versão 1.2 - Correção para transcrição de áudio WhatsApp v666
+// Versão 1.3 - Melhorias na transcrição de áudio WhatsApp com retry e validações
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -7,9 +7,51 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Função para validar chave OpenAI
+const validateOpenAIKey = (apiKey: string): boolean => {
+  return apiKey.startsWith('sk-') && apiKey.length > 20;
+};
+
+// Função para detectar formato de áudio
+const detectAudioFormat = (mimetype: string, header: string): { extension: string, finalMimetype: string } => {
+  const formats = {
+    'mp3': { mimes: ['audio/mp3', 'audio/mpeg'], headers: ['494433', 'fffb'], mimetype: 'audio/mpeg' },
+    'wav': { mimes: ['audio/wav'], headers: ['52494646'], mimetype: 'audio/wav' },
+    'ogg': { mimes: ['audio/ogg'], headers: ['4f676753'], mimetype: 'audio/ogg' },
+    'm4a': { mimes: ['audio/mp4', 'audio/m4a'], headers: ['667479704d34'], mimetype: 'audio/mp4' },
+    'webm': { mimes: ['audio/webm'], headers: ['1a45dfa3'], mimetype: 'audio/webm' }
+  };
+  
+  for (const [format, config] of Object.entries(formats)) {
+    if (config.mimes.some(mime => mimetype?.includes(mime)) ||
+        config.headers.some(h => header.startsWith(h))) {
+      return { extension: format, finalMimetype: config.mimetype };
+    }
+  }
+  return { extension: 'ogg', finalMimetype: 'audio/ogg' }; // default
+};
+
+// Função de retry para transcrição
+const transcribeWithRetry = async (transcribeFunction: () => Promise<string>, maxRetries = 3): Promise<string> => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const result = await transcribeFunction();
+      return result;
+    } catch (error) {
+      if (i === maxRetries - 1) throw error;
+      console.log(`🔄 Tentativa ${i + 1} falhou, tentando novamente em ${1000 * (i + 1)}ms...`);
+      await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1)));
+    }
+  }
+  throw new Error('Todas as tentativas de transcrição falharam');
+};
+
 // Função aprimorada para transcrever áudio com melhor detecção de formato
 async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype: string, fetchHeaders?: Record<string, string>) {
   if (!openaiApiKey) throw new Error("Chave da API OpenAI não fornecida.");
+  if (!validateOpenAIKey(openaiApiKey)) {
+    throw new Error('Chave OpenAI inválida. Deve começar com sk- e ter pelo menos 20 caracteres');
+  }
   if (!audioUrl) throw new Error("URL do áudio não fornecida.");
   
   console.log(`🎤 Iniciando transcrição para: ${audioUrl}`);
@@ -20,11 +62,27 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
   const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
   
   try {
+    // Headers melhorados com mais opções de autenticação
     const baseHeaders: Record<string, string> = {
-      'User-Agent': 'Mozilla/5.0 (compatible; AudioBot/1.0)'
+      'User-Agent': 'Mozilla/5.0 (compatible; AudioBot/1.0)',
+      'Accept': 'audio/*,*/*'
     };
-    const mergedHeaders = fetchHeaders ? { ...baseHeaders, ...fetchHeaders } : baseHeaders;
-    console.log(`🌐 Baixando áudio com headers: ${Object.keys(mergedHeaders).join(', ') || 'nenhum'}`);
+    
+    const enhancedHeaders = fetchHeaders ? {
+      ...baseHeaders,
+      ...fetchHeaders,
+      'Content-Type': fetchHeaders['Content-Type'] || 'application/json',
+      'Authorization': fetchHeaders['Authorization'] || `Bearer ${openaiApiKey}`
+    } : baseHeaders;
+    
+    const mergedHeaders = enhancedHeaders;
+    console.log(`🌐 Baixando áudio com headers: ${Object.keys(mergedHeaders).join(', ') || 'nenhum'}`);    
+    console.log(`🔍 DEBUG INFO: Download de áudio`, {
+      audioUrl: audioUrl.substring(0, 100) + '...',
+      originalMimetype: mimetype,
+      hasCustomHeaders: !!fetchHeaders,
+      headersCount: Object.keys(mergedHeaders).length
+    });
     const audioResponse = await fetch(audioUrl, { 
       signal: controller.signal,
       headers: mergedHeaders
@@ -47,40 +105,19 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
       throw new Error("Arquivo de áudio muito grande (máximo 25MB).");
     }
 
-    // Detecção inteligente do formato do áudio
-    let extension = 'ogg';
-    let finalMimetype = 'audio/ogg';
-    
-    if (mimetype) {
-      if (mimetype.includes('mp4') || mimetype.includes('m4a')) {
-        extension = 'm4a';
-        finalMimetype = 'audio/mp4';
-      } else if (mimetype.includes('mpeg') || mimetype.includes('mp3')) {
-        extension = 'mp3';
-        finalMimetype = 'audio/mpeg';
-      } else if (mimetype.includes('wav')) {
-        extension = 'wav';
-        finalMimetype = 'audio/wav';
-      } else if (mimetype.includes('webm')) {
-        extension = 'webm';
-        finalMimetype = 'audio/webm';
-      }
-    }
-    
-    // Fallback: detectar pelo magic number (primeiros bytes)
+      // Detecção inteligente do formato do áudio usando função melhorada
     const firstBytes = new Uint8Array(audioArrayBuffer.slice(0, 12));
     const header = Array.from(firstBytes).map(b => b.toString(16).padStart(2, '0')).join('');
     
-    if (header.startsWith('667479704d34')) { // ftypisom
-      extension = 'm4a';
-      finalMimetype = 'audio/mp4';
-    } else if (header.startsWith('494433') || header.startsWith('fffb')) { // ID3 ou MP3
-      extension = 'mp3';
-      finalMimetype = 'audio/mpeg';
-    } else if (header.startsWith('52494646') && header.includes('57415645')) { // RIFF WAVE
-      extension = 'wav';
-      finalMimetype = 'audio/wav';
-    }
+    const { extension, finalMimetype } = detectAudioFormat(mimetype || '', header);
+    
+    console.log(`🔍 DEBUG INFO: Detecção de formato`, {
+      originalMimetype: mimetype,
+      detectedExtension: extension,
+      finalMimetype: finalMimetype,
+      headerBytes: header.substring(0, 24),
+      fileSize: audioArrayBuffer.byteLength
+    });
     
     const fileName = `audio_${Date.now()}.${extension}`;
     console.log(`📝 Arquivo preparado: ${fileName} (${finalMimetype}) - ${audioArrayBuffer.byteLength} bytes`);
@@ -135,6 +172,9 @@ async function handleTranscribe(openaiApiKey: string, audioUrl: string, mimetype
 // Nova função para transcrever a partir de bytes/base64 (evita download de URL criptografada)
 async function handleTranscribeBase64(openaiApiKey: string, fileBase64: string, mimetype?: string, filename?: string) {
   if (!openaiApiKey) throw new Error("Chave da API OpenAI não fornecida.");
+  if (!validateOpenAIKey(openaiApiKey)) {
+    throw new Error('Chave OpenAI inválida. Deve começar com sk- e ter pelo menos 20 caracteres');
+  }
   if (!fileBase64) throw new Error("Conteúdo do áudio (base64) não fornecido.");
 
   // Remover prefixo data URL se existir
@@ -146,26 +186,17 @@ async function handleTranscribeBase64(openaiApiKey: string, fileBase64: string, 
   if (bytes.byteLength === 0) throw new Error("Arquivo de áudio vazio (base64).");
   if (bytes.byteLength > 25 * 1024 * 1024) throw new Error("Arquivo de áudio muito grande (máximo 25MB).");
 
-  // Tentativa de inferir extensão
-  let extension = 'ogg';
-  let finalMimetype = mimetype || 'audio/ogg';
+  // Detecção inteligente de formato usando função melhorada
   const header = Array.from(bytes.slice(0, 12)).map(b => b.toString(16).padStart(2, '0')).join('');
-  if (finalMimetype.includes('mp3') || header.startsWith('494433') || header.startsWith('fffb')) {
-    extension = 'mp3';
-    finalMimetype = 'audio/mpeg';
-  } else if (finalMimetype.includes('wav') || (header.startsWith('52494646') && header.includes('57415645'))) {
-    extension = 'wav';
-    finalMimetype = 'audio/wav';
-  } else if (finalMimetype.includes('mp4') || finalMimetype.includes('m4a') || header.startsWith('667479704d34')) {
-    extension = 'm4a';
-    finalMimetype = 'audio/mp4';
-  } else if (finalMimetype.includes('webm')) {
-    extension = 'webm';
-    finalMimetype = 'audio/webm';
-  } else if (finalMimetype.includes('oga') || finalMimetype.includes('ogg')) {
-    extension = 'ogg';
-    finalMimetype = 'audio/ogg';
-  }
+  const { extension, finalMimetype } = detectAudioFormat(mimetype || '', header);
+  
+  console.log(`🔍 DEBUG INFO Base64: Detecção de formato`, {
+    originalMimetype: mimetype,
+    detectedExtension: extension,
+    finalMimetype: finalMimetype,
+    headerBytes: header.substring(0, 24),
+    fileSize: bytes.byteLength
+  });
 
   const formData = new FormData();
   const fileName = filename || `audio_${Date.now()}.${extension}`;
@@ -241,6 +272,48 @@ async function handleGenerate(openaiApiKey: string, payload: any) {
     };
 }
 
+// Nova função para verificar status de transcrição
+async function handleCheckTranscriptionStatus(params: any) {
+  const { instanceName, globalConfig } = params;
+  
+  if (!instanceName || !globalConfig) {
+    throw new Error('instanceName e globalConfig são obrigatórios para verificar status');
+  }
+  
+  try {
+    // Verificar configurações atuais da Evolution API
+    const settingsResponse = await fetch(`${globalConfig.api_url}/openai/settings/${instanceName}`, {
+      method: 'GET',
+      headers: { 'apikey': globalConfig.api_key }
+    });
+    
+    if (!settingsResponse.ok) {
+      return {
+        speechToTextEnabled: false,
+        error: 'Não foi possível verificar configurações',
+        status: 'unknown'
+      };
+    }
+    
+    const settings = await settingsResponse.json();
+    
+    return {
+      speechToTextEnabled: settings?.speechToText || false,
+      settings: settings,
+      status: 'verified',
+      instanceName: instanceName
+    };
+    
+  } catch (error) {
+    console.error('Erro ao verificar status de transcrição:', error);
+    return {
+      speechToTextEnabled: false,
+      error: error.message,
+      status: 'error'
+    };
+  }
+}
+
 // Servidor principal
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -256,13 +329,24 @@ serve(async (req) => {
     let responseData;
     switch (action) {
       case 'transcribe':
-        responseData = { transcribedText: await handleTranscribe(openaiApiKey, params.audioUrl, params.mimetype, params.fetchHeaders) };
+        responseData = { 
+          transcribedText: await transcribeWithRetry(() => 
+            handleTranscribe(openaiApiKey, params.audioUrl, params.mimetype, params.fetchHeaders)
+          )
+        };
         break;
       case 'transcribe_base64':
-        responseData = { transcribedText: await handleTranscribeBase64(openaiApiKey, params.fileBase64, params.mimetype, params.filename) };
+        responseData = { 
+          transcribedText: await transcribeWithRetry(() => 
+            handleTranscribeBase64(openaiApiKey, params.fileBase64, params.mimetype, params.filename)
+          )
+        };
         break;
       case 'generate':
         responseData = await handleGenerate(openaiApiKey, params);
+        break;
+      case 'check_transcription_status':
+        responseData = await handleCheckTranscriptionStatus(params);
         break;
       default:
         throw new Error(`Ação desconhecida: ${action}`);

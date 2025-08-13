@@ -151,6 +151,14 @@ console.log(`🔎 Detecção de tipo -> audio:${hasAudio} video:${hasVideo} doc:
 
         if (base64Audio) {
           console.log('🎧 Mídia obtida via Evolution API. Enviando para transcribe_base64...');
+          console.log(`🔍 DEBUG INFO: Transcrição base64`, {
+            hasBase64Audio: !!base64Audio,
+            mimeFromApi,
+            fileNameFromApi,
+            originalMimetype: messageData.message?.audioMessage?.mimetype,
+            messageId
+          });
+          
           const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('openai-handler', {
             body: {
               action: 'transcribe_base64',
@@ -170,9 +178,21 @@ console.log(`🔎 Detecção de tipo -> audio:${hasAudio} video:${hasVideo} doc:
           const mimetype = messageData.message?.audioMessage?.mimetype || 'audio/ogg';
           if (!audioUrl) throw new Error('URL do áudio não encontrada');
           console.log(`🔁 Fallback final via URL: ${audioUrl}`);
-          const extraHeaders = payload?.apikey
-            ? { apikey: payload.apikey, 'x-api-key': payload.apikey, Authorization: `Bearer ${payload.apikey}` }
-            : undefined;
+          const extraHeaders = payload?.apikey ? {
+            'apikey': payload.apikey,
+            'x-api-key': payload.apikey,
+            'Authorization': `Bearer ${payload.apikey}`,
+            'Content-Type': 'application/json'
+          } : {
+            'Authorization': `Bearer ${aiAgent.openai_api_key}`
+          };
+          
+          console.log(`🔍 DEBUG INFO: Fallback de áudio`, {
+            audioUrl: audioUrl.substring(0, 100) + '...',
+            mimetype: mimetype,
+            hasCustomHeaders: !!payload?.apikey,
+            messageId: messageId
+          });
           const { data: transcribeData, error: transcribeError } = await supabase.functions.invoke('openai-handler', {
             body: {
               action: 'transcribe',

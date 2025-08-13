@@ -1,4 +1,4 @@
-// ARQUIVO: supabase/functions/evolution-api-manager/index.ts v25
+// ARQUIVO: supabase/functions/evolution-api-manager/index.ts v66
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0"
@@ -73,6 +73,12 @@ async function handleSetupOpenAITranscription(supabase: any, params: any) {
   }
   
   console.log(`🤖 Iniciando configuração COMPLETA de IA e transcrição para: ${instanceName}`);
+    
+    console.log(`🔍 DEBUG INFO: Configuração de transcrição`, {
+      instanceName,
+      openaiKeyValid: validateOpenAIKey(openaiApiKey),
+      globalConfigUrl: config.evolution_global_configs?.api_url
+    });
 
   try {
     let openaiCredsId: string;
@@ -138,8 +144,16 @@ async function handleSetupOpenAITranscription(supabase: any, params: any) {
     }
     
     console.log(`✅ Configuração de transcrição concluída para ${instanceName}`);
+    
+    // Verificar se a configuração foi aplicada corretamente
+    const verification = await verifyTranscriptionConfiguration(globalConfig, instanceName);
 
-    return new Response(JSON.stringify({ success: true, message: 'Transcrição de áudio ativada com sucesso!' }), {
+    return new Response(JSON.stringify({ 
+      success: true, 
+      message: 'Transcrição de áudio ativada com sucesso!',
+      openaiCredsId,
+      verification
+    }), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
@@ -959,4 +973,203 @@ async function handleConfigureSpeechToText(supabase: any, params: any) {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
     }
+}
+
+// Função para verificar configuração de transcrição
+async function verifyTranscriptionConfiguration(globalConfig: any, instanceName: string) {
+    try {
+        const settingsResponse = await fetch(`${globalConfig.api_url}/openai/settings/${instanceName}`, {
+            method: 'GET',
+            headers: { 'apikey': globalConfig.api_key }
+        });
+        
+        if (settingsResponse.ok) {
+            const settings = await settingsResponse.json();
+            return {
+                speechToTextEnabled: settings?.speechToText || false,
+                settings: settings,
+                status: 'verified'
+            };
+        }
+        
+        return {
+            speechToTextEnabled: false,
+            status: 'verification_failed',
+            error: `Status ${settingsResponse.status}`
+        };
+    } catch (error) {
+        return {
+            speechToTextEnabled: false,
+            status: 'verification_error',
+            error: error.message
+        };
+    }
+}
+
+// Função para verificar status de transcrição
+async function handleCheckTranscriptionStatus(supabase: any, params: any) {
+    const { instanceName } = params;
+    
+    if (!instanceName) {
+        throw new Error('instanceName é obrigatório');
+    }
+    
+    try {
+        const { data: config, error } = await supabase
+            .from('evolution_api_configs')
+            .select(`*, evolution_global_configs (*)`)
+            .eq('instance_name', instanceName)
+            .single();
+            
+        if (error || !config.evolution_global_configs) {
+            throw new Error(`Configuração não encontrada para ${instanceName}`);
+        }
+
+        const globalConfig = config.evolution_global_configs;
+        const verification = await verifyTranscriptionConfiguration(globalConfig, instanceName);
+        
+        return new Response(JSON.stringify(verification), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+        
+    } catch (error) {
+        console.error(`❌ Erro ao verificar status de transcrição para ${instanceName}:`, error);
+        return new Response(JSON.stringify({
+            error: error.message || 'Erro ao verificar status de transcrição'
+        }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// Função completa e otimizada para configurar transcrição
+async function handleConfigureCompleteTranscription(supabase: any, params: any) {
+    const { instanceName, openaiApiKey } = params;
+    
+    if (!instanceName || !openaiApiKey) {
+        throw new Error('instanceName e openaiApiKey são obrigatórios');
+    }
+    
+    if (!validateOpenAIKey(openaiApiKey)) {
+        throw new Error('Chave OpenAI inválida. Deve começar com sk- e ter pelo menos 20 caracteres');
+    }
+    
+    console.log(`🚀 Configurando transcrição completa para ${instanceName}`);
+    
+    try {
+        // 1. Criar/verificar credenciais
+        const credentialsResult = await setupOpenAICredentials(supabase, instanceName, openaiApiKey);
+        
+        // 2. Configurar settings completos
+        const settingsResult = await configureAudioSettings(supabase, instanceName, credentialsResult.id);
+        
+        // 3. Verificar se configuração foi aplicada
+        const verification = await handleCheckTranscriptionStatus(supabase, { instanceName });
+        const verificationData = await verification.json();
+        
+        return new Response(JSON.stringify({
+            success: true,
+            message: 'Transcrição configurada com sucesso',
+            credentialsId: credentialsResult.id,
+            settings: settingsResult,
+            verification: verificationData
+        }), {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+        
+    } catch (error) {
+        console.error('Erro na configuração completa:', error);
+        return new Response(JSON.stringify({
+            error: error.message || 'Erro na configuração completa'
+        }), {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+    }
+}
+
+// Função auxiliar para configurar credenciais OpenAI
+async function setupOpenAICredentials(supabase: any, instanceName: string, openaiApiKey: string) {
+    const { data: config, error } = await supabase
+        .from('evolution_api_configs')
+        .select(`*, evolution_global_configs (*)`)
+        .eq('instance_name', instanceName)
+        .single();
+        
+    if (error || !config.evolution_global_configs) {
+        throw new Error(`Configuração não encontrada para ${instanceName}`);
+    }
+    
+    const globalConfig = config.evolution_global_configs;
+    
+    // Tentar criar credencial
+    const credsResponse = await fetch(`${globalConfig.api_url}/openai/creds/${instanceName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': globalConfig.api_key },
+        body: JSON.stringify({ name: `creds-${instanceName}`, apiKey: openaiApiKey }),
+    });
+    
+    const credsData = await credsResponse.json();
+    
+    if (credsResponse.ok && credsData.id) {
+        return { id: credsData.id, created: true };
+    } else if (credsResponse.status === 400 && JSON.stringify(credsData).includes("already registered")) {
+        // Buscar credencial existente
+        const existingCredsResponse = await fetch(`${globalConfig.api_url}/openai/creds/${instanceName}`, {
+            method: 'GET',
+            headers: { 'apikey': globalConfig.api_key },
+        });
+        
+        const existingCreds = await existingCredsResponse.json();
+        if (existingCreds && existingCreds.length > 0) {
+            return { id: existingCreds[0].id, created: false };
+        }
+    }
+    
+    throw new Error(`Falha ao configurar credenciais: ${JSON.stringify(credsData)}`);
+}
+
+// Função auxiliar para configurar settings de áudio
+async function configureAudioSettings(supabase: any, instanceName: string, openaiCredsId: string) {
+    const { data: config, error } = await supabase
+        .from('evolution_api_configs')
+        .select(`*, evolution_global_configs (*)`)
+        .eq('instance_name', instanceName)
+        .single();
+        
+    if (error || !config.evolution_global_configs) {
+        throw new Error(`Configuração não encontrada para ${instanceName}`);
+    }
+    
+    const globalConfig = config.evolution_global_configs;
+    
+    const settingsPayload = {
+        openaiCredsId,
+        speechToText: true,
+        expire: 20,
+        keywordFinish: "#SAIR",
+        delayMessage: 1000,
+        unknownMessage: "Desculpe, não entendi. Poderia repetir?",
+        listeningFromMe: false,
+        stopBotFromMe: false,
+        keepOpen: false,
+        debounceTime: 0,
+        ignoreJids: []
+    };
+    
+    const settingsResponse = await fetch(`${globalConfig.api_url}/openai/settings/${instanceName}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': globalConfig.api_key },
+        body: JSON.stringify(settingsPayload),
+    });
+    
+    if (!settingsResponse.ok) {
+        const errorBody = await settingsResponse.json();
+        throw new Error("Falha ao configurar settings: " + JSON.stringify(errorBody));
+    }
+    
+    return await settingsResponse.json();
 }
