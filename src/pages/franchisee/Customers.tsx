@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import CreateCustomerModal from "@/components/customers/CreateCustomerModal";
 
 // Função para buscar customers reais
 async function fetchRealCustomers(franchiseeId: string): Promise<Customer[]> {
@@ -103,6 +104,11 @@ export default function Customers() {
     customer.businessName.toLowerCase().includes(searchTerm) ||
     customer.email.toLowerCase().includes(searchTerm)
   );
+
+  const handleCreationSuccess = (newCustomer: Customer) => {
+    setCustomers(prev => [newCustomer, ...prev]);
+    loadCustomers(); 
+  };
 
   const handleViewCustomer = (customer: Customer) => {
     setCurrentCustomer(customer);
