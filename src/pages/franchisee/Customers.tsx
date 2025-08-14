@@ -159,7 +159,7 @@ export default function Customers() {
     if (!currentCustomer) return;
     
     // Generate customer portal URL
-    const portalUrl = `https://cliente.plataforma.com/${currentCustomer.id}`;
+        const portalUrl = `https://agentsfy-ai.lovable.app/a/${currentCustomer.id}`;
     
     navigator.clipboard.writeText(portalUrl).then(() => {
       setCopied(true);
@@ -301,7 +301,7 @@ export default function Customers() {
             <div className="flex items-center space-x-2">
               <Input
                 readOnly
-                value={`https://cliente.plataforma.com/${currentCustomer?.id}`}
+                value={`https://agentsfy-ai.lovable.app/a/${currentCustomer?.id}`}
                 className="flex-1"
               />
               <Button

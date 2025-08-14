@@ -33,7 +33,7 @@ export default function CustomerCard({ customer, onView, onManage }: CustomerCar
 
   const formattedDate = new Date(customer.createdAt).toLocaleDateString("pt-BR");
   
-  const customerPortalUrl = `https://cliente.plataforma.com/${customer.id}`;
+    const customerPortalUrl = `https://agentsfy-ai.lovable.app/a/${customer.id}`;
 
   return (
     <Card className="overflow-hidden border border-gray-200 dark:border-gray-800">
