@@ -7,7 +7,7 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instanciate createClient with right options
+  // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "12.2.12 (cd3cf9e)"
@@ -178,6 +178,66 @@ export type Database = {
           },
         ]
       }
+      appointments: {
+        Row: {
+          created_at: string
+          customer_id: string
+          description: string | null
+          end_time: string
+          franchisee_id: string
+          google_event_id: string | null
+          id: string
+          location: string | null
+          start_time: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          description?: string | null
+          end_time: string
+          franchisee_id: string
+          google_event_id?: string | null
+          id?: string
+          location?: string | null
+          start_time: string
+          status?: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          description?: string | null
+          end_time?: string
+          franchisee_id?: string
+          google_event_id?: string | null
+          id?: string
+          location?: string | null
+          start_time?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_franchisee_id_fkey"
+            columns: ["franchisee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           agent_count: number | null
@@ -309,10 +369,58 @@ export type Database = {
         }
         Relationships: []
       }
+      google_calendar_configs: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          franchisee_id: string
+          google_calendar_id: string | null
+          id: string
+          is_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          franchisee_id: string
+          google_calendar_id?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          franchisee_id?: string
+          google_calendar_id?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "google_calendar_configs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "google_calendar_configs_franchisee_id_fkey"
+            columns: ["franchisee_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
           email: string
+          google_calendar_email: string | null
+          google_calendar_refresh_token: string | null
+          google_calendar_token: string | null
           id: string
           name: string
           updated_at: string
@@ -320,6 +428,9 @@ export type Database = {
         Insert: {
           created_at?: string
           email: string
+          google_calendar_email?: string | null
+          google_calendar_refresh_token?: string | null
+          google_calendar_token?: string | null
           id: string
           name: string
           updated_at?: string
@@ -327,6 +438,9 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string
+          google_calendar_email?: string | null
+          google_calendar_refresh_token?: string | null
+          google_calendar_token?: string | null
           id?: string
           name?: string
           updated_at?: string
@@ -463,19 +577,19 @@ export type Database = {
       admin_safe_agents: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          name: string
-          sector: string
+          api_key_status: string
+          created_at: string
           customer_id: string
           franchisee_id: string
-          whatsapp_connected: boolean
+          id: string
           is_active: boolean
           message_count: number
-          response_time: number
+          name: string
           phone_number: string
-          created_at: string
+          response_time: number
+          sector: string
           updated_at: string
-          api_key_status: string
+          whatsapp_connected: boolean
         }[]
       }
       debug_user_status: {
@@ -493,12 +607,12 @@ export type Database = {
       get_active_ai_agents: {
         Args: { config_id_param: string }
         Returns: {
-          id: string
           agent_id: string
-          phone_number: string
-          model: string
-          system_prompt: string
           auto_response: boolean
+          id: string
+          model: string
+          phone_number: string
+          system_prompt: string
         }[]
       }
       get_active_evolution_config: {
@@ -516,21 +630,21 @@ export type Database = {
       get_franchisees_details: {
         Args: Record<PropertyKey, never>
         Returns: {
-          id: string
-          name: string
-          email: string
-          role: Database["public"]["Enums"]["app_role"]
           agent_count: number
-          customer_count: number
-          revenue: number
-          is_active: boolean
           created_at: string
+          customer_count: number
+          email: string
+          id: string
+          is_active: boolean
+          name: string
+          revenue: number
+          role: Database["public"]["Enums"]["app_role"]
         }[]
       }
       has_role: {
         Args: {
-          _user_id: string
           _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
         }
         Returns: boolean
       }
