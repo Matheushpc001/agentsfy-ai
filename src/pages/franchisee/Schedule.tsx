@@ -194,7 +194,8 @@ export default function Schedule() {
         return;
       }
 
-      const { data, error } = await supabase
+      // Criar agendamento no banco
+      const { data: appointmentData, error } = await supabase
         .from('appointments')
         .insert({
           franchisee_id: user.id,
@@ -209,11 +210,44 @@ export default function Schedule() {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro ao criar agendamento:', error);
+        throw error;
+      }
 
-      const selectedCustomer = customers.find(c => c.id === newAppointment.customer_id);
-      
-      toast.success(`Agendamento criado com sucesso para ${selectedCustomer?.business_name || selectedCustomer?.name}!`);
+      // Tentar sincronizar com Google Calendar
+      try {
+        const selectedCustomer = customers.find(c => c.id === newAppointment.customer_id);
+        
+        const { data: syncResult } = await supabase.functions.invoke('google-calendar-sync', {
+          body: {
+            action: 'create_event',
+            customerId: newAppointment.customer_id,
+            eventData: {
+              title: newAppointment.title,
+              description: newAppointment.description,
+              start_time: startDateTime.toISOString(),
+              end_time: endDateTime.toISOString(),
+              location: newAppointment.location,
+              customer_email: selectedCustomer?.email
+            }
+          }
+        });
+
+        // Se sincronização foi bem-sucedida, atualizar com o ID do evento
+        if (syncResult?.success && syncResult?.google_event_id) {
+          await supabase
+            .from('appointments')
+            .update({ google_event_id: syncResult.google_event_id })
+            .eq('id', appointmentData.id);
+        }
+
+        toast.success(`Agendamento criado com sucesso! ${syncResult?.message || ''}`);
+      } catch (syncError) {
+        console.warn('Erro na sincronização com Google Calendar:', syncError);
+        toast.success('Agendamento criado com sucesso! (Sincronização com Google Calendar não disponível)');
+      }
+
       setIsAppointmentModalOpen(false);
       setNewAppointment({
         title: "",
@@ -227,19 +261,30 @@ export default function Schedule() {
       await loadData();
     } catch (error) {
       console.error('Erro ao criar agendamento:', error);
-      toast.error('Erro ao criar agendamento. Tente novamente.');
+      toast.error('Erro ao criar agendamento. Verifique se todos os campos estão preenchidos corretamente.');
     }
   };
 
-  const handleGoogleCalendarAuth = () => {
-    // Simulação de conexão com Google Calendar
-    // Em produção, você precisará configurar as variáveis de ambiente do Google OAuth
-    toast.info('Funcionalidade em desenvolvimento. Configure as credenciais do Google OAuth para usar esta funcionalidade.');
-    
-    // Para demonstração, vamos "conectar" temporariamente
-    if (window.confirm('Simular conexão com Google Calendar para teste?')) {
-      setIsConnectedToGoogle(true);
-      toast.success('Conectado ao Google Calendar (modo simulação)');
+  const handleGoogleCalendarAuth = async () => {
+    try {
+      // Usar a edge function para simular conexão
+      const { data: result } = await supabase.functions.invoke('google-calendar-sync', {
+        body: {
+          action: 'connect_calendar',
+          customerId: user?.id
+        }
+      });
+
+      if (result?.success) {
+        setIsConnectedToGoogle(true);
+        toast.success(result.message);
+        await loadData();
+      } else {
+        toast.error('Erro ao conectar com Google Calendar');
+      }
+    } catch (error) {
+      console.error('Erro na conexão:', error);
+      toast.error('Erro ao conectar com Google Calendar');
     }
   };
 
