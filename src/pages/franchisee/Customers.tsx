@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,55 +9,58 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
-// Mock customers data
-const MOCK_CUSTOMERS: Customer[] = [
+// Função para buscar customers reais
+async function fetchRealCustomers(franchiseeId: string): Promise<Customer[]> {
+  try {
+    const { data: customers, error } = await supabase
+      .from('customers')
+      .select('*')
+      .eq('franchisee_id', franchiseeId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return customers?.map((customer: any) => ({
+      id: customer.id,
+      name: customer.name,
+      email: customer.email,
+      businessName: customer.business_name,
+      role: customer.role,
+      franchiseeId: customer.franchisee_id,
+      agentCount: customer.agent_count || 0,
+      createdAt: customer.created_at,
+      logo: customer.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(customer.business_name || customer.name)}&background=0D8ABC&color=fff`,
+      document: customer.document,
+      contactPhone: customer.contact_phone,
+      portalUrl: customer.portal_url
+    })) || [];
+  } catch (error) {
+    console.error('Erro ao buscar customers:', error);
+    return [];
+  }
+}
+
+// Dados de fallback caso não haja customers
+const FALLBACK_CUSTOMERS: Customer[] = [
   {
-    id: "customer1",
-    name: "Cliente Empresa A",
-    email: "contato@empresaa.com",
-    businessName: "Empresa A",
+    id: "fallback-1",
+    name: "Nenhum cliente encontrado",
+    email: "",
+    businessName: "Cadastre seu primeiro cliente",
     role: "customer",
-    franchiseeId: "franchisee1",
-    agentCount: 2,
-    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-    logo: "https://ui-avatars.com/api/?name=Empresa+A&background=0D8ABC&color=fff"
-  },
-  {
-    id: "customer2",
-    name: "Cliente Empresa B",
-    email: "contato@empresab.com",
-    businessName: "Empresa B",
-    role: "customer",
-    franchiseeId: "franchisee1",
-    agentCount: 1,
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: "customer3",
-    name: "Cliente Empresa C",
-    email: "contato@empresac.com",
-    businessName: "Empresa C",
-    role: "customer",
-    franchiseeId: "franchisee1",
-    agentCount: 1,
-    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    logo: "https://ui-avatars.com/api/?name=Empresa+C&background=2E8B57&color=fff"
-  },
-  {
-    id: "customer4",
-    name: "Cliente Empresa D",
-    email: "contato@empresad.com",
-    businessName: "Empresa D",
-    role: "customer",
-    franchiseeId: "franchisee1",
+    franchiseeId: "",
     agentCount: 0,
-    createdAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    createdAt: new Date().toISOString()
   }
 ];
 
 export default function Customers() {
-  const [customers, setCustomers] = useState<Customer[]>(MOCK_CUSTOMERS);
+  const { user } = useAuth();
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -69,6 +71,28 @@ export default function Customers() {
     businessName: ""
   });
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (user && user.role === 'franchisee') {
+      loadCustomers();
+    }
+  }, [user]);
+
+  const loadCustomers = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      const realCustomers = await fetchRealCustomers(user.id);
+      setCustomers(realCustomers.length > 0 ? realCustomers : []);
+    } catch (error) {
+      console.error('Erro ao carregar customers:', error);
+      toast.error('Erro ao carregar lista de clientes');
+      setCustomers([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value.toLowerCase());
@@ -160,13 +184,12 @@ export default function Customers() {
             </div>
           </div>
           
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-            <div className="relative w-full sm:w-auto">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <div className="flex flex-col sm:flex-row items-center gap-4 w-full md:w-auto">
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
               <Input
-                type="search"
                 placeholder="Buscar clientes..."
-                className="w-full sm:w-[250px] pl-8"
+                className="pl-10"
                 value={searchTerm}
                 onChange={handleSearch}
               />
@@ -249,87 +272,52 @@ export default function Customers() {
                 id="email"
                 name="email"
                 type="email"
-                placeholder="email@exemplo.com"
+                placeholder="contato@empresa.com"
                 value={formData.email}
                 onChange={handleFormChange}
                 required
               />
             </div>
             <DialogFooter>
-              <Button variant="outline" type="button" onClick={() => setIsAddModalOpen(false)}>
+              <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
                 Cancelar
               </Button>
-              <Button type="submit">Adicionar</Button>
+              <Button type="submit">Adicionar Cliente</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Share Customer Portal Modal */}
+      {/* Share Customer Modal */}
       <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Portal do Cliente</DialogTitle>
           </DialogHeader>
-          
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Link do Portal</Label>
-              <div className="flex gap-2">
-                <Input 
-                  value={currentCustomer ? `https://cliente.plataforma.com/${currentCustomer.id}` : ""}
-                  readOnly
-                  className="flex-1"
-                />
-                <Button 
-                  variant="outline" 
-                  size="icon" 
-                  onClick={handleCopyLink}
-                  className={cn(
-                    copied ? "bg-green-100 hover:bg-green-100 text-green-800 border-green-200" : ""
-                  )}
-                >
-                  {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Compartilhe este link com o cliente para acessar o portal.
-              </p>
+            <p className="text-sm text-muted-foreground">
+              Compartilhe este link para que o cliente possa acessar seu portal personalizado:
+            </p>
+            <div className="flex items-center space-x-2">
+              <Input
+                readOnly
+                value={`https://cliente.plataforma.com/${currentCustomer?.id}`}
+                className="flex-1"
+              />
+              <Button
+                size="sm"
+                onClick={handleCopyLink}
+                className={cn(copied && "bg-green-600")}
+              >
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+              </Button>
             </div>
-            
-            <div className="space-y-2">
-              <Label>Acesso</Label>
-              <div className="bg-muted p-3 rounded-md">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <p className="font-medium text-sm">
-                      {currentCustomer?.businessName}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {currentCustomer?.email}
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    Redefinir senha
-                  </Button>
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                O cliente também pode acessar o portal usando seu email e senha.
-              </p>
-            </div>
+            {copied && (
+              <p className="text-xs text-green-600">Link copiado!</p>
+            )}
           </div>
-          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsShareModalOpen(false)}>
-              Fechar
-            </Button>
-            <Button onClick={() => {
-              toast.success("Email com instruções enviado ao cliente!");
-              setIsShareModalOpen(false);
-            }}>
-              Enviar por Email
-            </Button>
+            <Button onClick={() => setIsShareModalOpen(false)}>Fechar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
