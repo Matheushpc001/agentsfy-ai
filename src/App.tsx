@@ -11,6 +11,7 @@ import Auth from "./pages/Auth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import CustomerPortalLogin from "./pages/CustomerPortalLogin";
 
 // Admin pages
 import Franchisees from "./pages/admin/Franchisees";
@@ -63,6 +64,8 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
       <Route path="/login" element={<Navigate to="/auth" replace />} />
+
+      <Route path="/a/:customerId" element={<CustomerPortalLogin />} />
 
       {/* Protected routes */}
       <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} allowedRoles={["admin", "franchisee", "customer"]} />} />
