@@ -77,16 +77,6 @@ export function SidebarNav({ userRole, isCollapsed, isMobile, onNavigate }: Side
         href: "/franchisee/customers" 
       },
       { 
-        label: "Prospecção", 
-        icon: Search, 
-        href: "/franchisee/prospecting" 
-      },
-      { 
-        label: "Vendedor IA", 
-        icon: MessageSquareText, 
-        href: "/franchisee/ai-sales-agent" 
-      },
-      { 
         label: "Agenda", 
         icon: Calendar, 
         href: "/franchisee/schedule" 

@@ -1,265 +1,407 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
-import { Card } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { VideoLesson } from "@/types";
-import { LessonCard } from "@/components/lessons/LessonCard";
-import { Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { 
+  Search, 
+  Video, 
+  FileText, 
+  BookOpen, 
+  HelpCircle, 
+  PlayCircle,
+  Download,
+  ExternalLink,
+  Clock,
+  CheckCircle
+} from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
+import { toast } from "sonner";
 
-// Mock data for lessons
-const MOCK_LESSONS: VideoLesson[] = [
-  {
-    id: "1",
-    title: "Introdução à Plataforma",
-    description: "Uma aula introdutória sobre como utilizar a plataforma de vendas.",
-    youtubeUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    thumbnailUrl: "https://images.unsplash.com/photo-1588702547923-7093a6c3ba33?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3",
-    createdAt: "2023-05-20T14:30:00Z",
-    updatedAt: "2023-05-20T14:30:00Z",
-    attachments: [
-      {
-        id: "a1",
-        lessonId: "1",
-        name: "Manual da Plataforma.pdf",
-        fileUrl: "/documents/manual.pdf",
-        fileType: "application/pdf",
-        fileSize: 2458000,
-        createdAt: "2023-05-20T14:35:00Z"
-      }
-    ]
-  },
-  {
-    id: "2",
-    title: "Técnicas Avançadas de Vendas",
-    description: "Aprenda técnicas de vendas que aumentarão sua taxa de conversão.",
-    youtubeUrl: "https://www.youtube.com/watch?v=9bZkp7q19f0",
-    thumbnailUrl: "https://images.unsplash.com/photo-1553877522-43269d4ea984?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3",
-    createdAt: "2023-06-15T10:00:00Z",
-    updatedAt: "2023-06-16T11:20:00Z",
-    attachments: [
-      {
-        id: "a2",
-        lessonId: "2",
-        name: "Slides da Apresentação.pptx",
-        fileUrl: "/documents/slides.pptx",
-        fileType: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        fileSize: 3580000,
-        createdAt: "2023-06-15T10:05:00Z"
-      },
-      {
-        id: "a3",
-        lessonId: "2",
-        name: "Planilha de Exemplos.xlsx",
-        fileUrl: "/documents/exemplos.xlsx",
-        fileType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        fileSize: 1240000,
-        createdAt: "2023-06-15T10:10:00Z"
-      }
-    ]
-  },
-  {
-    id: "3",
-    title: "Atendimento ao Cliente",
-    description: "Como oferecer um atendimento excepcional aos seus clientes.",
-    youtubeUrl: "https://www.youtube.com/watch?v=9bZkp7q19f0",
-    thumbnailUrl: "https://images.unsplash.com/photo-1521791136064-7986c2920216?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.0.3",
-    createdAt: "2023-07-10T09:30:00Z",
-    updatedAt: "2023-07-10T09:30:00Z",
-    attachments: []
-  },
-  {
-    id: "4",
-    title: "Marketing Digital para Vendas",
-    description: "Estratégias de marketing digital para aumentar suas vendas.",
-    youtubeUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    thumbnailUrl: "https://images.unsplash.com/photo-1533750349088-cd871a92f312?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3",
-    createdAt: "2023-08-05T15:45:00Z",
-    updatedAt: "2023-08-05T15:45:00Z",
-    attachments: []
-  },
-  {
-    id: "5",
-    title: "Negociação e Fechamento",
-    description: "Técnicas de negociação para fechar mais vendas.",
-    youtubeUrl: "https://www.youtube.com/watch?v=9bZkp7q19f0",
-    thumbnailUrl: "https://images.unsplash.com/photo-1560438718-eb61ede255eb?q=80&w=2069&auto=format&fit=crop&ixlib=rb-4.0.3",
-    createdAt: "2023-09-12T14:30:00Z",
-    updatedAt: "2023-09-12T14:30:00Z",
-    attachments: []
-  }
-];
+interface LessonCategory {
+  id: string;
+  name: string;
+  description?: string;
+  icon?: string;
+}
 
-// Categorize lessons
-const recentLessons = MOCK_LESSONS.sort((a, b) => 
-  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-).slice(0, 3);
+interface Lesson {
+  id: string;
+  title: string;
+  description?: string;
+  content_type: 'video' | 'ebook' | 'material' | 'quiz';
+  content_url?: string;
+  thumbnail_url?: string;
+  category_id: string;
+  category?: LessonCategory;
+  duration_minutes?: number;
+  file_size_mb?: number;
+  is_premium: boolean;
+  is_published: boolean;
+  order_index: number;
+  created_at: string;
+}
+
+interface UserProgress {
+  lesson_id: string;
+  progress_percentage: number;
+  completed_at?: string;
+}
 
 export default function Lessons() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedLesson, setSelectedLesson] = useState<VideoLesson | null>(null);
-  
-  // Filter lessons based on search query
-  const filteredLessons = searchQuery 
-    ? MOCK_LESSONS.filter(lesson => 
-        lesson.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        lesson.description.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : MOCK_LESSONS;
+  const { user } = useAuth();
+  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [categories, setCategories] = useState<LessonCategory[]>([]);
+  const [userProgress, setUserProgress] = useState<UserProgress[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user]);
+
+  const loadData = async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      
+      // Carregar categorias
+      const { data: categoriesData } = await supabase
+        .from('lesson_categories')
+        .select('*')
+        .order('name');
+      
+      setCategories(categoriesData || []);
+
+      // Carregar apenas aulas publicadas
+      const { data: lessonsData } = await supabase
+        .from('lessons')
+        .select(`
+          *,
+          lesson_categories (
+            id,
+            name,
+            description,
+            icon
+          )
+        `)
+        .eq('is_published', true)
+        .order('category_id', { ascending: true })
+        .order('order_index', { ascending: true });
+
+      setLessons(lessonsData || []);
+
+      // Carregar progresso do usuário
+      const { data: progressData } = await supabase
+        .from('user_lesson_progress')
+        .select('lesson_id, progress_percentage, completed_at')
+        .eq('user_id', user.id);
+
+      setUserProgress(progressData || []);
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast.error('Erro ao carregar aulas');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleStartLesson = async (lesson: Lesson) => {
+    if (!user) return;
+
+    try {
+      // Registrar que o usuário começou a aula
+      await supabase
+        .from('user_lesson_progress')
+        .upsert({
+          user_id: user.id,
+          lesson_id: lesson.id,
+          progress_percentage: 0,
+        });
+
+      // Abrir conteúdo da aula
+      if (lesson.content_url) {
+        if (lesson.content_type === 'video') {
+          // Abrir vídeo em nova aba
+          window.open(lesson.content_url, '_blank');
+        } else {
+          // Para e-books e materiais, abrir link direto
+          window.open(lesson.content_url, '_blank');
+        }
+      }
+
+      // Atualizar progresso local
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao iniciar aula:', error);
+      toast.error('Erro ao acessar aula');
+    }
+  };
+
+  const handleCompleteLesson = async (lessonId: string) => {
+    if (!user) return;
+
+    try {
+      await supabase
+        .from('user_lesson_progress')
+        .upsert({
+          user_id: user.id,
+          lesson_id: lessonId,
+          progress_percentage: 100,
+          completed_at: new Date().toISOString(),
+        });
+
+      toast.success('Aula marcada como concluída!');
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao completar aula:', error);
+      toast.error('Erro ao marcar aula como concluída');
+    }
+  };
+
+  const getContentTypeIcon = (type: string) => {
+    switch (type) {
+      case 'video':
+        return Video;
+      case 'ebook':
+        return FileText;
+      case 'material':
+        return BookOpen;
+      case 'quiz':
+        return HelpCircle;
+      default:
+        return BookOpen;
+    }
+  };
+
+  const getContentTypeLabel = (type: string) => {
+    switch (type) {
+      case 'video':
+        return 'Vídeo';
+      case 'ebook':
+        return 'E-book';
+      case 'material':
+        return 'Material';
+      case 'quiz':
+        return 'Quiz';
+      default:
+        return type;
+    }
+  };
+
+  const getLessonProgress = (lessonId: string) => {
+    return userProgress.find(p => p.lesson_id === lessonId);
+  };
+
+  const isLessonCompleted = (lessonId: string) => {
+    const progress = getLessonProgress(lessonId);
+    return progress && progress.progress_percentage === 100;
+  };
+
+  const filteredLessons = lessons.filter(lesson => {
+    const matchesSearch = lesson.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         lesson.description?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesCategory = selectedCategory === 'all' || lesson.category_id === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
+
+  const completedLessonsCount = lessons.filter(lesson => isLessonCompleted(lesson.id)).length;
 
   return (
     <DashboardLayout title="Aulas">
-      <div className="space-y-8">
-        {/* Hero section with search */}
-        <div className="relative h-48 md:h-64 lg:h-72 rounded-lg overflow-hidden mb-8">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/80 to-secondary/80 flex items-center px-6 md:px-12">
-            <div className="max-w-3xl">
-              <h1 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-4">
-                Centro de Aprendizado
-              </h1>
-              <p className="text-white/90 text-sm md:text-base mb-6">
-                Aprimore suas habilidades com nossas videoaulas exclusivas
-              </p>
-              <div className="relative max-w-md">
-                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-                <Input
-                  placeholder="Buscar aulas"
-                  className="pl-9 bg-white/10 text-white border-white/20 focus:bg-white/20 placeholder:text-white/60"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                />
+      <div className="space-y-6">
+        {/* Header com estatísticas */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">Centro de Aprendizado</h2>
+            <p className="text-muted-foreground">
+              {completedLessonsCount} de {lessons.length} aulas concluídas
+            </p>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="bg-primary/10 px-4 py-2 rounded-lg">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-primary" />
+                <span className="text-sm font-medium">
+                  {Math.round((completedLessonsCount / lessons.length) * 100) || 0}% Concluído
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Recentes */}
-        <section>
-          <h2 className="text-xl md:text-2xl font-bold mb-4">Adicionados Recentemente</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recentLessons.map(lesson => (
-              <LessonCard 
-                key={lesson.id}
-                lesson={lesson}
-                onClick={() => setSelectedLesson(lesson)}
-              />
-            ))}
-          </div>
-        </section>
-
-        {/* All lessons */}
-        <section>
-          <h2 className="text-xl md:text-2xl font-bold mb-4">Todas as Aulas</h2>
-          <ScrollArea className="h-full w-full">
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {filteredLessons.map(lesson => (
-                <LessonCard 
-                  key={lesson.id}
-                  lesson={lesson}
-                  onClick={() => setSelectedLesson(lesson)}
-                  compact
-                />
-              ))}
-            </div>
-          </ScrollArea>
-        </section>
-
-        {/* Player Dialog */}
-        {selectedLesson && (
-          <LessonPlayerDialog 
-            lesson={selectedLesson} 
-            onClose={() => setSelectedLesson(null)} 
+        {/* Barra de pesquisa */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+          <Input
+            placeholder="Pesquisar aulas..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-10"
           />
+        </div>
+
+        {/* Tabs por categoria */}
+        {isLoading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="space-y-4">
+            <TabsList className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 w-full">
+              <TabsTrigger value="all">Todas ({lessons.length})</TabsTrigger>
+              {categories.slice(0, 5).map((category) => {
+                const categoryLessons = lessons.filter(l => l.category_id === category.id);
+                return (
+                  <TabsTrigger key={category.id} value={category.id}>
+                    {category.name} ({categoryLessons.length})
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredLessons.length === 0 ? (
+                <div className="col-span-full text-center text-muted-foreground py-12">
+                  <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg mb-2">Nenhuma aula encontrada</p>
+                  <p className="text-sm">
+                    {searchTerm ? 'Tente pesquisar por outros termos' : 'Aulas serão adicionadas em breve'}
+                  </p>
+                </div>
+              ) : (
+                filteredLessons.map((lesson) => {
+                  const ContentIcon = getContentTypeIcon(lesson.content_type);
+                  const progress = getLessonProgress(lesson.id);
+                  const isCompleted = isLessonCompleted(lesson.id);
+                  
+                  return (
+                    <Card key={lesson.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                      <div className="relative">
+                        {lesson.thumbnail_url ? (
+                          <img
+                            src={lesson.thumbnail_url}
+                            alt={lesson.title}
+                            className="w-full h-48 object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-48 bg-muted flex items-center justify-center">
+                            <ContentIcon className="w-12 h-12 text-muted-foreground" />
+                          </div>
+                        )}
+                        
+                        <div className="absolute top-2 right-2 flex gap-2">
+                          {lesson.is_premium && (
+                            <Badge variant="secondary" className="text-xs">
+                              Premium
+                            </Badge>
+                          )}
+                          {isCompleted && (
+                            <Badge variant="default" className="text-xs bg-green-500">
+                              Concluído
+                            </Badge>
+                          )}
+                        </div>
+
+                        {lesson.content_type === 'video' && lesson.duration_minutes && (
+                          <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {lesson.duration_minutes}min
+                          </div>
+                        )}
+
+                        {lesson.content_type !== 'video' && lesson.file_size_mb && (
+                          <div className="absolute bottom-2 right-2 bg-black/70 text-white px-2 py-1 rounded text-xs">
+                            {lesson.file_size_mb.toFixed(1)}MB
+                          </div>
+                        )}
+                      </div>
+
+                      <CardHeader>
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <h3 className="font-semibold line-clamp-2">{lesson.title}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <ContentIcon className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-xs text-muted-foreground">
+                                {getContentTypeLabel(lesson.content_type)}
+                              </span>
+                              {lesson.category && (
+                                <>
+                                  <span className="text-muted-foreground">•</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    {lesson.category.name}
+                                  </span>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {lesson.description && (
+                          <p className="text-sm text-muted-foreground line-clamp-2">
+                            {lesson.description}
+                          </p>
+                        )}
+
+                        {progress && progress.progress_percentage > 0 && progress.progress_percentage < 100 && (
+                          <div className="mt-2">
+                            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                              <span>Progresso</span>
+                              <span>{progress.progress_percentage}%</span>
+                            </div>
+                            <div className="w-full bg-muted rounded-full h-2">
+                              <div 
+                                className="bg-primary h-2 rounded-full transition-all" 
+                                style={{ width: `${progress.progress_percentage}%` }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </CardHeader>
+
+                      <CardContent className="pt-0">
+                        <div className="flex gap-2">
+                          <Button
+                            onClick={() => handleStartLesson(lesson)}
+                            className="flex-1"
+                            size="sm"
+                          >
+                            {lesson.content_type === 'video' ? (
+                              <PlayCircle className="w-4 h-4 mr-2" />
+                            ) : (
+                              <ExternalLink className="w-4 h-4 mr-2" />
+                            )}
+                            {progress ? 'Continuar' : 'Iniciar'}
+                          </Button>
+
+                          {!isCompleted && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleCompleteLesson(lesson.id)}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })
+              )}
+            </div>
+          </Tabs>
         )}
       </div>
     </DashboardLayout>
-  );
-}
-
-interface LessonPlayerDialogProps {
-  lesson: VideoLesson;
-  onClose: () => void;
-}
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { FileIcon, FileText } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-
-function LessonPlayerDialog({ lesson, onClose }: LessonPlayerDialogProps) {
-  // Extract video ID from YouTube URL
-  const getYouTubeEmbedUrl = (url: string) => {
-    const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-    const match = url.match(regExp);
-    const videoId = match && match[2].length === 11 ? match[2] : null;
-    
-    return videoId ? `https://www.youtube.com/embed/${videoId}` : null;
-  };
-
-  const embedUrl = getYouTubeEmbedUrl(lesson.youtubeUrl);
-
-  return (
-    <Dialog open={!!lesson} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="max-w-4xl p-0 overflow-hidden">
-        <DialogHeader className="p-6">
-          <DialogTitle className="text-xl md:text-2xl">{lesson.title}</DialogTitle>
-        </DialogHeader>
-
-        {embedUrl && (
-          <div className="aspect-video w-full">
-            <iframe
-              width="100%"
-              height="100%"
-              src={embedUrl}
-              title={lesson.title}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              className="w-full h-full"
-            ></iframe>
-          </div>
-        )}
-
-        <div className="p-6">
-          <p className="text-gray-600 dark:text-gray-300 mb-4">
-            {lesson.description}
-          </p>
-
-          {lesson.attachments.length > 0 && (
-            <>
-              <Separator className="my-4" />
-              <h3 className="font-medium mb-3">Materiais de Apoio</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {lesson.attachments.map((attachment) => (
-                  <a 
-                    href={attachment.fileUrl} 
-                    key={attachment.id}
-                    className="flex items-center p-2 border rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                    download
-                  >
-                    {attachment.fileType.includes('pdf') ? (
-                      <FileText className="h-5 w-5 text-red-500 mr-2" />
-                    ) : attachment.fileType.includes('spreadsheet') ? (
-                      <FileIcon className="h-5 w-5 text-green-500 mr-2" />
-                    ) : attachment.fileType.includes('presentation') ? (
-                      <FileIcon className="h-5 w-5 text-orange-500 mr-2" />
-                    ) : (
-                      <FileIcon className="h-5 w-5 text-blue-500 mr-2" />
-                    )}
-                    <div className="flex flex-col">
-                      <span className="text-sm font-medium truncate">{attachment.name}</span>
-                      <span className="text-xs text-gray-500">
-                        {(attachment.fileSize / 1024 / 1024).toFixed(2)} MB
-                      </span>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
   );
 }

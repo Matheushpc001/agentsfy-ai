@@ -3,51 +3,129 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Analytics, Agent, Message, UserRole } from "@/types";
 import { TopFranchisee } from "@/components/analytics/TopFranchiseesCard";
+import { supabase } from "@/integrations/supabase/client";
+import { Tables } from "@/integrations/supabase/types";
 
-// Mock data for demonstration
-const MOCK_ANALYTICS: Record<UserRole, Analytics> = {
-  admin: {
-    messageCount: 12548,
-    activeAgents: 42,
-    totalAgents: 50,
-    responseTime: 2.4,
-    tokensUsed: 1458962,
-    franchiseeCount: 8,
-    customerCount: 24,
-    revenue: 11980.50,
-    monthlyRevenue: 45600.75
-  },
-  franchisee: {
-    messageCount: 3245,
-    activeAgents: 8,
-    totalAgents: 10,
-    responseTime: 2.1,
-    tokensUsed: 387429,
-    customerCount: 5,
-    activeCustomers: 4,
-    installationRevenue: 2500.00,
-    monthlyRevenue: 4800.50
-  },
-  customer: {
-    messageCount: 876,
-    activeAgents: 2,
-    totalAgents: 2,
-    responseTime: 1.9,
-    tokensUsed: 98421
+// Função para buscar analytics reais baseado no papel do usuário
+async function fetchRealAnalytics(userRole: UserRole, userId: string): Promise<Analytics> {
+  if (userRole === 'admin') {
+    // Admin vê dados globais
+    const [agentsData, franchiseesData, customersData, messagesData, logsData] = await Promise.all([
+      supabase.rpc('admin_safe_agents'),
+      supabase.from('profiles').select('id, name, email').eq('role', 'franchisee'),
+      supabase.from('customers').select('id').eq('role', 'customer'),
+      supabase.from('whatsapp_messages').select('id, created_at').gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
+      supabase.from('ai_interaction_logs').select('tokens_used, response_time_ms, created_at').gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+    ]);
+    
+    return {
+      messageCount: messagesData.data?.length || 0,
+      activeAgents: agentsData.data?.filter(a => a.is_active).length || 0,
+      totalAgents: agentsData.data?.length || 0,
+      responseTime: logsData.data?.length ? 
+        logsData.data.reduce((acc, log) => acc + (log.response_time_ms || 0), 0) / logsData.data.length / 1000 : 0,
+      tokensUsed: logsData.data?.reduce((acc, log) => acc + (log.tokens_used || 0), 0) || 0,
+      franchiseeCount: franchiseesData.data?.length || 0,
+      customerCount: customersData.data?.length || 0,
+      revenue: 0, // Implementar cálculo de receita
+      monthlyRevenue: 0 // Implementar cálculo de receita mensal
+    };
+  } else if (userRole === 'franchisee') {
+    // Franchisee vê dados dos seus clientes/agentes
+    const [agentsData, customersData, messagesData, logsData] = await Promise.all([
+      supabase.from('agents').select('*').eq('franchisee_id', userId),
+      supabase.from('customers').select('*').eq('franchisee_id', userId),
+      supabase.from('whatsapp_messages').select('id, created_at'),
+      supabase.from('ai_interaction_logs').select('tokens_used, response_time_ms')
+    ]);
+    
+    return {
+      messageCount: messagesData.data?.length || 0,
+      activeAgents: agentsData.data?.filter(a => a.is_active).length || 0,
+      totalAgents: agentsData.data?.length || 0,
+      responseTime: logsData.data?.length ? 
+        logsData.data.reduce((acc, log) => acc + (log.response_time_ms || 0), 0) / logsData.data.length / 1000 : 0,
+      tokensUsed: logsData.data?.reduce((acc, log) => acc + (log.tokens_used || 0), 0) || 0,
+      customerCount: customersData.data?.length || 0,
+      activeCustomers: customersData.data?.length || 0,
+      installationRevenue: 0,
+      monthlyRevenue: 0
+    };
+  } else {
+    // Customer vê dados dos seus próprios agentes
+    const [agentsData, messagesData, logsData] = await Promise.all([
+      supabase.from('agents').select('*').eq('customer_id', userId),
+      supabase.from('whatsapp_messages').select('id, created_at'),
+      supabase.from('ai_interaction_logs').select('tokens_used, response_time_ms')
+    ]);
+    
+    return {
+      messageCount: messagesData.data?.length || 0,
+      activeAgents: agentsData.data?.filter(a => a.is_active).length || 0,
+      totalAgents: agentsData.data?.length || 0,
+      responseTime: logsData.data?.length ? 
+        logsData.data.reduce((acc, log) => acc + (log.response_time_ms || 0), 0) / logsData.data.length / 1000 : 0,
+      tokensUsed: logsData.data?.reduce((acc, log) => acc + (log.tokens_used || 0), 0) || 0
+    };
   }
-};
+}
 
-const MOCK_WEEKLY_MESSAGES = [
-  { day: "Dom", count: 345 },
-  { day: "Seg", count: 456 },
-  { day: "Ter", count: 523 },
-  { day: "Qua", count: 578 },
-  { day: "Qui", count: 498 },
-  { day: "Sex", count: 467 },
-  { day: "Sáb", count: 389 }
-];
+// Função para buscar mensagens da semana
+async function fetchWeeklyMessages(): Promise<{ day: string; count: number }[]> {
+  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const weeklyData = [];
+  
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const startOfDay = new Date(date.setHours(0, 0, 0, 0)).toISOString();
+    const endOfDay = new Date(date.setHours(23, 59, 59, 999)).toISOString();
+    
+    const { data: messages } = await supabase
+      .from('whatsapp_messages')
+      .select('id')
+      .gte('created_at', startOfDay)
+      .lte('created_at', endOfDay);
+    
+    weeklyData.push({
+      day: days[date.getDay()],
+      count: messages?.length || 0
+    });
+  }
+  
+  return weeklyData;
+}
 
-const MOCK_MESSAGES: Message[] = [{
+// Função para buscar mensagens recentes
+async function fetchRecentMessages(): Promise<Message[]> {
+  const { data: messages } = await supabase
+    .from('whatsapp_messages')
+    .select(`
+      id,
+      content,
+      created_at,
+      sender_type,
+      is_from_me,
+      whatsapp_conversations (
+        contact_number,
+        agent_id
+      )
+    `)
+    .order('created_at', { ascending: false })
+    .limit(10);
+
+  return messages?.map((msg: any) => ({
+    id: msg.id,
+    sender: msg.is_from_me ? 'Agente IA' : msg.whatsapp_conversations?.contact_number || 'Desconhecido',
+    content: msg.content,
+    timestamp: msg.created_at,
+    agentId: msg.whatsapp_conversations?.agent_id || '',
+    isAi: msg.is_from_me
+  })) || [];
+}
+
+// Dados de fallback para quando não há dados reais
+const FALLBACK_MESSAGES: Message[] = [{
   id: "1",
   sender: "+5511999999999",
   content: "Olá, gostaria de saber mais sobre os serviços oferecidos.",
@@ -84,7 +162,40 @@ const MOCK_MESSAGES: Message[] = [{
   isAi: false
 }];
 
-const MOCK_AGENTS: Agent[] = [{
+// Função para buscar agentes baseado no papel do usuário
+async function fetchTopAgents(userRole: UserRole, userId: string): Promise<Agent[]> {
+  let query = supabase.from('agents').select('*');
+  
+  if (userRole === 'franchisee') {
+    query = query.eq('franchisee_id', userId);
+  } else if (userRole === 'customer') {
+    query = query.eq('customer_id', userId);
+  }
+  
+  const { data: agents } = await query
+    .order('message_count', { ascending: false })
+    .limit(3);
+
+  return agents?.map((agent: any) => ({
+    id: agent.id,
+    name: agent.name,
+    sector: agent.sector,
+    prompt: agent.prompt,
+    isActive: agent.is_active,
+    createdAt: agent.created_at,
+    customerId: agent.customer_id,
+    franchiseeId: agent.franchisee_id,
+    openAiKey: agent.open_ai_key,
+    whatsappConnected: agent.whatsapp_connected,
+    messageCount: agent.message_count || 0,
+    phoneNumber: agent.phone_number,
+    responseTime: agent.response_time || 0,
+    demoUrl: agent.demo_url
+  })) || [];
+}
+
+// Dados de fallback
+const FALLBACK_AGENTS: Agent[] = [{
   id: "agent1",
   name: "Atendente Virtual",
   sector: "Atendimento ao Cliente",
@@ -116,7 +227,24 @@ const MOCK_AGENTS: Agent[] = [{
   demoUrl: "https://demo.whatsapp.com/agent2"
 }];
 
-const MOCK_TOP_FRANCHISEES: TopFranchisee[] = [
+// Função para buscar top franchisees (apenas admin)
+async function fetchTopFranchisees(): Promise<TopFranchisee[]> {
+  const { data: franchisees } = await supabase
+    .rpc('get_franchisees_details')
+    .order('revenue', { ascending: false })
+    .limit(5);
+
+  return franchisees?.map((franchisee: any) => ({
+    id: franchisee.id,
+    name: franchisee.name,
+    revenue: franchisee.revenue || 0,
+    agentCount: franchisee.agent_count || 0,
+    isActive: franchisee.is_active
+  })) || [];
+}
+
+// Dados de fallback
+const FALLBACK_TOP_FRANCHISEES: TopFranchisee[] = [
   {
     id: "franchisee1",
     name: "João Silva",
@@ -154,11 +282,6 @@ const MOCK_TOP_FRANCHISEES: TopFranchisee[] = [
   }
 ];
 
-// Function to generate random variations for mock data
-const generateRandomVariation = (baseValue: number, variationPercent: number = 0.1) => {
-  const variation = baseValue * variationPercent;
-  return baseValue + (Math.random() - 0.5) * 2 * variation;
-};
 
 export function useDashboardData() {
   const { user } = useAuth();
@@ -166,28 +289,58 @@ export function useDashboardData() {
   const [recentMessages, setRecentMessages] = useState<Message[]>([]);
   const [topAgents, setTopAgents] = useState<Agent[]>([]);
   const [topFranchisees, setTopFranchisees] = useState<TopFranchisee[]>([]);
-  const [weeklyMessages, setWeeklyMessages] = useState(MOCK_WEEKLY_MESSAGES);
+  const [weeklyMessages, setWeeklyMessages] = useState<{ day: string; count: number }[]>([]);
   const [isLoadingResults, setIsLoadingResults] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
       console.log("Dashboard: Loading initial data for user:", user.role);
-      
-      setTimeout(() => {
-        setAnalytics(MOCK_ANALYTICS[user.role]);
-        setRecentMessages(MOCK_MESSAGES);
-        setTopAgents(MOCK_AGENTS.slice(0, 3));
-        
-        if (user.role === "admin") {
-          setTopFranchisees(MOCK_TOP_FRANCHISEES);
-        }
-        
-        setIsInitialLoading(false);
-        console.log("Dashboard: Initial load complete");
-      }, 100);
+      loadDashboardData();
     }
   }, [user]);
+
+  const loadDashboardData = async () => {
+    if (!user) return;
+    
+    try {
+      setIsInitialLoading(true);
+      
+      // Carregar analytics
+      const analyticsData = await fetchRealAnalytics(user.role, user.id);
+      setAnalytics(analyticsData);
+      
+      // Carregar mensagens recentes
+      const messages = await fetchRecentMessages();
+      setRecentMessages(messages.length > 0 ? messages : FALLBACK_MESSAGES);
+      
+      // Carregar top agentes
+      const agents = await fetchTopAgents(user.role, user.id);
+      setTopAgents(agents.length > 0 ? agents : FALLBACK_AGENTS.slice(0, 3));
+      
+      // Carregar dados semanais
+      const weekly = await fetchWeeklyMessages();
+      setWeeklyMessages(weekly);
+      
+      // Carregar top franchisees se for admin
+      if (user.role === "admin") {
+        const franchisees = await fetchTopFranchisees();
+        setTopFranchisees(franchisees.length > 0 ? franchisees : FALLBACK_TOP_FRANCHISEES);
+      }
+      
+      console.log("Dashboard: Initial load complete");
+    } catch (error) {
+      console.error("Dashboard: Error loading data:", error);
+      // Usar dados de fallback em caso de erro
+      setRecentMessages(FALLBACK_MESSAGES);
+      setTopAgents(FALLBACK_AGENTS.slice(0, 3));
+      if (user.role === "admin") {
+        setTopFranchisees(FALLBACK_TOP_FRANCHISEES);
+      }
+    } finally {
+      setIsInitialLoading(false);
+    }
+  };
 
   const handleRefreshResults = async () => {
     if (isLoadingResults || !user) return;
@@ -196,48 +349,8 @@ export function useDashboardData() {
     setIsLoadingResults(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const updatedAnalytics = { ...MOCK_ANALYTICS[user.role] };
-      
-      updatedAnalytics.messageCount = Math.max(1000, Math.floor(generateRandomVariation(updatedAnalytics.messageCount, 0.08)));
-      updatedAnalytics.activeAgents = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.activeAgents, 0.1)));
-      updatedAnalytics.responseTime = Math.max(1, parseFloat(generateRandomVariation(updatedAnalytics.responseTime, 0.15).toFixed(1)));
-      updatedAnalytics.tokensUsed = Math.max(10000, Math.floor(generateRandomVariation(updatedAnalytics.tokensUsed, 0.12)));
-      
-      if (user.role === "admin") {
-        updatedAnalytics.monthlyRevenue = Math.max(20000, generateRandomVariation(updatedAnalytics.monthlyRevenue || 0, 0.1));
-        updatedAnalytics.franchiseeCount = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.franchiseeCount || 0, 0.15)));
-        updatedAnalytics.customerCount = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.customerCount || 0, 0.12)));
-        setTopFranchisees(MOCK_TOP_FRANCHISEES.map(franchisee => ({
-          ...franchisee,
-          revenue: Math.max(10000, generateRandomVariation(franchisee.revenue, 0.12)),
-          agentCount: Math.max(1, Math.floor(generateRandomVariation(franchisee.agentCount, 0.2)))
-        })));
-      } else if (user.role === "franchisee") {
-        updatedAnalytics.installationRevenue = Math.max(1000, generateRandomVariation(updatedAnalytics.installationRevenue || 0, 0.15));
-        updatedAnalytics.monthlyRevenue = Math.max(2000, generateRandomVariation(updatedAnalytics.monthlyRevenue || 0, 0.1));
-        updatedAnalytics.customerCount = Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.customerCount || 0, 0.2)));
-        updatedAnalytics.activeCustomers = Math.min(updatedAnalytics.customerCount || 0, Math.max(1, Math.floor(generateRandomVariation(updatedAnalytics.activeCustomers || 0, 0.15))));
-        setTopAgents(MOCK_AGENTS.map(agent => ({
-          ...agent,
-          messageCount: Math.max(50, Math.floor(generateRandomVariation(agent.messageCount, 0.2))),
-          responseTime: Math.max(1, parseFloat(generateRandomVariation(agent.responseTime, 0.15).toFixed(1)))
-        })).slice(0, 3));
-      }
-      
-      setWeeklyMessages(MOCK_WEEKLY_MESSAGES.map(item => ({
-        ...item,
-        count: Math.max(100, Math.floor(generateRandomVariation(item.count, 0.15)))
-      })));
-      
-      const updatedMessages = MOCK_MESSAGES.map(msg => ({
-        ...msg,
-        timestamp: new Date(Date.now() - Math.random() * 60 * 60000).toISOString()
-      }));
-      setRecentMessages(updatedMessages);
-      
-      setAnalytics(updatedAnalytics);
+      // Recarregar todos os dados reais
+      await loadDashboardData();
       console.log("Dashboard: Refresh complete");
     } catch (error) {
       console.error("Dashboard: Refresh error:", error);

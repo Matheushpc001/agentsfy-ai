@@ -1,9 +1,9 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { format } from "date-fns";
-import { Calendar as CalendarIcon, Clock, Plus, User, X } from "lucide-react";
+import { ptBR } from "date-fns/locale";
+import { Calendar as CalendarIcon, Clock, Plus, User, X, Settings, ExternalLink, Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Calendar } from "@/components/ui/calendar";
+import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
@@ -33,461 +33,550 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 // Tipos para o sistema de agendamento
 interface Appointment {
   id: string;
   title: string;
-  customerName: string;
-  contactPhone: string;
-  date: string;
-  time: string;
-  duration: number; // em minutos
-  notes?: string;
-  agentId: string;
+  description?: string;
+  start_time: string;
+  end_time: string;
+  location?: string;
+  customer_id: string;
+  customer?: {
+    name: string;
+    business_name: string;
+    email: string;
+  };
+  google_event_id?: string;
   status: "scheduled" | "completed" | "canceled";
 }
 
-// Dados de exemplo
-const MOCK_APPOINTMENTS: Appointment[] = [
-  {
-    id: "apt1",
-    title: "Reunião de Apresentação",
-    customerName: "João Silva",
-    contactPhone: "+5511999990001",
-    date: new Date().toISOString(),
-    time: "14:00",
-    duration: 30,
-    notes: "Cliente interessado em implementar agente para setor de atendimento",
-    agentId: "agent1",
-    status: "scheduled",
-  },
-  {
-    id: "apt2",
-    title: "Demonstração de Produto",
-    customerName: "Maria Oliveira",
-    contactPhone: "+5511999990002",
-    date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // Amanhã
-    time: "10:30",
-    duration: 45,
-    notes: "Preparar demo do agente de vendas",
-    agentId: "agent2",
-    status: "scheduled",
-  },
-  {
-    id: "apt3",
-    title: "Suporte Técnico",
-    customerName: "Carlos Pereira",
-    contactPhone: "+5511999990003",
-    date: new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString(), // 2 dias atrás
-    time: "16:15",
-    duration: 60,
-    agentId: "agent3",
-    status: "completed",
-  }
-];
+interface Customer {
+  id: string;
+  name: string;
+  business_name: string;
+  email: string;
+}
 
-// Lista de horários disponíveis para agendamento
-const TIME_SLOTS = [
-  "08:00", "08:30", "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
-  "13:00", "13:30", "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00", "17:30"
-];
-
-// Lista de durações de compromisso
-const DURATIONS = [
-  { value: 15, label: "15 minutos" },
-  { value: 30, label: "30 minutos" },
-  { value: 45, label: "45 minutos" },
-  { value: 60, label: "1 hora" },
-  { value: 90, label: "1 hora e 30 minutos" },
-  { value: 120, label: "2 horas" },
-];
+interface GoogleCalendarConfig {
+  id: string;
+  customer_id: string;
+  google_calendar_id?: string;
+  is_active: boolean;
+}
 
 export default function Schedule() {
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [appointments, setAppointments] = useState<Appointment[]>(MOCK_APPOINTMENTS);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
-  const [newAppointment, setNewAppointment] = useState<Partial<Appointment>>({
-    date: new Date().toISOString(),
-    time: "14:00",
-    duration: 30,
-    status: "scheduled",
-    agentId: "agent1"
-  });
-  const [currentAppointment, setCurrentAppointment] = useState<Appointment | null>(null);
+  const { user } = useAuth();
+  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [googleConfigs, setGoogleConfigs] = useState<GoogleCalendarConfig[]>([]);
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
+  const [isGoogleConfigModalOpen, setIsGoogleConfigModalOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<string>("");
+  const [isConnectedToGoogle, setIsConnectedToGoogle] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const isMobile = useIsMobile();
 
-  const handleDateSelect = (selectedDate: Date | undefined) => {
-    setDate(selectedDate);
-  };
+  const [newAppointment, setNewAppointment] = useState({
+    title: "",
+    description: "",
+    date: format(new Date(), "yyyy-MM-dd"),
+    time: "09:00",
+    duration: 60,
+    location: "",
+    customer_id: "",
+  });
 
-  const getDayAppointments = () => {
-    if (!date) return [];
+  const [googleConfig, setGoogleConfig] = useState({
+    customer_id: "",
+    google_calendar_id: "",
+  });
+
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
+  }, [user, selectedDate]);
+
+  const loadData = async () => {
+    if (!user) return;
     
-    return appointments.filter(apt => {
-      const aptDate = new Date(apt.date);
-      return aptDate.toDateString() === date.toDateString();
-    });
+    try {
+      setIsLoading(true);
+      
+      // Carregar customers
+      const { data: customersData } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('franchisee_id', user.id);
+      
+      setCustomers(customersData || []);
+
+      // Carregar configurações do Google Calendar
+      const { data: configsData } = await supabase
+        .from('google_calendar_configs')
+        .select('*')
+        .eq('franchisee_id', user.id);
+      
+      setGoogleConfigs(configsData || []);
+
+      // Carregar agendamentos
+      const startOfDay = new Date(selectedDate.setHours(0, 0, 0, 0)).toISOString();
+      const endOfDay = new Date(selectedDate.setHours(23, 59, 59, 999)).toISOString();
+      
+      const { data: appointmentsData } = await supabase
+        .from('appointments')
+        .select(`
+          *,
+          customers (
+            name,
+            business_name,
+            email
+          )
+        `)
+        .eq('franchisee_id', user.id)
+        .gte('start_time', startOfDay)
+        .lte('start_time', endOfDay)
+        .order('start_time', { ascending: true });
+
+      setAppointments(appointmentsData || []);
+
+      // Verificar se está conectado ao Google Calendar
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('google_calendar_token')
+        .eq('id', user.id)
+        .single();
+      
+      setIsConnectedToGoogle(!!profileData?.google_calendar_token);
+      
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      toast.error('Erro ao carregar agenda');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleCreateAppointment = () => {
-    const appointmentId = `apt${Date.now()}`;
+  const handleCreateAppointment = async () => {
+    if (!user || !newAppointment.customer_id) {
+      toast.error('Selecione um cliente');
+      return;
+    }
+
+    try {
+      const startDateTime = new Date(`${newAppointment.date}T${newAppointment.time}`);
+      const endDateTime = new Date(startDateTime.getTime() + newAppointment.duration * 60000);
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .insert({
+          franchisee_id: user.id,
+          customer_id: newAppointment.customer_id,
+          title: newAppointment.title,
+          description: newAppointment.description,
+          start_time: startDateTime.toISOString(),
+          end_time: endDateTime.toISOString(),
+          location: newAppointment.location,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      toast.success('Agendamento criado com sucesso!');
+      setIsAppointmentModalOpen(false);
+      setNewAppointment({
+        title: "",
+        description: "",
+        date: format(new Date(), "yyyy-MM-dd"),
+        time: "09:00",
+        duration: 60,
+        location: "",
+        customer_id: "",
+      });
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao criar agendamento:', error);
+      toast.error('Erro ao criar agendamento');
+    }
+  };
+
+  const handleGoogleCalendarAuth = () => {
+    // Redirecionar para autenticação do Google Calendar
+    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+    const redirectUri = `${window.location.origin}/auth/google/callback`;
+    const scope = 'https://www.googleapis.com/auth/calendar';
     
-    const newApt: Appointment = {
-      id: appointmentId,
-      title: newAppointment.title || "",
-      customerName: newAppointment.customerName || "",
-      contactPhone: newAppointment.contactPhone || "",
-      date: date ? date.toISOString() : new Date().toISOString(),
-      time: newAppointment.time || "09:00",
-      duration: newAppointment.duration || 30,
-      notes: newAppointment.notes,
-      agentId: newAppointment.agentId || "agent1",
-      status: "scheduled"
-    };
+    if (!clientId) {
+      toast.error('Google Client ID não configurado');
+      return;
+    }
+
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&access_type=offline`;
     
-    setAppointments([...appointments, newApt]);
-    setIsCreateModalOpen(false);
-    setNewAppointment({
-      date: new Date().toISOString(),
-      time: "14:00",
-      duration: 30,
-      status: "scheduled",
-      agentId: "agent1"
-    });
-    
-    toast.success("Compromisso agendado com sucesso!");
+    window.open(authUrl, 'google-auth', 'width=500,height=600');
   };
 
-  const handleCancelAppointment = (id: string) => {
-    setAppointments(appointments.map(apt => 
-      apt.id === id ? { ...apt, status: "canceled" as const } : apt
-    ));
-    setIsViewModalOpen(false);
-    toast.info("Compromisso cancelado com sucesso!");
+  const handleSaveGoogleConfig = async () => {
+    if (!user || !googleConfig.customer_id) {
+      toast.error('Selecione um cliente');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('google_calendar_configs')
+        .upsert({
+          franchisee_id: user.id,
+          customer_id: googleConfig.customer_id,
+          google_calendar_id: googleConfig.google_calendar_id,
+          is_active: true,
+        });
+
+      if (error) throw error;
+
+      toast.success('Configuração do Google Calendar salva!');
+      setIsGoogleConfigModalOpen(false);
+      setGoogleConfig({
+        customer_id: "",
+        google_calendar_id: "",
+      });
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao salvar configuração:', error);
+      toast.error('Erro ao salvar configuração');
+    }
   };
 
-  const handleCompleteAppointment = (id: string) => {
-    setAppointments(appointments.map(apt => 
-      apt.id === id ? { ...apt, status: "completed" as const } : apt
-    ));
-    setIsViewModalOpen(false);
-    toast.success("Compromisso marcado como concluído!");
-  };
-
-  const viewAppointment = (appointment: Appointment) => {
-    setCurrentAppointment(appointment);
-    setIsViewModalOpen(true);
-  };
-
-  const formatAppointmentDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return format(date, "dd/MM/yyyy");
-  };
-
-  const dayAppointments = getDayAppointments();
-
-  const getAppointmentStatusBadge = (status: Appointment["status"]) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case "scheduled":
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Agendado</Badge>;
-      case "completed":
-        return <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">Concluído</Badge>;
-      case "canceled":
-        return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Cancelado</Badge>;
+      case 'completed':
+        return 'bg-green-500';
+      case 'canceled':
+        return 'bg-red-500';
       default:
-        return null;
+        return 'bg-blue-500';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'Concluído';
+      case 'canceled':
+        return 'Cancelado';
+      default:
+        return 'Agendado';
     }
   };
 
   return (
     <DashboardLayout title="Agenda">
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Calendário e botão de novo compromisso */}
-        <Card className="lg:col-span-1">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-medium flex justify-between items-center">
-              <span>Calendário</span>
-              <Button 
-                size="sm" 
-                onClick={() => setIsCreateModalOpen(true)} 
-                className="h-8"
-              >
-                <Plus className="mr-1 h-4 w-4" /> Novo
-              </Button>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col items-center">
-              <Calendar
-                mode="single"
-                selected={date}
-                onSelect={handleDateSelect}
-                className={cn("p-3 pointer-events-auto w-full")}
-                classNames={{
-                  day_selected: "bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground focus:bg-primary focus:text-primary-foreground",
-                  day_today: "bg-accent text-accent-foreground"
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
+      <div className="space-y-6">
+        {/* Header com botões */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h2 className="text-2xl font-bold">
+              {format(selectedDate, "d 'de' MMMM", { locale: ptBR })}
+            </h2>
+            <p className="text-muted-foreground">
+              {appointments.length} agendamento{appointments.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setIsGoogleConfigModalOpen(true)}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Google Calendar
+            </Button>
+            
+            <Button onClick={() => setIsAppointmentModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Agendamento
+            </Button>
+          </div>
+        </div>
 
-        {/* Lista de compromissos do dia selecionado */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg font-medium">
-              {date ? `Compromissos: ${format(date, "dd/MM/yyyy")}` : "Selecione uma data"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {dayAppointments.length > 0 ? (
-              <div className="space-y-4">
-                {dayAppointments.map((appointment) => (
-                  <div 
-                    key={appointment.id}
-                    className={cn(
-                      "p-4 border rounded-lg cursor-pointer transition-colors",
-                      appointment.status === "canceled" ? "bg-gray-50 border-gray-200" : "hover:border-primary/50",
-                      appointment.status === "completed" ? "bg-green-50 border-green-100" : ""
-                    )}
-                    onClick={() => viewAppointment(appointment)}
-                  >
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium">{appointment.title}</h3>
-                        <div className="text-sm text-muted-foreground mt-1">
-                          <div className="flex items-center">
-                            <Clock className="h-3.5 w-3.5 mr-1" />
-                            <span>{appointment.time} ({appointment.duration} min)</span>
-                          </div>
-                          <div className="flex items-center mt-1">
-                            <User className="h-3.5 w-3.5 mr-1" />
-                            <span>{appointment.customerName}</span>
-                          </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Calendário */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg">Calendário</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <CalendarComponent
+                mode="single"
+                selected={selectedDate}
+                onSelect={(date) => date && setSelectedDate(date)}
+                locale={ptBR}
+                className="rounded-md border"
+              />
+            </CardContent>
+          </Card>
+
+          {/* Lista de agendamentos */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle className="text-lg">Agendamentos do Dia</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              ) : appointments.length === 0 ? (
+                <div className="text-center text-muted-foreground py-8">
+                  <Calendar className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                  <p className="text-lg mb-2">Nenhum agendamento para hoje</p>
+                  <p className="text-sm">Clique em "Novo Agendamento" para criar um</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {appointments.map((appointment) => (
+                    <div
+                      key={appointment.id}
+                      className="flex items-start space-x-3 p-4 border rounded-lg"
+                    >
+                      <div className={`w-3 h-3 rounded-full mt-2 ${getStatusColor(appointment.status)}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium truncate">{appointment.title}</h4>
+                          <Badge variant="outline" className="text-xs">
+                            {getStatusLabel(appointment.status)}
+                          </Badge>
                         </div>
+                        <div className="text-sm text-muted-foreground space-y-1">
+                          <div className="flex items-center gap-2">
+                            <User className="w-3 h-3" />
+                            <span>{appointment.customer?.business_name || appointment.customer?.name}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              {format(new Date(appointment.start_time), "HH:mm")} - {format(new Date(appointment.end_time), "HH:mm")}
+                            </span>
+                          </div>
+                          {appointment.location && (
+                            <div className="flex items-center gap-2">
+                              <CalendarIcon className="w-3 h-3" />
+                              <span>{appointment.location}</span>
+                            </div>
+                          )}
+                        </div>
+                        {appointment.description && (
+                          <p className="text-sm text-muted-foreground mt-2">
+                            {appointment.description}
+                          </p>
+                        )}
                       </div>
-                      <div>
-                        {getAppointmentStatusBadge(appointment.status)}
-                      </div>
+                      {appointment.google_event_id && (
+                        <Button variant="ghost" size="sm">
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-64 text-muted-foreground">
-                <Calendar className="h-12 w-12 stroke-1 mb-2 opacity-30" />
-                <p>Nenhum compromisso para esta data</p>
-                <Button 
-                  variant="link" 
-                  onClick={() => setIsCreateModalOpen(true)}
-                  className="mt-2"
-                >
-                  Adicionar compromisso
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
-      {/* Modal de criação de compromisso */}
-      <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
-        <DialogContent className={cn("sm:max-w-[500px]", isMobile && "w-[95%] max-w-[95%]")}>
+      {/* Modal para novo agendamento */}
+      <Dialog open={isAppointmentModalOpen} onOpenChange={setIsAppointmentModalOpen}>
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Novo Compromisso</DialogTitle>
+            <DialogTitle>Novo Agendamento</DialogTitle>
             <DialogDescription>
-              Crie um novo compromisso na agenda.
+              Crie um novo agendamento para seus clientes
             </DialogDescription>
           </DialogHeader>
-
-          <div className="space-y-4 py-2">
-            <div className="grid gap-2">
-              <Label htmlFor="title">Título</Label>
-              <Input
-                id="title"
-                placeholder="Ex: Reunião de apresentação"
-                value={newAppointment.title || ""}
-                onChange={(e) => setNewAppointment({ ...newAppointment, title: e.target.value })}
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="grid gap-2">
-                <Label htmlFor="date">Data</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      id="date"
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "dd/MM/yyyy") : "Selecione uma data"}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                      className={cn("p-3 pointer-events-auto")}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="time">Horário</Label>
-                <Select 
-                  value={newAppointment.time || "14:00"}
-                  onValueChange={(value) => setNewAppointment({ ...newAppointment, time: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecione um horário" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TIME_SLOTS.map((time) => (
-                      <SelectItem key={time} value={time}>{time}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="duration">Duração</Label>
-              <Select 
-                value={String(newAppointment.duration || "30")}
-                onValueChange={(value) => setNewAppointment({ ...newAppointment, duration: parseInt(value) })}
-              >
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="customer">Cliente</Label>
+              <Select value={newAppointment.customer_id} onValueChange={(value) => 
+                setNewAppointment(prev => ({ ...prev, customer_id: value }))
+              }>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione a duração" />
+                  <SelectValue placeholder="Selecione um cliente" />
                 </SelectTrigger>
                 <SelectContent>
-                  {DURATIONS.map((duration) => (
-                    <SelectItem key={duration.value} value={String(duration.value)}>
-                      {duration.label}
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.business_name || customer.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="customer">Nome do Cliente</Label>
-              <Input 
-                id="customer" 
-                placeholder="Nome do cliente"
-                value={newAppointment.customerName || ""}
-                onChange={(e) => setNewAppointment({ ...newAppointment, customerName: e.target.value })}
+            <div className="space-y-2">
+              <Label htmlFor="title">Título</Label>
+              <Input
+                id="title"
+                value={newAppointment.title}
+                onChange={(e) => setNewAppointment(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Ex: Reunião de apresentação"
               />
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="phone">Telefone de Contato</Label>
-              <Input 
-                id="phone" 
-                placeholder="+55 (00) 00000-0000"
-                value={newAppointment.contactPhone || ""}
-                onChange={(e) => setNewAppointment({ ...newAppointment, contactPhone: e.target.value })}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="date">Data</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={newAppointment.date}
+                  onChange={(e) => setNewAppointment(prev => ({ ...prev, date: e.target.value }))}
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="time">Horário</Label>
+                <Input
+                  id="time"
+                  type="time"
+                  value={newAppointment.time}
+                  onChange={(e) => setNewAppointment(prev => ({ ...prev, time: e.target.value }))}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="duration">Duração (minutos)</Label>
+              <Select value={newAppointment.duration.toString()} onValueChange={(value) => 
+                setNewAppointment(prev => ({ ...prev, duration: parseInt(value) }))
+              }>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="30">30 minutos</SelectItem>
+                  <SelectItem value="60">1 hora</SelectItem>
+                  <SelectItem value="90">1h 30min</SelectItem>
+                  <SelectItem value="120">2 horas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="location">Local (opcional)</Label>
+              <Input
+                id="location"
+                value={newAppointment.location}
+                onChange={(e) => setNewAppointment(prev => ({ ...prev, location: e.target.value }))}
+                placeholder="Ex: Escritório, Online, etc."
               />
             </div>
 
-            <div className="grid gap-2">
-              <Label htmlFor="notes">Observações</Label>
-              <Textarea 
-                id="notes" 
-                placeholder="Adicione notas ou observações sobre o compromisso"
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição (opcional)</Label>
+              <Textarea
+                id="description"
+                value={newAppointment.description}
+                onChange={(e) => setNewAppointment(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Detalhes do agendamento..."
                 rows={3}
-                value={newAppointment.notes || ""}
-                onChange={(e) => setNewAppointment({ ...newAppointment, notes: e.target.value })}
               />
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsCreateModalOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setIsAppointmentModalOpen(false)}
+            >
               Cancelar
             </Button>
             <Button onClick={handleCreateAppointment}>
-              Agendar
+              Criar Agendamento
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* Modal de visualização/edição de compromisso */}
-      <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-        <DialogContent className={cn("sm:max-w-[500px]", isMobile && "w-[95%] max-w-[95%]")}>
-          {currentAppointment && (
-            <>
-              <DialogHeader>
-                <div className="flex items-center justify-between">
-                  <DialogTitle>{currentAppointment.title}</DialogTitle>
-                  {getAppointmentStatusBadge(currentAppointment.status)}
-                </div>
-              </DialogHeader>
-    
-              <div className="space-y-4 py-2">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Data</p>
-                    <p>{formatAppointmentDate(currentAppointment.date)}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Horário</p>
-                    <p>{currentAppointment.time} ({currentAppointment.duration} min)</p>
-                  </div>
-                </div>
-    
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Cliente</p>
-                  <p>{currentAppointment.customerName}</p>
-                </div>
-    
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Contato</p>
-                  <p>{currentAppointment.contactPhone}</p>
-                </div>
-    
-                {currentAppointment.notes && (
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Observações</p>
-                    <p className="text-sm">{currentAppointment.notes}</p>
-                  </div>
-                )}
+      {/* Modal para configuração do Google Calendar */}
+      <Dialog open={isGoogleConfigModalOpen} onOpenChange={setIsGoogleConfigModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Configurar Google Calendar</DialogTitle>
+            <DialogDescription>
+              Configure a integração com Google Calendar para seus clientes
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {!isConnectedToGoogle && (
+              <div className="text-center py-4">
+                <p className="text-sm text-muted-foreground mb-4">
+                  Primeiro, conecte sua conta Google
+                </p>
+                <Button onClick={handleGoogleCalendarAuth} className="w-full">
+                  <Calendar className="w-4 h-4 mr-2" />
+                  Conectar Google Calendar
+                </Button>
               </div>
-    
-              <DialogFooter>
-                {currentAppointment.status === "scheduled" && (
-                  <>
-                    <Button 
-                      variant="outline" 
-                      className="border-red-300 hover:bg-red-50 text-red-600" 
-                      onClick={() => handleCancelAppointment(currentAppointment.id)}
-                    >
-                      Cancelar Compromisso
-                    </Button>
-                    <Button onClick={() => handleCompleteAppointment(currentAppointment.id)}>
-                      Marcar como Concluído
-                    </Button>
-                  </>
-                )}
-                
-                {currentAppointment.status !== "scheduled" && (
-                  <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>
-                    Fechar
-                  </Button>
-                )}
-              </DialogFooter>
-            </>
-          )}
+            )}
+            
+            {isConnectedToGoogle && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="google-customer">Cliente</Label>
+                  <Select value={googleConfig.customer_id} onValueChange={(value) => 
+                    setGoogleConfig(prev => ({ ...prev, customer_id: value }))
+                  }>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione um cliente" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {customers.map((customer) => (
+                        <SelectItem key={customer.id} value={customer.id}>
+                          {customer.business_name || customer.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="calendar-id">ID do Google Calendar (opcional)</Label>
+                  <Input
+                    id="calendar-id"
+                    value={googleConfig.google_calendar_id}
+                    onChange={(e) => setGoogleConfig(prev => ({ ...prev, google_calendar_id: e.target.value }))}
+                    placeholder="primary ou ID específico do calendário"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Deixe vazio para usar o calendário principal
+                  </p>
+                </div>
+              </>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsGoogleConfigModalOpen(false)}
+            >
+              Cancelar
+            </Button>
+            {isConnectedToGoogle && (
+              <Button onClick={handleSaveGoogleConfig}>
+                Salvar Configuração
+              </Button>
+            )}
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

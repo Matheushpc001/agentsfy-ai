@@ -98,24 +98,37 @@ export default function Customers() {
     }));
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const newCustomer: Customer = {
-      id: `customer${customers.length + 1}`,
-      name: formData.name,
-      email: formData.email,
-      businessName: formData.businessName,
-      role: "customer",
-      franchiseeId: "franchisee1", // Would come from current user
-      agentCount: 0,
-      createdAt: new Date().toISOString()
-    };
-    
-    setCustomers([...customers, newCustomer]);
-    setIsAddModalOpen(false);
-    setFormData({ name: "", email: "", businessName: "" });
-    toast.success(`Cliente ${formData.businessName} adicionado com sucesso!`);
+    if (!user) return;
+
+    try {
+      const { data: newCustomer, error } = await supabase
+        .from('customers')
+        .insert({
+          name: formData.name,
+          email: formData.email,
+          business_name: formData.businessName,
+          franchisee_id: user.id,
+          role: 'customer',
+          agent_count: 0
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      // Recarregar lista de customers
+      await loadCustomers();
+      
+      setFormData({ name: "", email: "", businessName: "" });
+      setIsAddModalOpen(false);
+      toast.success(`Cliente ${formData.businessName} adicionado com sucesso!`);
+    } catch (error) {
+      console.error('Erro ao adicionar customer:', error);
+      toast.error('Erro ao adicionar cliente');
+    }
   };
 
   const handleCopyLink = () => {
@@ -165,7 +178,12 @@ export default function Customers() {
           </div>
         </div>
 
-        {filteredCustomers.length > 0 ? (
+        {isLoading ? (
+          <div className="flex flex-col items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4"></div>
+            <p className="text-muted-foreground">Carregando clientes...</p>
+          </div>
+        ) : filteredCustomers.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredCustomers.map(customer => (
               <CustomerCard 
@@ -179,10 +197,17 @@ export default function Customers() {
         ) : (
           <div className="flex flex-col items-center justify-center h-64">
             <BriefcaseBusiness size={48} className="text-muted-foreground/30 mb-4" />
-            <p className="text-muted-foreground mb-2">Nenhum cliente encontrado.</p>
-            {searchTerm && (
+            <p className="text-muted-foreground mb-2">
+              {searchTerm ? 'Nenhum cliente encontrado para esta busca.' : 'Nenhum cliente cadastrado.'}
+            </p>
+            {searchTerm ? (
               <Button variant="link" onClick={() => setSearchTerm("")}>
                 Limpar busca
+              </Button>
+            ) : (
+              <Button onClick={() => setIsAddModalOpen(true)} className="mt-2">
+                <PlusCircle className="w-4 h-4 mr-2" />
+                Adicionar primeiro cliente
               </Button>
             )}
           </div>
