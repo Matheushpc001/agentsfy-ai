@@ -1,4 +1,4 @@
-// ARQUIVO: supabase/functions/evolution-api-manager/index.ts v66
+// ARQUIVO: supabase/functions/evolution-api-manager/index.ts v666
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.0.0"

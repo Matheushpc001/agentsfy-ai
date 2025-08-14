@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Plus, User, X, Settings, ExternalLink, Calendar } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Plus, User, X, Settings, ExternalLink, Calendar, Edit, Trash2, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -79,6 +79,7 @@ export default function Schedule() {
   const [selectedCustomer, setSelectedCustomer] = useState<string>("");
   const [isConnectedToGoogle, setIsConnectedToGoogle] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const isMobile = useIsMobile();
 
   const [newAppointment, setNewAppointment] = useState({
@@ -163,8 +164,23 @@ export default function Schedule() {
   };
 
   const handleCreateAppointment = async () => {
-    if (!user || !newAppointment.customer_id) {
-      toast.error('Selecione um cliente');
+    if (!user) {
+      toast.error('Usuário não autenticado');
+      return;
+    }
+
+    if (!newAppointment.customer_id) {
+      toast.error('Por favor, selecione um cliente');
+      return;
+    }
+
+    if (!newAppointment.title.trim()) {
+      toast.error('Por favor, insira um título para o agendamento');
+      return;
+    }
+
+    if (!newAppointment.date || !newAppointment.time) {
+      toast.error('Por favor, defina data e horário');
       return;
     }
 
@@ -172,23 +188,32 @@ export default function Schedule() {
       const startDateTime = new Date(`${newAppointment.date}T${newAppointment.time}`);
       const endDateTime = new Date(startDateTime.getTime() + newAppointment.duration * 60000);
 
+      // Verificar se a data não é no passado
+      if (startDateTime < new Date()) {
+        toast.error('Não é possível criar agendamentos no passado');
+        return;
+      }
+
       const { data, error } = await supabase
         .from('appointments')
         .insert({
           franchisee_id: user.id,
           customer_id: newAppointment.customer_id,
-          title: newAppointment.title,
-          description: newAppointment.description,
+          title: newAppointment.title.trim(),
+          description: newAppointment.description.trim() || null,
           start_time: startDateTime.toISOString(),
           end_time: endDateTime.toISOString(),
-          location: newAppointment.location,
+          location: newAppointment.location.trim() || null,
+          status: 'scheduled'
         })
         .select()
         .single();
 
       if (error) throw error;
 
-      toast.success('Agendamento criado com sucesso!');
+      const selectedCustomer = customers.find(c => c.id === newAppointment.customer_id);
+      
+      toast.success(`Agendamento criado com sucesso para ${selectedCustomer?.business_name || selectedCustomer?.name}!`);
       setIsAppointmentModalOpen(false);
       setNewAppointment({
         title: "",
@@ -202,24 +227,20 @@ export default function Schedule() {
       await loadData();
     } catch (error) {
       console.error('Erro ao criar agendamento:', error);
-      toast.error('Erro ao criar agendamento');
+      toast.error('Erro ao criar agendamento. Tente novamente.');
     }
   };
 
   const handleGoogleCalendarAuth = () => {
-    // Redirecionar para autenticação do Google Calendar
-    const clientId = process.env.REACT_APP_GOOGLE_CLIENT_ID;
-    const redirectUri = `${window.location.origin}/auth/google/callback`;
-    const scope = 'https://www.googleapis.com/auth/calendar';
+    // Simulação de conexão com Google Calendar
+    // Em produção, você precisará configurar as variáveis de ambiente do Google OAuth
+    toast.info('Funcionalidade em desenvolvimento. Configure as credenciais do Google OAuth para usar esta funcionalidade.');
     
-    if (!clientId) {
-      toast.error('Google Client ID não configurado');
-      return;
+    // Para demonstração, vamos "conectar" temporariamente
+    if (window.confirm('Simular conexão com Google Calendar para teste?')) {
+      setIsConnectedToGoogle(true);
+      toast.success('Conectado ao Google Calendar (modo simulação)');
     }
-
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&access_type=offline`;
-    
-    window.open(authUrl, 'google-auth', 'width=500,height=600');
   };
 
   const handleSaveGoogleConfig = async () => {
@@ -250,6 +271,109 @@ export default function Schedule() {
     } catch (error) {
       console.error('Erro ao salvar configuração:', error);
       toast.error('Erro ao salvar configuração');
+    }
+  };
+
+  const handleEditAppointment = (appointment: Appointment) => {
+    setEditingAppointment(appointment);
+    setNewAppointment({
+      title: appointment.title,
+      description: appointment.description || "",
+      date: format(new Date(appointment.start_time), "yyyy-MM-dd"),
+      time: format(new Date(appointment.start_time), "HH:mm"),
+      duration: Math.round((new Date(appointment.end_time).getTime() - new Date(appointment.start_time).getTime()) / 60000),
+      location: appointment.location || "",
+      customer_id: appointment.customer_id,
+    });
+    setIsAppointmentModalOpen(true);
+  };
+
+  const handleUpdateAppointment = async () => {
+    if (!user || !editingAppointment) {
+      toast.error('Erro interno');
+      return;
+    }
+
+    if (!newAppointment.customer_id) {
+      toast.error('Por favor, selecione um cliente');
+      return;
+    }
+
+    if (!newAppointment.title.trim()) {
+      toast.error('Por favor, insira um título para o agendamento');
+      return;
+    }
+
+    try {
+      const startDateTime = new Date(`${newAppointment.date}T${newAppointment.time}`);
+      const endDateTime = new Date(startDateTime.getTime() + newAppointment.duration * 60000);
+
+      const { error } = await supabase
+        .from('appointments')
+        .update({
+          title: newAppointment.title.trim(),
+          description: newAppointment.description.trim() || null,
+          start_time: startDateTime.toISOString(),
+          end_time: endDateTime.toISOString(),
+          location: newAppointment.location.trim() || null,
+          customer_id: newAppointment.customer_id
+        })
+        .eq('id', editingAppointment.id);
+
+      if (error) throw error;
+
+      toast.success('Agendamento atualizado com sucesso!');
+      setIsAppointmentModalOpen(false);
+      setEditingAppointment(null);
+      setNewAppointment({
+        title: "",
+        description: "",
+        date: format(new Date(), "yyyy-MM-dd"),
+        time: "09:00",
+        duration: 60,
+        location: "",
+        customer_id: "",
+      });
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao atualizar agendamento:', error);
+      toast.error('Erro ao atualizar agendamento');
+    }
+  };
+
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    if (!confirm('Tem certeza que deseja excluir este agendamento?')) return;
+
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .delete()
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+
+      toast.success('Agendamento excluído com sucesso!');
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao excluir agendamento:', error);
+      toast.error('Erro ao excluir agendamento');
+    }
+  };
+
+  const handleCompleteAppointment = async (appointmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('appointments')
+        .update({ status: 'completed' })
+        .eq('id', appointmentId);
+
+      if (error) throw error;
+
+      toast.success('Agendamento marcado como concluído!');
+      await loadData();
+    } catch (error) {
+      console.error('Erro ao completar agendamento:', error);
+      toast.error('Erro ao completar agendamento');
     }
   };
 
@@ -377,11 +501,41 @@ export default function Schedule() {
                           </p>
                         )}
                       </div>
-                      {appointment.google_event_id && (
-                        <Button variant="ghost" size="sm">
-                          <ExternalLink className="w-4 h-4" />
+                      <div className="flex items-center gap-1">
+                        {appointment.status === 'scheduled' && (
+                          <>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleCompleteAppointment(appointment.id)}
+                              title="Marcar como concluído"
+                            >
+                              <CheckCircle className="w-4 h-4 text-green-600" />
+                            </Button>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => handleEditAppointment(appointment)}
+                              title="Editar agendamento"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          </>
+                        )}
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => handleDeleteAppointment(appointment.id)}
+                          title="Excluir agendamento"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-600" />
                         </Button>
-                      )}
+                        {appointment.google_event_id && (
+                          <Button variant="ghost" size="sm" title="Ver no Google Calendar">
+                            <ExternalLink className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -395,9 +549,11 @@ export default function Schedule() {
       <Dialog open={isAppointmentModalOpen} onOpenChange={setIsAppointmentModalOpen}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>Novo Agendamento</DialogTitle>
+            <DialogTitle>
+              {editingAppointment ? 'Editar Agendamento' : 'Novo Agendamento'}
+            </DialogTitle>
             <DialogDescription>
-              Crie um novo agendamento para seus clientes
+              {editingAppointment ? 'Atualize as informações do agendamento' : 'Crie um novo agendamento para seus clientes'}
             </DialogDescription>
           </DialogHeader>
           
@@ -494,12 +650,24 @@ export default function Schedule() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsAppointmentModalOpen(false)}
+              onClick={() => {
+                setIsAppointmentModalOpen(false);
+                setEditingAppointment(null);
+                setNewAppointment({
+                  title: "",
+                  description: "",
+                  date: format(new Date(), "yyyy-MM-dd"),
+                  time: "09:00",
+                  duration: 60,
+                  location: "",
+                  customer_id: "",
+                });
+              }}
             >
               Cancelar
             </Button>
-            <Button onClick={handleCreateAppointment}>
-              Criar Agendamento
+            <Button onClick={editingAppointment ? handleUpdateAppointment : handleCreateAppointment}>
+              {editingAppointment ? 'Atualizar Agendamento' : 'Criar Agendamento'}
             </Button>
           </DialogFooter>
         </DialogContent>
