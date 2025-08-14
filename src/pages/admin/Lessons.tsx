@@ -75,10 +75,21 @@ export default function Lessons() {
   const [editingCategory, setEditingCategory] = useState<LessonCategory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const [newLesson, setNewLesson] = useState({
+  const [newLesson, setNewLesson] = useState<{
+    title: string;
+    description: string;
+    content_type: 'video' | 'ebook' | 'material' | 'quiz';
+    content_url: string;
+    thumbnail_url: string;
+    category_id: string;
+    duration_minutes: string;
+    file_size_mb: string;
+    is_premium: boolean;
+    is_published: boolean;
+  }>({
     title: "",
     description: "",
-    content_type: "video" as const,
+    content_type: "video",
     content_url: "",
     thumbnail_url: "",
     category_id: "",
@@ -464,7 +475,7 @@ export default function Lessons() {
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="content_type">Tipo de Conteúdo</Label>
-                <Select value={newLesson.content_type} onValueChange={(value: any) => 
+                <Select value={newLesson.content_type} onValueChange={(value: 'video' | 'ebook' | 'material' | 'quiz') => 
                   setNewLesson(prev => ({ ...prev, content_type: value }))
                 }>
                   <SelectTrigger>

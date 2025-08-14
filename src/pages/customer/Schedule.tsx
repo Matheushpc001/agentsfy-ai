@@ -138,11 +138,18 @@ export default function CustomerSchedule() {
     if (!user) return;
 
     try {
+      // Buscar o franchisee_id associado ao cliente
+      const { data: customerData } = await supabase
+        .from('customers')
+        .select('franchisee_id')
+        .eq('id', user.id)
+        .single();
+
       // Salvar configuração do Google Calendar para este cliente
       const { error } = await supabase
         .from('google_calendar_configs')
         .upsert({
-          franchisee_id: user.franchisee_id, // ID do franqueado que atende este cliente
+          franchisee_id: customerData?.franchisee_id, // ID do franqueado que atende este cliente
           customer_id: user.id, // ID do cliente atual
           google_calendar_id: newGoogleConfig.google_calendar_id,
           is_active: true,
