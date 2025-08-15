@@ -120,46 +120,46 @@ export default function Customers() {
     toast.info(`Gerenciando ${customer.businessName}`);
   };
 
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  // const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const { name, value } = e.target;
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     [name]: value
+  //   }));
+  // };
 
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // const handleAddSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
     
-    if (!user) return;
+  //   if (!user) return;
 
-    try {
-      const { data: newCustomer, error } = await supabase
-        .from('customers')
-        .insert({
-          name: formData.name,
-          email: formData.email,
-          business_name: formData.businessName,
-          franchisee_id: user.id,
-          role: 'customer',
-          agent_count: 0
-        })
-        .select()
-        .single();
+  //   try {
+  //     const { data: newCustomer, error } = await supabase
+  //       .from('customers')
+  //       .insert({
+  //         name: formData.name,
+  //         email: formData.email,
+  //         business_name: formData.businessName,
+  //         franchisee_id: user.id,
+  //         role: 'customer',
+  //         agent_count: 0
+  //       })
+  //       .select()
+  //       .single();
 
-      if (error) throw error;
+  //     if (error) throw error;
 
-      // Recarregar lista de customers
-      await loadCustomers();
+  //     // Recarregar lista de customers
+  //     await loadCustomers();
       
-      setFormData({ name: "", email: "", businessName: "" });
-      setIsAddModalOpen(false);
-      toast.success(`Cliente ${formData.businessName} adicionado com sucesso!`);
-    } catch (error) {
-      console.error('Erro ao adicionar customer:', error);
-      toast.error('Erro ao adicionar cliente');
-    }
-  };
+  //     setFormData({ name: "", email: "", businessName: "" });
+  //     setIsAddModalOpen(false);
+  //     toast.success(`Cliente ${formData.businessName} adicionado com sucesso!`);
+  //   } catch (error) {
+  //     console.error('Erro ao adicionar customer:', error);
+  //     toast.error('Erro ao adicionar cliente');
+  //   }
+  // };
 
   const handleCopyLink = () => {
     if (!currentCustomer) return;
@@ -179,6 +179,7 @@ export default function Customers() {
   return (
     <DashboardLayout title="Clientes">
       <div className="space-y-6">
+        {/* ... (resto do seu JSX da página principal permanece igual) ... */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center">
             <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border flex items-center gap-2">
@@ -243,58 +244,14 @@ export default function Customers() {
         )}
       </div>
 
-      {/* Add Customer Modal */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Adicionar Novo Cliente</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleAddSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="businessName">Nome da Empresa</Label>
-              <Input
-                id="businessName"
-                name="businessName"
-                placeholder="Empresa ABC"
-                value={formData.businessName}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome do Contato</Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="Nome do responsável"
-                value={formData.name}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="contato@empresa.com"
-                value={formData.email}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit">Adicionar Cliente</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* ALTERADO: Usando o novo modal centralizado */}
+      <CreateCustomerModal
+        open={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={handleCreationSuccess}
+      />
 
-      {/* Share Customer Modal */}
+      {/* Share Customer Modal (permanece igual) */}
       <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
