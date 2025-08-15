@@ -29,14 +29,36 @@ export default function CreateCustomerModalForm({ formData, onFormDataChange }: 
   };
 
   const formatPhone = (value: string) => {
-    const numbers = value.replace(/\D/g, '').slice(0, 11);
+    // Remove todos os caracteres não numéricos
+    const numbers = value.replace(/\D/g, '');
 
-    if (numbers.length > 10) {
-      // Formato para 11 dígitos: XX-XXXXX-XXXX
-      return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '$1-$2-$3');
+    // Garante que o número comece com 55
+    let fullNumber = numbers;
+    if (fullNumber.startsWith('55')) {
+      fullNumber = fullNumber.substring(2);
     }
-    // Formato para 10 dígitos: XX-XXXX-XXXX
-    return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '$1-$2-$3');
+
+    // Limita ao máximo de 11 dígitos (DDD + número)
+    fullNumber = fullNumber.substring(0, 11);
+
+    let ddd = fullNumber.substring(0, 2);
+    let mainNumber = fullNumber.substring(2);
+
+    let formattedMainNumber = mainNumber;
+    // Se o número principal tem 9 dígitos (celular)
+    if (mainNumber.length > 8) {
+      formattedMainNumber = `${mainNumber.substring(0, 5)}-${mainNumber.substring(5)}`;
+    } 
+    // Se o número principal tem 8 dígitos (fixo)
+    else if (mainNumber.length > 4) {
+      formattedMainNumber = `${mainNumber.substring(0, 4)}-${mainNumber.substring(4)}`;
+    }
+
+    if (ddd) {
+      return `+55 (${ddd}) ${formattedMainNumber}`;
+    }
+
+    return '+55';
   };
 
   const sanitizeEmail = (value: string) => {
