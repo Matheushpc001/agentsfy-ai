@@ -37,6 +37,9 @@ export default function CreateCustomerModalForm({ formData, onFormDataChange }: 
       formattedNumbers = '55' + numbers;
     }
     
+    // Limita a 13 dígitos no máximo (55 + DDD + 9 dígitos)
+    formattedNumbers = formattedNumbers.substring(0, 13);
+    
     if (formattedNumbers.length <= 12) {
       // +55 (00) 0000-0000
       return formattedNumbers.replace(/(\d{2})(\d{2})(\d{4})(\d{4})/, '+$1 ($2) $3-$4');
@@ -158,7 +161,7 @@ export default function CreateCustomerModalForm({ formData, onFormDataChange }: 
           name="contactPhone"
           value={formData.contactPhone}
           onChange={(e) => handleInputChange('contactPhone', e.target.value)}
-          maxLength={15}
+          maxLength={18}
           placeholder="Ex: +55 (12) 99788-6488"
         />
       </div>
