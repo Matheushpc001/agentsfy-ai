@@ -87,7 +87,7 @@ export default function CreateCustomerModal({ open, onClose, onSuccess }: Create
       if (error) throw error;
       
       toast.dismiss(loadingToast);
-      toast.success("Cliente criado com sucesso! Um email de convite foi enviado para ele definir a senha.");
+      toast.success(data.message || "Cliente criado com sucesso! Um email foi enviado para o cliente definir sua senha.");
       
       onSuccess(data.customer);
       onClose();

@@ -1,4 +1,4 @@
-// supabase/functions/create-customer/index.ts v1
+// supabase/functions/create-customer/index.ts v2
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -30,25 +30,38 @@ serve(async (req) => {
       throw new Error("Dados insuficientes para criar cliente.");
     }
 
-    // 1. Criar o usuário no Supabase Auth via convite
-    // O cliente receberá um email para definir sua senha
-    const { data: { user }, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: 'https://agentsfy-ai.lovable.app/update-password'
+    // 1. Criar o usuário no Supabase Auth com uma senha temporária
+    // Isso evita o problema com o inviteUserByEmail
+    const tempPassword = generateTemporaryPassword();
+    const { data: { user }, error: signUpError } = await supabaseAdmin.auth.signUp({
+      email,
+      password: tempPassword,
+      options: {
+        emailRedirectTo: 'https://agentsfy-ai.lovable.app/update-password'
+      }
     });
 
-    if (inviteError) {
+    if (signUpError) {
       // Trata o erro se o usuário já existir
-      if (inviteError.message.includes("already registered")) {
+      if (signUpError.message.includes("already registered")) {
         throw new Error("Este email de cliente já está cadastrado.");
       }
-      throw inviteError;
+      throw signUpError;
     }
 
     if (!user) {
       throw new Error("Não foi possível criar o usuário no sistema de autenticação.");
     }
 
-    // 2. Inserir os dados na tabela 'customers'
+    // 2. Enviar email de redefinição de senha imediatamente
+    const { error: resetError } = await supabaseAdmin.auth.admin.resetPasswordForUser(email);
+    if (resetError) {
+      // Rollback: se falhar ao enviar o email de redefinição, deleta o usuário do Auth
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
+      throw resetError;
+    }
+
+    // 3. Inserir os dados na tabela 'customers'
     const { data: newCustomer, error: customerError } = await supabaseAdmin
       .from('customers')
       .insert({
@@ -70,7 +83,10 @@ serve(async (req) => {
       throw customerError;
     }
 
-    return new Response(JSON.stringify({ customer: newCustomer }), {
+    return new Response(JSON.stringify({ 
+      customer: newCustomer,
+      message: "Cliente criado com sucesso! Um email foi enviado para o cliente definir sua senha."
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
@@ -82,3 +98,14 @@ serve(async (req) => {
     });
   }
 });
+
+// Função para gerar uma senha temporária
+function generateTemporaryPassword(length: number = 12): string {
+  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
+  let password = "";
+  for (let i = 0; i < length; i++) {
+    const randomIndex = Math.floor(Math.random() * charset.length);
+    password += charset[randomIndex];
+  }
+  return password;
+}

@@ -1,7 +1,7 @@
 // src/pages/UpdatePassword.tsx
 
 import { useState, FormEvent, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { Input } from '@/components/ui/input';
@@ -15,6 +15,7 @@ export default function UpdatePassword() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -24,19 +25,39 @@ export default function UpdatePassword() {
       navigate('/dashboard');
     }
 
-    // O cliente Supabase detecta o token na URL e dispara o evento
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      // Este evento é disparado quando o usuário clica no link de convite
-      if (event === 'PASSWORD_RECOVERY' && session) {
-        setIsAuthenticated(true);
-        toast.info("Autenticado com sucesso! Por favor, defina sua nova senha.");
-      }
-    });
+    // Verificar se temos os parâmetros de redefinição de senha na URL
+    const token = searchParams.get('token');
+    const type = searchParams.get('type');
+    
+    if (token && type === 'recovery') {
+      // Verificar o token de redefinição de senha
+      supabase.auth.verifyOtp({
+        type: 'recovery',
+        token_hash: token,
+      }).then(({ data, error }) => {
+        if (error) {
+          console.error("Erro ao verificar token de redefinição:", error);
+          toast.error("Link de redefinição inválido ou expirado.");
+        } else {
+          setIsAuthenticated(true);
+          toast.info("Autenticado com sucesso! Por favor, defina sua nova senha.");
+        }
+      });
+    } else {
+      // O cliente Supabase detecta o token na URL e dispara o evento
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+        // Este evento é disparado quando o usuário clica no link de convite
+        if (event === 'PASSWORD_RECOVERY' && session) {
+          setIsAuthenticated(true);
+          toast.info("Autenticado com sucesso! Por favor, defina sua nova senha.");
+        }
+      });
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [user, navigate]);
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+  }, [user, navigate, searchParams]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -55,6 +76,7 @@ export default function UpdatePassword() {
       if (error) throw error;
 
       toast.success("Senha definida com sucesso! Você será redirecionado.");
+      // Fazer login automático após definir a senha
       setTimeout(() => navigate('/dashboard'), 1500);
 
     } catch (error: any) {
