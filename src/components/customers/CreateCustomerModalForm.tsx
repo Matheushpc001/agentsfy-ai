@@ -29,36 +29,8 @@ export default function CreateCustomerModalForm({ formData, onFormDataChange }: 
   };
 
   const formatPhone = (value: string) => {
-    // Remove todos os caracteres não numéricos
-    const numbers = value.replace(/\D/g, '');
-
-    // Garante que o número comece com 55
-    let fullNumber = numbers;
-    if (fullNumber.startsWith('55')) {
-      fullNumber = fullNumber.substring(2);
-    }
-
-    // Limita ao máximo de 11 dígitos (DDD + número)
-    fullNumber = fullNumber.substring(0, 11);
-
-    let ddd = fullNumber.substring(0, 2);
-    let mainNumber = fullNumber.substring(2);
-
-    let formattedMainNumber = mainNumber;
-    // Se o número principal tem 9 dígitos (celular)
-    if (mainNumber.length > 8) {
-      formattedMainNumber = `${mainNumber.substring(0, 5)}-${mainNumber.substring(5)}`;
-    } 
-    // Se o número principal tem 8 dígitos (fixo)
-    else if (mainNumber.length > 4) {
-      formattedMainNumber = `${mainNumber.substring(0, 4)}-${mainNumber.substring(4)}`;
-    }
-
-    if (ddd) {
-      return `+55 (${ddd}) ${formattedMainNumber}`;
-    }
-
-    return '+55';
+    // Permite apenas dígitos no campo
+    return value.replace(/\D/g, '');
   };
 
   const sanitizeEmail = (value: string) => {
@@ -164,8 +136,7 @@ export default function CreateCustomerModalForm({ formData, onFormDataChange }: 
           name="contactPhone"
           value={formData.contactPhone}
           onChange={(e) => handleInputChange('contactPhone', e.target.value)}
-          maxLength={18}
-          placeholder="Ex: 12-99788-6488"
+          placeholder="Ex: 5512997886488"
         />
       </div>
     </div>
