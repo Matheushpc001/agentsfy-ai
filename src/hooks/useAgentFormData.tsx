@@ -125,6 +125,7 @@ export function useAgentFormData({ editing, selectedPrompt, open }: UseAgentForm
     selectedCustomerId,
     selectedPromptId,
     setIsNewCustomer,
+    setSelectedCustomerId,
     handleChange,
     handleCustomerChange,
     handleCustomerSelect,

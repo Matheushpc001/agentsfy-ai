@@ -34,7 +34,16 @@ export default function CustomerPortalLogin() {
         }
 
         if (data) {
-          setCustomer(data as Customer);
+          setCustomer({
+            id: customerId,
+            businessName: data.business_name,
+            email: data.email,
+            name: '',
+            role: 'customer',
+            franchiseeId: '',
+            agentCount: 0,
+            createdAt: new Date().toISOString()
+          });
         }
       } catch (err: any) {
         console.error("Erro ao buscar dados do cliente:", err);
