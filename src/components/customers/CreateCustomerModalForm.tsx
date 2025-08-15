@@ -46,6 +46,15 @@ export default function CreateCustomerModalForm({ formData, onFormDataChange }: 
     }
   };
 
+  const getCleanPhoneNumber = (value: string) => {
+    const numbers = value.replace(/\D/g, '');
+    // Se não começar com 55, adiciona o código do país
+    if (!numbers.startsWith('55') && numbers.length > 0) {
+      return '55' + numbers;
+    }
+    return numbers;
+  };
+
   const sanitizeEmail = (value: string) => {
     return value.toLowerCase().trim().replace(/[^a-z0-9@._-]/g, '');
   };

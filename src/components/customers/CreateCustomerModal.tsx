@@ -67,10 +67,25 @@ export default function CreateCustomerModal({ open, onClose, onSuccess }: Create
     const loadingToast = toast.loading("Criando cliente e enviando convite...");
 
     try {
+      // Função para limpar o telefone antes de salvar
+      const getCleanPhoneNumber = (value: string) => {
+        const numbers = value.replace(/\D/g, '');
+        if (!numbers.startsWith('55') && numbers.length > 0) {
+          return '55' + numbers;
+        }
+        return numbers;
+      };
+
+      // Preparar dados com telefone limpo
+      const cleanFormData = {
+        ...formData,
+        contactPhone: formData.contactPhone ? getCleanPhoneNumber(formData.contactPhone) : ""
+      };
+
       const { data, error } = await supabase.functions.invoke('create-customer', {
         body: {
           franchiseeId: user.id,
-          customerData: formData
+          customerData: cleanFormData
         }
       });
 
