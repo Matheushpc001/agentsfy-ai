@@ -37,8 +37,8 @@ export default function CreateCustomerModalForm({ formData, onFormDataChange }: 
       formattedNumbers = '55' + numbers;
     }
     
-    // Limita a 13 dígitos no máximo (55 + DDD + 9 dígitos)
-    formattedNumbers = formattedNumbers.substring(0, 13);
+    // Limita a 14 dígitos no máximo (55 + DDD + 9 dígitos)
+    formattedNumbers = formattedNumbers.substring(0, 14);
     
     if (formattedNumbers.length <= 12) {
       // +55 (00) 0000-0000
@@ -155,7 +155,7 @@ export default function CreateCustomerModalForm({ formData, onFormDataChange }: 
       </div>
 
       <div className="space-y-2">
-        <Label htmlFor="contactPhone">WhatsApp para Contato</Label>
+        <Label htmlFor="contactPhone">Contato</Label>
         <Input
           id="contactPhone"
           name="contactPhone"
