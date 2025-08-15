@@ -67,14 +67,15 @@ export default function CreateCustomerModal({ open, onClose, onSuccess }: Create
     const loadingToast = toast.loading("Criando cliente e enviando convite...");
 
     try {
-      // Limpa e formata o número de telefone para garantir que o prefixo 55 seja incluído
       const cleanedPhone = formData.contactPhone.replace(/\D/g, '');
-      const finalPhone = cleanedPhone && !cleanedPhone.startsWith('55') ? `55${cleanedPhone}` : cleanedPhone;
+          const finalPhone = cleanedPhone && !cleanedPhone.startsWith('55') ? `55${cleanedPhone}` : cleanedPhone;
+          const cleanedDocument = formData.document.replace(/\D/g, '');
 
-      const cleanFormData = {
-        ...formData,
-        contactPhone: finalPhone,
-      };
+          const cleanFormData = {
+            ...formData,
+            contactPhone: finalPhone,
+            document: cleanedDocument,
+          };
 
       const { data, error } = await supabase.functions.invoke('create-customer', {
         body: {

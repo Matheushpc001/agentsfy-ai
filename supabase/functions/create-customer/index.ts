@@ -1,4 +1,4 @@
-// supabase/functions/create-customer/index.ts
+// supabase/functions/create-customer/index.ts v1
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -20,9 +20,13 @@ serve(async (req) => {
     );
 
     const { franchiseeId, customerData } = await req.json();
+    console.log('Received request for franchiseeId:', franchiseeId);
+    console.log('Received customerData:', customerData);
+
     const { businessName, name, email, document, contactPhone } = customerData;
 
     if (!franchiseeId || !email || !businessName || !name) {
+      console.error('Missing required data for customer creation.');
       throw new Error("Dados insuficientes para criar cliente.");
     }
 
