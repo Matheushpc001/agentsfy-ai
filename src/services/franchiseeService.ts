@@ -21,7 +21,6 @@ export const franchiseeService = {
   async getFranchisees(): Promise<Franchisee[]> {
     console.log('Buscando franqueados do banco de dados...');
 
-    // Chama a função RPC no Supabase
     const { data, error } = await supabase.rpc('get_franchisees_details');
 
     if (error) {
@@ -30,8 +29,9 @@ export const franchiseeService = {
       throw new Error(error.message);
     }
 
-    console.log(`Sucesso! ${data.length} franqueados encontrados.`);
-    return data.map(mapFranchiseeFromDB);
+    // ### CORREÇÃO APLICADA AQUI ###
+    // Garante que sempre retornamos um array, mesmo se 'data' for null.
+    return (data || []).map(mapFranchiseeFromDB);
   },
   
   // Aqui adicionar outras funções como create, update, delete...

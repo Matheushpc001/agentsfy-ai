@@ -93,8 +93,6 @@ export const agentService = {
   },
 
   async getAgents(franchiseeId: string): Promise<Agent[]> {
-    console.log('Fetching agents for franchisee:', franchiseeId);
-    
     const { data, error } = await supabase
       .from('agents')
       .select('*')
@@ -106,8 +104,9 @@ export const agentService = {
       throw new Error(`Failed to fetch agents: ${error.message}`);
     }
 
-    console.log('Agents fetched successfully:', data.length);
-    return data.map(this.mapAgentFromDB);
+    // ### CORREÇÃO APLICADA AQUI ###
+    // Garante que sempre retornamos um array, mesmo se 'data' for null.
+    return (data || []).map(this.mapAgentFromDB);
   },
 
   async updateAgentWhatsAppStatus(agentId: string, connected: boolean): Promise<void> {
@@ -177,8 +176,6 @@ export const customerService = {
   },
 
   async getCustomers(franchiseeId: string): Promise<Customer[]> {
-    console.log('Fetching customers for franchisee:', franchiseeId);
-    
     const { data, error } = await supabase
       .from('customers')
       .select('*')
@@ -190,8 +187,9 @@ export const customerService = {
       throw new Error(`Failed to fetch customers: ${error.message}`);
     }
 
-    console.log('Customers fetched successfully:', data.length);
-    return data.map(this.mapCustomerFromDB);
+    // ### CORREÇÃO APLICADA AQUI ###
+    // Garante que sempre retornamos um array, mesmo se 'data' for null.
+    return (data || []).map(this.mapCustomerFromDB);
   },
 
   mapCustomerFromDB(dbCustomer: any): Customer {
