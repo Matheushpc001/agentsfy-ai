@@ -1,3 +1,4 @@
+// src/components/agents/CreateAgentModalContent.tsx - VERSÃO CORRIGIDA
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -9,18 +10,19 @@ import { Prompt } from "@/types/prompts";
 interface CreateAgentModalContentProps {
   activeTab: string;
   setActiveTab: (tab: string) => void;
-  isNewCustomer: boolean;
-  setIsNewCustomer: (isNew: boolean) => void;
+  // --- ALTERADO AQUI para corresponder ao novo CustomerFormTab ---
+  customerLinkOption: 'new' | 'existing';
+  onCustomerLinkOptionChange: (option: 'new' | 'existing') => void;
+  onAddNewCustomerClick: () => void;
+  // --- FIM DA ALTERAÇÃO ---
   selectedCustomerId: string;
   formData: Partial<Agent>;
-  customerData: Partial<Customer>;
   knowledgeBaseFile: File | null;
   selectedPromptId: string;
   editing?: Agent;
   existingCustomers: Customer[];
   prompts: Prompt[];
   onFormChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
-  onCustomerChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
   onCustomerSelect: (value: string) => void;
   onSwitchChange: (checked: boolean) => void;
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -30,23 +32,25 @@ interface CreateAgentModalContentProps {
   onPrevious: () => void;
   onClose: () => void;
   onSubmit: () => void;
+  isEditing: boolean;
 }
 
 export default function CreateAgentModalContent({
   activeTab,
   setActiveTab,
-  isNewCustomer,
-  setIsNewCustomer,
+  // --- ALTERADO AQUI ---
+  customerLinkOption,
+  onCustomerLinkOptionChange,
+  onAddNewCustomerClick,
+  // --- FIM DA ALTERAÇÃO ---
   selectedCustomerId,
   formData,
-  customerData,
   knowledgeBaseFile,
   selectedPromptId,
   editing,
   existingCustomers,
   prompts,
   onFormChange,
-  onCustomerChange,
   onCustomerSelect,
   onSwitchChange,
   onFileChange,
@@ -56,13 +60,14 @@ export default function CreateAgentModalContent({
   onPrevious,
   onClose,
   onSubmit,
+  isEditing,
 }: CreateAgentModalContentProps) {
   return (
     <ScrollArea className="max-h-[calc(90vh-130px)] px-6 flex-1 min-h-0">
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="agent">Dados do Agente</TabsTrigger>
-          <TabsTrigger value="customer">Dados do Cliente</TabsTrigger>
+          <TabsTrigger value="customer">Vincular Cliente</TabsTrigger>
         </TabsList>
         
         <form className="space-y-4 py-4">
@@ -83,18 +88,18 @@ export default function CreateAgentModalContent({
 
           <TabsContent value="customer">
             <CustomerFormTab
-              isNewCustomer={isNewCustomer}
+              // --- ALTERADO AQUI para passar as props corretas ---
+              customerLinkOption={customerLinkOption}
+              onCustomerLinkOptionChange={onCustomerLinkOptionChange}
+              onAddNewCustomerClick={onAddNewCustomerClick}
+              // --- FIM DA ALTERAÇÃO ---
               selectedCustomerId={selectedCustomerId}
-              customerData={customerData}
               existingCustomers={existingCustomers}
-              editing={!!editing}
-              onNewCustomerChange={setIsNewCustomer}
               onCustomerSelect={onCustomerSelect}
-              onCustomerDataChange={onCustomerChange}
               onPrevious={onPrevious}
               onClose={onClose}
               onSubmit={onSubmit}
-              isEditing={!!editing}
+              isEditing={isEditing}
             />
           </TabsContent>
         </form>

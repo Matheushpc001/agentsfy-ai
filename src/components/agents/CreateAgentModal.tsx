@@ -1,15 +1,16 @@
-// src/components/agents/CreateAgentModal.tsx - VERSÃO REATORADA E UNIFICADA
+// src/components/agents/CreateAgentModal.tsx - VERSÃO FINAL E CORRIGIDA
 
 import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button"; // Importe o Button se necessário
 import { Agent, Customer } from "@/types";
 import { Prompt } from "@/types/prompts";
+import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCreateAgentModal } from "@/hooks/useCreateAgentModal";
 import CreateAgentModalHeader from "./CreateAgentModalHeader";
 import CreateAgentModalContent from "./CreateAgentModalContent";
-// ADICIONADO: Importar o modal de cliente para reutilização
-import CreateCustomerModal from "@/components/customers/CreateCustomerModal"; 
+import CreateCustomerModal from "@/components/customers/CreateCustomerModal";
 
 interface CreateAgentModalProps {
   open: boolean;
@@ -34,81 +35,68 @@ export default function CreateAgentModal({
 }: CreateAgentModalProps) {
   const isMobile = useIsMobile();
   
-  // ADICIONADO: Estado para controlar o modal de criação de cliente
   const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
-  // ADICIONADO: Estado local para a lista de clientes, para que possamos atualizá-la
   const [localCustomers, setLocalCustomers] = useState<Customer[]>(existingCustomers);
 
   useEffect(() => {
-    // Sincroniza a lista local com a propriedade quando ela mudar
     setLocalCustomers(existingCustomers);
-  }, [existingCustomers]);
-  
+  }, [existingCustomers, open]); // Atualiza também quando o modal abre
+
   const {
     activeTab,
     setActiveTab,
     isNewCustomer,
     setIsNewCustomer,
     selectedCustomerId,
-    setSelectedCustomerId, // Precisamos do setter agora
+    setSelectedCustomerId,
     formData,
-    // customerData não é mais necessário aqui, será gerenciado pelo outro modal
     knowledgeBaseFile,
     selectedPromptId,
     handleChange,
-    // handleCustomerChange também não é mais necessário
     handleCustomerSelect,
     handleSwitchChange,
     handleFileChange,
     handlePromptSelect,
     validateAgentForm,
-    validateCustomerForm,
     nextTab,
     prevTab,
   } = useCreateAgentModal({ editing, selectedPrompt, open });
 
-  // ADICIONADO: Callback para quando um novo cliente é criado com sucesso
   const handleCustomerCreationSuccess = (newCustomer: Customer) => {
-    // Adiciona o novo cliente à lista local
     const updatedCustomers = [newCustomer, ...localCustomers];
     setLocalCustomers(updatedCustomers);
-    
-    // Fecha o modal de cliente
     setIsCustomerModalOpen(false);
-    
-    // Mágica: muda para "vincular existente" e já seleciona o cliente recém-criado
     setIsNewCustomer(false);
     setSelectedCustomerId(newCustomer.id);
   };
 
   const handlePromptSelectWithPrompts = (value: string) => {
-    handlePromptSelect(value);
     const selected = prompts.find(p => p.id === value);
     if (selected) {
       handleChange({ target: { name: 'prompt', value: selected.text } } as any);
+      handlePromptSelect(value);
     }
   };
 
   const handleSubmit = () => {
-    if (!validateAgentForm()) return;
-    
-    // A validação do cliente agora é mais simples
-    if (!isNewCustomer && !selectedCustomerId) {
-        toast.error("Por favor, selecione um cliente para vincular o agente.");
-        return;
+    if (!validateAgentForm()) {
+      setActiveTab('agent'); // Volta para a aba com erro
+      return;
     }
     
-    // A opção de criar cliente aqui foi removida, pois é feita no modal separado
     if (isNewCustomer) {
-        toast.error("Por favor, cadastre o novo cliente primeiro usando o formulário dedicado.");
-        return;
+      toast.error("Por favor, cadastre o novo cliente primeiro clicando no botão apropriado.");
+      setActiveTab('customer');
+      return;
+    }
+    
+    if (!selectedCustomerId) {
+      toast.error("Por favor, selecione um cliente para vincular o agente.");
+      setActiveTab('customer');
+      return;
     }
 
-    onSubmit(
-        { ...formData, customerId: selectedCustomerId }, 
-        undefined, 
-        false
-    );
+    onSubmit({ ...formData, customerId: selectedCustomerId }, undefined, false);
   };
 
   return (
@@ -125,15 +113,16 @@ export default function CreateAgentModal({
             setActiveTab={setActiveTab}
             customerLinkOption={isNewCustomer ? 'new' : 'existing'}
             onCustomerLinkOptionChange={(option) => setIsNewCustomer(option === 'new')}
+            onAddNewCustomerClick={() => setIsCustomerModalOpen(true)}
             selectedCustomerId={selectedCustomerId}
             formData={formData}
             knowledgeBaseFile={knowledgeBaseFile}
             selectedPromptId={selectedPromptId}
             editing={editing}
-            existingCustomers={localCustomers} // Usa a lista local
+            existingCustomers={localCustomers}
+            prompts={prompts}
             onFormChange={handleChange}
             onCustomerSelect={handleCustomerSelect}
-            onAddNewCustomerClick={() => setIsCustomerModalOpen(true)} // Abre o modal de cliente
             onSwitchChange={handleSwitchChange}
             onFileChange={handleFileChange}
             onPromptSelect={handlePromptSelectWithPrompts}
@@ -147,7 +136,6 @@ export default function CreateAgentModal({
         </DialogContent>
       </Dialog>
       
-      {/* ADICIONADO: O modal de cliente é renderizado aqui, pronto para ser usado */}
       <CreateCustomerModal
         open={isCustomerModalOpen}
         onClose={() => setIsCustomerModalOpen(false)}

@@ -1,6 +1,6 @@
 =============================================
  DUMP DO PROJETO: React Project
- GERADO EM: Thu, Aug 14, 2025  5:04:54 PM
+ GERADO EM: Fri, Aug 15, 2025 10:02:24 AM
 =============================================\n
 ================================================================================
 ARQUIVO: ./.gitignore
@@ -759,6 +759,7 @@ import Auth from "./pages/Auth";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
+import CustomerPortalLogin from "./pages/CustomerPortalLogin";
 
 // Admin pages
 import Franchisees from "./pages/admin/Franchisees";
@@ -811,6 +812,8 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
       <Route path="/login" element={<Navigate to="/auth" replace />} />
+
+      <Route path="/a/:customerId" element={<CustomerPortalLogin />} />
 
       {/* Protected routes */}
       <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} allowedRoles={["admin", "franchisee", "customer"]} />} />
@@ -2240,15 +2243,18 @@ export default function AgentTestDialog({ agent, isOpen, onClose }: AgentTestDia
 ================================================================================
 ARQUIVO: ./src/components/agents/CreateAgentModal.tsx
 ================================================================================\n
+// src/components/agents/CreateAgentModal.tsx - VERSÃO REATORADA E UNIFICADA
 
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Agent, Customer } from "@/types";
 import { Prompt } from "@/types/prompts";
-import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useCreateAgentModal } from "@/hooks/useCreateAgentModal";
 import CreateAgentModalHeader from "./CreateAgentModalHeader";
 import CreateAgentModalContent from "./CreateAgentModalContent";
+// ADICIONADO: Importar o modal de cliente para reutilização
+import CreateCustomerModal from "@/components/customers/CreateCustomerModal"; 
 
 interface CreateAgentModalProps {
   open: boolean;
@@ -2273,18 +2279,29 @@ export default function CreateAgentModal({
 }: CreateAgentModalProps) {
   const isMobile = useIsMobile();
   
+  // ADICIONADO: Estado para controlar o modal de criação de cliente
+  const [isCustomerModalOpen, setIsCustomerModalOpen] = useState(false);
+  // ADICIONADO: Estado local para a lista de clientes, para que possamos atualizá-la
+  const [localCustomers, setLocalCustomers] = useState<Customer[]>(existingCustomers);
+
+  useEffect(() => {
+    // Sincroniza a lista local com a propriedade quando ela mudar
+    setLocalCustomers(existingCustomers);
+  }, [existingCustomers]);
+  
   const {
     activeTab,
     setActiveTab,
     isNewCustomer,
     setIsNewCustomer,
     selectedCustomerId,
+    setSelectedCustomerId, // Precisamos do setter agora
     formData,
-    customerData,
+    // customerData não é mais necessário aqui, será gerenciado pelo outro modal
     knowledgeBaseFile,
     selectedPromptId,
     handleChange,
-    handleCustomerChange,
+    // handleCustomerChange também não é mais necessário
     handleCustomerSelect,
     handleSwitchChange,
     handleFileChange,
@@ -2295,77 +2312,95 @@ export default function CreateAgentModal({
     prevTab,
   } = useCreateAgentModal({ editing, selectedPrompt, open });
 
-  // Update the prompt selection handler to work with the prompts array
+  // ADICIONADO: Callback para quando um novo cliente é criado com sucesso
+  const handleCustomerCreationSuccess = (newCustomer: Customer) => {
+    // Adiciona o novo cliente à lista local
+    const updatedCustomers = [newCustomer, ...localCustomers];
+    setLocalCustomers(updatedCustomers);
+    
+    // Fecha o modal de cliente
+    setIsCustomerModalOpen(false);
+    
+    // Mágica: muda para "vincular existente" e já seleciona o cliente recém-criado
+    setIsNewCustomer(false);
+    setSelectedCustomerId(newCustomer.id);
+  };
+
   const handlePromptSelectWithPrompts = (value: string) => {
     handlePromptSelect(value);
-    
-    if (value) {
-      const selectedPrompt = prompts.find(p => p.id === value);
-      if (selectedPrompt) {
-        // This will be handled by the hook's effect
-      }
+    const selected = prompts.find(p => p.id === value);
+    if (selected) {
+      handleChange({ target: { name: 'prompt', value: selected.text } } as any);
     }
   };
 
   const handleSubmit = () => {
-    if (!validateAgentForm() || !validateCustomerForm()) {
-      return;
+    if (!validateAgentForm()) return;
+    
+    // A validação do cliente agora é mais simples
+    if (!isNewCustomer && !selectedCustomerId) {
+        toast.error("Por favor, selecione um cliente para vincular o agente.");
+        return;
     }
     
-    // Submit with customer data if it's a new customer
+    // A opção de criar cliente aqui foi removida, pois é feita no modal separado
     if (isNewCustomer) {
-      onSubmit(formData, customerData, true);
-    } else {
-      // If using existing customer, just pass the ID
-      onSubmit(
-        { 
-          ...formData, 
-          customerId: selectedCustomerId 
-        }, 
+        toast.error("Por favor, cadastre o novo cliente primeiro usando o formulário dedicado.");
+        return;
+    }
+
+    onSubmit(
+        { ...formData, customerId: selectedCustomerId }, 
         undefined, 
         false
-      );
-    }
+    );
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className={`
-        ${isMobile ? 'w-[95vw] h-[90vh] max-w-none' : 'w-full max-w-4xl h-[85vh]'} 
-        p-0 flex flex-col max-h-[90vh] overflow-hidden
-      `}>
-        <CreateAgentModalHeader editing={!!editing} />
-        
-        <CreateAgentModalContent
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-          isNewCustomer={isNewCustomer}
-          setIsNewCustomer={setIsNewCustomer}
-          selectedCustomerId={selectedCustomerId}
-          formData={formData}
-          customerData={customerData}
-          knowledgeBaseFile={knowledgeBaseFile}
-          selectedPromptId={selectedPromptId}
-          editing={editing}
-          existingCustomers={existingCustomers}
-          prompts={prompts}
-          onFormChange={handleChange}
-          onCustomerChange={handleCustomerChange}
-          onCustomerSelect={handleCustomerSelect}
-          onSwitchChange={handleSwitchChange}
-          onFileChange={handleFileChange}
-          onPromptSelect={handlePromptSelectWithPrompts}
-          onOpenPromptsLibrary={onOpenPromptsLibrary}
-          onNext={nextTab}
-          onPrevious={prevTab}
-          onClose={onClose}
-          onSubmit={handleSubmit}
-        />
-      </DialogContent>
-    </Dialog>
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
+        <DialogContent className={`
+          ${isMobile ? 'w-[95vw] h-[90vh] max-w-none' : 'w-full max-w-4xl h-[85vh]'} 
+          p-0 flex flex-col max-h-[90vh] overflow-hidden
+        `}>
+          <CreateAgentModalHeader editing={!!editing} />
+          
+          <CreateAgentModalContent
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            customerLinkOption={isNewCustomer ? 'new' : 'existing'}
+            onCustomerLinkOptionChange={(option) => setIsNewCustomer(option === 'new')}
+            selectedCustomerId={selectedCustomerId}
+            formData={formData}
+            knowledgeBaseFile={knowledgeBaseFile}
+            selectedPromptId={selectedPromptId}
+            editing={editing}
+            existingCustomers={localCustomers} // Usa a lista local
+            onFormChange={handleChange}
+            onCustomerSelect={handleCustomerSelect}
+            onAddNewCustomerClick={() => setIsCustomerModalOpen(true)} // Abre o modal de cliente
+            onSwitchChange={handleSwitchChange}
+            onFileChange={handleFileChange}
+            onPromptSelect={handlePromptSelectWithPrompts}
+            onOpenPromptsLibrary={onOpenPromptsLibrary}
+            onNext={nextTab}
+            onPrevious={prevTab}
+            onClose={onClose}
+            onSubmit={handleSubmit}
+            isEditing={!!editing}
+          />
+        </DialogContent>
+      </Dialog>
+      
+      {/* ADICIONADO: O modal de cliente é renderizado aqui, pronto para ser usado */}
+      <CreateCustomerModal
+        open={isCustomerModalOpen}
+        onClose={() => setIsCustomerModalOpen(false)}
+        onSuccess={handleCustomerCreationSuccess}
+      />
+    </>
   );
 }
-
 
 
 ================================================================================
@@ -2501,24 +2536,23 @@ export default function CreateAgentModalHeader({ editing }: CreateAgentModalHead
 ================================================================================
 ARQUIVO: ./src/components/agents/CustomerFormTab.tsx
 ================================================================================\n
+// src/components/agents/CustomerFormTab.tsx - VERSÃO REATORADA E SIMPLIFICADA
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Customer } from "@/types";
+import { PlusCircle } from "lucide-react";
 
 interface CustomerFormTabProps {
-  isNewCustomer: boolean;
+  customerLinkOption: 'new' | 'existing';
   selectedCustomerId: string;
-  customerData: Partial<Customer>;
   existingCustomers: Customer[];
-  editing?: boolean;
-  onNewCustomerChange: (checked: boolean) => void;
+  onCustomerLinkOptionChange: (option: 'new' | 'existing') => void;
   onCustomerSelect: (value: string) => void;
-  onCustomerDataChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => void;
+  onAddNewCustomerClick: () => void; // Novo prop
   onPrevious: () => void;
   onClose: () => void;
   onSubmit: () => void;
@@ -2526,108 +2560,73 @@ interface CustomerFormTabProps {
 }
 
 export default function CustomerFormTab({
-  isNewCustomer,
+  customerLinkOption,
   selectedCustomerId,
-  customerData,
   existingCustomers,
-  editing,
-  onNewCustomerChange,
+  onCustomerLinkOptionChange,
   onCustomerSelect,
-  onCustomerDataChange,
+  onAddNewCustomerClick,
   onPrevious,
   onClose,
   onSubmit,
   isEditing
 }: CustomerFormTabProps) {
   return (
-    <div className="space-y-4">
-      {!editing && (
-        <div className="flex items-center space-x-2 mb-4">
-          <Checkbox 
-            id="isNewCustomer" 
-            checked={!isNewCustomer} 
-            onCheckedChange={(checked) => onNewCustomerChange(!checked)}
-          />
-          <Label htmlFor="isNewCustomer">Vincular a um cliente existente</Label>
-        </div>
+    <div className="space-y-6">
+      {!isEditing && (
+        <RadioGroup
+          defaultValue="new"
+          value={customerLinkOption}
+          onValueChange={onCustomerLinkOptionChange}
+          className="grid grid-cols-2 gap-4"
+        >
+          <div>
+            <RadioGroupItem value="new" id="new" className="peer sr-only" />
+            <Label htmlFor="new" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+              <PlusCircle className="mb-3 h-6 w-6" />
+              Cadastrar Novo Cliente
+            </Label>
+          </div>
+          <div>
+            <RadioGroupItem value="existing" id="existing" className="peer sr-only" />
+            <Label htmlFor="existing" className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" className="mb-3 h-6 w-6"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+              Vincular a Cliente Existente
+            </Label>
+          </div>
+        </RadioGroup>
       )}
 
-      {!isNewCustomer ? (
+      {customerLinkOption === 'existing' || isEditing ? (
         <div className="space-y-2">
-          <Label htmlFor="customerId">Selecione um cliente</Label>
-          <Select value={selectedCustomerId} onValueChange={onCustomerSelect}>
+          <Label htmlFor="customerId">Selecione um cliente *</Label>
+          <Select value={selectedCustomerId} onValueChange={onCustomerSelect} disabled={isEditing}>
             <SelectTrigger>
-              <SelectValue placeholder="Selecione um cliente" />
+              <SelectValue placeholder="Selecione um cliente da sua lista" />
             </SelectTrigger>
             <SelectContent>
-              {existingCustomers.map(customer => (
-                <SelectItem key={customer.id} value={customer.id}>
-                  {customer.businessName}
-                </SelectItem>
-              ))}
+              {existingCustomers.length > 0 ? (
+                existingCustomers.map(customer => (
+                  <SelectItem key={customer.id} value={customer.id}>
+                    {customer.businessName}
+                  </SelectItem>
+                ))
+              ) : (
+                <div className="p-4 text-center text-sm text-muted-foreground">Nenhum cliente cadastrado.</div>
+              )}
             </SelectContent>
           </Select>
         </div>
       ) : (
-        <>
-          <div className="space-y-2">
-            <Label htmlFor="businessName">Nome da Empresa</Label>
-            <Input
-              id="businessName"
-              name="businessName"
-              value={customerData.businessName || ""}
-              onChange={onCustomerDataChange}
-              placeholder="Nome da empresa cliente"
-              required={isNewCustomer}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerName">Nome do Responsável</Label>
-            <Input
-              id="name"
-              name="name"
-              value={customerData.name || ""}
-              onChange={onCustomerDataChange}
-              placeholder="Nome da pessoa responsável"
-              required={isNewCustomer}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="document">CNPJ/CPF</Label>
-            <Input
-              id="document"
-              name="document"
-              value={customerData.document || ""}
-              onChange={onCustomerDataChange}
-              placeholder="Documento do cliente (CNPJ ou CPF)"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerEmail">E-mail</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={customerData.email || ""}
-              onChange={onCustomerDataChange}
-              placeholder="Email para acesso ao painel"
-              required={isNewCustomer}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="contactPhone">WhatsApp para contato</Label>
-            <Input
-              id="contactPhone"
-              name="contactPhone"
-              value={customerData.contactPhone || ""}
-              onChange={onCustomerDataChange}
-              placeholder="Número para contato do responsável"
-            />
-            <p className="text-xs text-muted-foreground">
-              Este é apenas para contato com o responsável, não é o número que será vinculado ao agente.
-            </p>
-          </div>
-        </>
+        <div className="text-center p-4 border-2 border-dashed rounded-lg">
+          <p className="text-muted-foreground mb-4">
+            O formulário de cadastro de cliente será aberto em uma nova janela para garantir a segurança e o envio do convite.
+          </p>
+          <Button type="button" variant="outline" onClick={onAddNewCustomerClick}>
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Abrir Formulário de Cliente
+          </Button>
+        </div>
       )}
 
       <DialogFooter className="flex justify-between pt-4">
@@ -2635,10 +2634,14 @@ export default function CustomerFormTab({
           Voltar
         </Button>
         <div className="flex gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
+          <Button type="button" variant="ghost" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="button" onClick={onSubmit}>
+          <Button 
+            type="button" 
+            onClick={onSubmit} 
+            disabled={!isEditing && customerLinkOption === 'new'} // Desabilita se "novo cliente" for selecionado mas não cadastrado
+          >
             {isEditing ? "Salvar Alterações" : "Criar Agente"}
           </Button>
         </div>
@@ -2646,7 +2649,6 @@ export default function CustomerFormTab({
     </div>
   );
 }
-
 
 
 ================================================================================
@@ -6200,150 +6202,112 @@ export function TopFranchiseesCard({ franchisees, className }: TopFranchiseesCar
 ================================================================================
 ARQUIVO: ./src/components/customers/CreateCustomerModal.tsx
 ================================================================================\n
+// src/components/customers/CreateCustomerModal.tsx
 
-import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { useState } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Customer } from "@/types";
 import { toast } from "sonner";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/context/AuthContext";
 
 interface CreateCustomerModalProps {
   open: boolean;
   onClose: () => void;
-  onSubmit: (customer: Partial<Customer>) => void;
-  editing?: Customer;
+  onSuccess: (newCustomer: Customer) => void; // Callback para notificar sobre o sucesso
 }
 
-export default function CreateCustomerModal({
-  open,
-  onClose,
-  onSubmit,
-  editing
-}: CreateCustomerModalProps) {
-  const [formData, setFormData] = useState<Partial<Customer>>(
-    editing || {
-      businessName: "",
-      name: "",
-      email: "",
-      document: "",
-      contactPhone: "",
-    }
-  );
+export default function CreateCustomerModal({ open, onClose, onSuccess }: CreateCustomerModalProps) {
+  const { user } = useAuth();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    businessName: "",
+    name: "",
+    email: "",
+    document: "",
+    contactPhone: "",
+  });
 
-  // Reset form when modal opens/closes or editing changes
-  useEffect(() => {
-    if (open) {
-      if (editing) {
-        setFormData({ ...editing });
-      } else {
-        setFormData({
-          businessName: "",
-          name: "",
-          email: "",
-          document: "",
-          contactPhone: "",
-        });
-      }
-    }
-  }, [open, editing]);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!formData.businessName || !formData.name || !formData.email) {
-      toast.error("Por favor, preencha todos os campos obrigatórios");
+    if (!user || user.role !== 'franchisee') {
+      toast.error("Ação não permitida.");
       return;
     }
-    
-    onSubmit(formData);
+
+    setIsSubmitting(true);
+    const loadingToast = toast.loading("Criando cliente e enviando convite...");
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-customer', {
+        body: {
+          franchiseeId: user.id,
+          customerData: formData
+        }
+      });
+
+      if (error) throw error;
+      
+      toast.dismiss(loadingToast);
+      toast.success("Cliente criado com sucesso! Um email de convite foi enviado para ele definir a senha.");
+      
+      onSuccess(data.customer); // Notifica o componente pai
+      onClose(); // Fecha o modal
+      setFormData({ businessName: "", name: "", email: "", document: "", contactPhone: "" }); // Reseta o form
+
+    } catch (error: any) {
+      toast.dismiss(loadingToast);
+      console.error("Erro ao criar cliente:", error);
+      toast.error(error.message || "Falha ao criar o cliente.");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg max-w-[90vw]">
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{editing ? "Editar Cliente" : "Novo Cliente"}</DialogTitle>
+          <DialogTitle>Novo Cliente</DialogTitle>
+          <DialogDescription>
+            Insira os dados do cliente. Ele receberá um email para definir a senha de acesso ao portal.
+          </DialogDescription>
         </DialogHeader>
-        
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
+          {/* ... campos do formulário ... */}
+          {/* O resto do formulário (Inputs para businessName, name, email, etc.) permanece igual */}
           <div className="space-y-2">
-            <Label htmlFor="businessName">Nome da Empresa</Label>
-            <Input
-              id="businessName"
-              name="businessName"
-              value={formData.businessName}
-              onChange={handleChange}
-              placeholder="Nome da empresa cliente"
-              required
-            />
+              <Label htmlFor="businessName">Nome da Empresa *</Label>
+              <Input id="businessName" name="businessName" value={formData.businessName} onChange={handleChange} required />
+          </div>
+          <div className="space-y-2">
+              <Label htmlFor="name">Nome do Responsável *</Label>
+              <Input id="name" name="name" value={formData.name} onChange={handleChange} required />
+          </div>
+          <div className="space-y-2">
+              <Label htmlFor="email">Email de Acesso *</Label>
+              <Input id="email" name="email" type="email" value={formData.email} onChange={handleChange} required />
+          </div>
+          <div className="space-y-2">
+              <Label htmlFor="document">CNPJ/CPF</Label>
+              <Input id="document" name="document" value={formData.document} onChange={handleChange} />
+          </div>
+          <div className="space-y-2">
+              <Label htmlFor="contactPhone">WhatsApp para Contato</Label>
+              <Input id="contactPhone" name="contactPhone" value={formData.contactPhone} onChange={handleChange} />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="name">Nome do Responsável</Label>
-            <Input
-              id="name"
-              name="name"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Nome da pessoa responsável"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="document">CNPJ/CPF</Label>
-            <Input
-              id="document"
-              name="document"
-              value={formData.document}
-              onChange={handleChange}
-              placeholder="Documento do cliente (CNPJ ou CPF)"
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="email">E-mail</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="Email para acesso ao painel"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="contactPhone">WhatsApp para contato</Label>
-            <Input
-              id="contactPhone"
-              name="contactPhone"
-              value={formData.contactPhone}
-              onChange={handleChange}
-              placeholder="Número para contato do responsável"
-            />
-            <p className="text-xs text-muted-foreground">
-              Este é apenas para contato com o responsável, não é o número que será vinculado ao agente.
-            </p>
-          </div>
-
-          <DialogFooter className="pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancelar
-            </Button>
-            <Button type="submit">
-              {editing ? "Salvar Alterações" : "Criar Cliente"}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSubmitting}>Cancelar</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Salvando..." : "Salvar e Enviar Convite"}
             </Button>
           </DialogFooter>
         </form>
@@ -6351,7 +6315,6 @@ export default function CreateCustomerModal({
     </Dialog>
   );
 }
-
 
 
 ================================================================================
@@ -26631,6 +26594,83 @@ export default function CustomerSchedule() {
 
 
 ================================================================================
+ARQUIVO: ./src/pages/CustomerPortalLogin.tsx
+================================================================================\n
+// src/pages/CustomerPortalLogin.tsx
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import Auth from './Auth'; // Reutilizaremos o componente de autenticação existente
+import { Bot } from 'lucide-react';
+import { Customer } from '@/types';
+
+export default function CustomerPortalLogin() {
+  const { customerId } = useParams<{ customerId: string }>();
+  const [customer, setCustomer] = useState<Customer | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCustomerData = async () => {
+      if (!customerId) {
+        setError("ID do cliente não encontrado na URL.");
+        setLoading(false);
+        return;
+      }
+
+      try {
+
+        const { data, error } = await supabase
+          .from('customers')
+          .select('business_name, email')
+          .eq('id', customerId)
+          .single();
+
+        if (error) {
+          throw new Error("Cliente não encontrado ou acesso negado.");
+        }
+
+        if (data) {
+          setCustomer(data as Customer);
+        }
+      } catch (err: any) {
+        console.error("Erro ao buscar dados do cliente:", err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCustomerData();
+  }, [customerId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 text-center">
+        <div>
+          <h2 className="text-xl font-bold text-destructive">Acesso Inválido</h2>
+          <p className="text-muted-foreground mt-2">{error}</p>
+          <a href="/" className="text-primary hover:underline mt-4 inline-block">Voltar para o início</a>
+        </div>
+      </div>
+    );
+  }
+  
+
+  return <Auth />;
+}
+
+
+================================================================================
 ARQUIVO: ./src/pages/Dashboard.tsx
 ================================================================================\n
 
@@ -26784,6 +26824,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import CreateCustomerModal from "@/components/customers/CreateCustomerModal";
 
 // Função para buscar customers reais
 async function fetchRealCustomers(franchiseeId: string): Promise<Customer[]> {
@@ -26877,6 +26918,11 @@ export default function Customers() {
     customer.email.toLowerCase().includes(searchTerm)
   );
 
+  const handleCreationSuccess = (newCustomer: Customer) => {
+    setCustomers(prev => [newCustomer, ...prev]);
+    loadCustomers(); 
+  };
+
   const handleViewCustomer = (customer: Customer) => {
     setCurrentCustomer(customer);
     setIsShareModalOpen(true);
@@ -26887,46 +26933,46 @@ export default function Customers() {
     toast.info(`Gerenciando ${customer.businessName}`);
   };
 
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
+  // const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  //   const { name, value } = e.target;
+  //   setFormData(prev => ({
+  //     ...prev,
+  //     [name]: value
+  //   }));
+  // };
 
-  const handleAddSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // const handleAddSubmit = async (e: React.FormEvent) => {
+  //   e.preventDefault();
     
-    if (!user) return;
+  //   if (!user) return;
 
-    try {
-      const { data: newCustomer, error } = await supabase
-        .from('customers')
-        .insert({
-          name: formData.name,
-          email: formData.email,
-          business_name: formData.businessName,
-          franchisee_id: user.id,
-          role: 'customer',
-          agent_count: 0
-        })
-        .select()
-        .single();
+  //   try {
+  //     const { data: newCustomer, error } = await supabase
+  //       .from('customers')
+  //       .insert({
+  //         name: formData.name,
+  //         email: formData.email,
+  //         business_name: formData.businessName,
+  //         franchisee_id: user.id,
+  //         role: 'customer',
+  //         agent_count: 0
+  //       })
+  //       .select()
+  //       .single();
 
-      if (error) throw error;
+  //     if (error) throw error;
 
-      // Recarregar lista de customers
-      await loadCustomers();
+  //     // Recarregar lista de customers
+  //     await loadCustomers();
       
-      setFormData({ name: "", email: "", businessName: "" });
-      setIsAddModalOpen(false);
-      toast.success(`Cliente ${formData.businessName} adicionado com sucesso!`);
-    } catch (error) {
-      console.error('Erro ao adicionar customer:', error);
-      toast.error('Erro ao adicionar cliente');
-    }
-  };
+  //     setFormData({ name: "", email: "", businessName: "" });
+  //     setIsAddModalOpen(false);
+  //     toast.success(`Cliente ${formData.businessName} adicionado com sucesso!`);
+  //   } catch (error) {
+  //     console.error('Erro ao adicionar customer:', error);
+  //     toast.error('Erro ao adicionar cliente');
+  //   }
+  // };
 
   const handleCopyLink = () => {
     if (!currentCustomer) return;
@@ -26946,6 +26992,7 @@ export default function Customers() {
   return (
     <DashboardLayout title="Clientes">
       <div className="space-y-6">
+        {/* ... (resto do seu JSX da página principal permanece igual) ... */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center">
             <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border flex items-center gap-2">
@@ -27010,58 +27057,14 @@ export default function Customers() {
         )}
       </div>
 
-      {/* Add Customer Modal */}
-      <Dialog open={isAddModalOpen} onOpenChange={setIsAddModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Adicionar Novo Cliente</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleAddSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="businessName">Nome da Empresa</Label>
-              <Input
-                id="businessName"
-                name="businessName"
-                placeholder="Empresa ABC"
-                value={formData.businessName}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome do Contato</Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="Nome do responsável"
-                value={formData.name}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="contato@empresa.com"
-                value={formData.email}
-                onChange={handleFormChange}
-                required
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setIsAddModalOpen(false)}>
-                Cancelar
-              </Button>
-              <Button type="submit">Adicionar Cliente</Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* ALTERADO: Usando o novo modal centralizado */}
+      <CreateCustomerModal
+        open={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSuccess={handleCreationSuccess}
+      />
 
-      {/* Share Customer Modal */}
+      {/* Share Customer Modal (permanece igual) */}
       <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -30036,6 +30039,89 @@ project_id = "kzxiqdakyfxtyyuybwtl"
 [functions.evolution-webhook]
 verify_jwt = false
 
+
+
+================================================================================
+ARQUIVO: ./supabase/functions/create-customer/index.ts
+================================================================================\n
+// supabase/functions/create-customer/index.ts
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const { franchiseeId, customerData } = await req.json();
+    const { businessName, name, email, document, contactPhone } = customerData;
+
+    if (!franchiseeId || !email || !businessName || !name) {
+      throw new Error("Dados insuficientes para criar cliente.");
+    }
+
+    // 1. Criar o usuário no Supabase Auth via convite
+    // O cliente receberá um email para definir sua senha
+    const { data: { user }, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email);
+
+    if (inviteError) {
+      // Trata o erro se o usuário já existir
+      if (inviteError.message.includes("already registered")) {
+        throw new Error("Este email de cliente já está cadastrado.");
+      }
+      throw inviteError;
+    }
+
+    if (!user) {
+      throw new Error("Não foi possível criar o usuário no sistema de autenticação.");
+    }
+
+    // 2. Inserir os dados na tabela 'customers'
+    const { data: newCustomer, error: customerError } = await supabaseAdmin
+      .from('customers')
+      .insert({
+        id: user.id, // O ID do cliente SERÁ o mesmo ID do usuário autenticado
+        franchisee_id: franchiseeId,
+        business_name: businessName,
+        name: name,
+        email: email,
+        document: document,
+        contact_phone: contactPhone,
+        role: 'customer'
+      })
+      .select()
+      .single();
+
+    if (customerError) {
+      // Rollback: se falhar ao criar o perfil, deleta o usuário do Auth
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
+      throw customerError;
+    }
+
+    return new Response(JSON.stringify({ customer: newCustomer }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
+
+  } catch (error) {
+    return new Response(JSON.stringify({ error: error.message }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 400,
+    });
+  }
+});
 
 
 ================================================================================

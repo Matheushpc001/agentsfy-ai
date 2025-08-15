@@ -99,10 +99,12 @@ export default function Customers() {
     setSearchTerm(e.target.value.toLowerCase());
   };
 
-  const filteredCustomers = customers.filter(customer => 
-    customer.name.toLowerCase().includes(searchTerm) ||
-    customer.businessName.toLowerCase().includes(searchTerm) ||
-    customer.email.toLowerCase().includes(searchTerm)
+  const filteredCustomers = (customers || []).filter(customer =>
+    customer && (
+      customer.name?.toLowerCase().includes(searchTerm) ||
+      customer.businessName?.toLowerCase().includes(searchTerm) ||
+      customer.email?.toLowerCase().includes(searchTerm)
+    )
   );
 
   const handleCreationSuccess = (newCustomer: Customer) => {
