@@ -30,12 +30,19 @@ export default function CreateCustomerModalForm({ formData, onFormDataChange }: 
 
   const formatPhone = (value: string) => {
     const numbers = value.replace(/\D/g, '');
-    if (numbers.length <= 10) {
-      // (00) 0000-0000
-      return numbers.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3');
+    
+    // Se não começar com 55, adiciona o código do país
+    let formattedNumbers = numbers;
+    if (!numbers.startsWith('55') && numbers.length > 0) {
+      formattedNumbers = '55' + numbers;
+    }
+    
+    if (formattedNumbers.length <= 12) {
+      // +55 (00) 0000-0000
+      return formattedNumbers.replace(/(\d{2})(\d{2})(\d{4})(\d{4})/, '+$1 ($2) $3-$4');
     } else {
-      // (00) 00000-0000
-      return numbers.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+      // +55 (00) 00000-0000
+      return formattedNumbers.replace(/(\d{2})(\d{2})(\d{5})(\d{4})/, '+$1 ($2) $3-$4');
     }
   };
 
@@ -143,7 +150,7 @@ export default function CreateCustomerModalForm({ formData, onFormDataChange }: 
           value={formData.contactPhone}
           onChange={(e) => handleInputChange('contactPhone', e.target.value)}
           maxLength={15}
-          placeholder="Ex: (11) 99999-9999"
+          placeholder="Ex: +55 (12) 99788-6488"
         />
       </div>
     </div>
