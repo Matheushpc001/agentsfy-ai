@@ -33,6 +33,8 @@ import CustomerDashboard from "./pages/customer/Dashboard";
 import AIAgentConfig from "./pages/customer/AIAgentConfig";
 import CustomerSchedule from "./pages/customer/Schedule";
 
+import UpdatePassword from "./pages/UpdatePassword";
+
 // Protected route component
 interface ProtectedRouteProps {
   element: React.ReactElement;
@@ -64,6 +66,9 @@ const AppRoutes = () => {
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
       <Route path="/login" element={<Navigate to="/auth" replace />} />
+
+      <Route path="/update-password" element={<UpdatePassword />} /> 
+
 
       <Route path="/a/:customerId" element={<CustomerPortalLogin />} />
 

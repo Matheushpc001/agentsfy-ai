@@ -33,7 +33,7 @@ serve(async (req) => {
     // 1. Criar o usuário no Supabase Auth via convite
     // O cliente receberá um email para definir sua senha
     const { data: { user }, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
-      redirectTo: 'https://agentsfy-ai.lovable.app/auth'
+      redirectTo: 'https://agentsfy-ai.lovable.app/update-password'
     });
 
     if (inviteError) {
