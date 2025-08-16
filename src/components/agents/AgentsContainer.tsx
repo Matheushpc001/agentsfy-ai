@@ -8,6 +8,7 @@ import useAgentManagement from "@/hooks/useAgentManagement";
 import usePromptManagement from "@/hooks/usePromptManagement";
 import EvolutionIntegration from "@/components/evolution/EvolutionIntegration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import AgentTestDialog from "./AgentTestDialog"; // Importar o Dialog de Teste
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
