@@ -95,6 +95,8 @@ export default function useAgentManagement(
     handleConnectWhatsApp,
     handleClosePortalModal,
     handleSendCredentialsEmail,
+    handleDeleteAgent,
+    handleRestartAgent
   } = useAgentSubmission({
     agents,
     customers,
@@ -142,11 +144,12 @@ export default function useAgentManagement(
     handleConnectAgent,
     handleTestAgent,
     handleCreateAgentClick: handleCreateAgentClickWithLimit,
-    handleSubmitAgent,
+        handleSubmitAgent,
     handleConnectWhatsApp,
     handleClosePortalModal,
     handleSendCredentialsEmail,
     handleDeleteAgent,
     handleRestartAgent
   };
+}
 }
