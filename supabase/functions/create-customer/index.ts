@@ -1,4 +1,4 @@
-// supabase/functions/create-customer/index.ts v3 (com logs detalhados)
+// supabase/functions/create-customer/index.ts (v4 - Refatorado com invite e verificação)
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -14,7 +14,7 @@ serve(async (req) => {
   }
 
   try {
-    console.log('=== INICIANDO PROCESSO DE CRIAÇÃO DE CLIENTE ===');
+    console.log('[CREATE-CUSTOMER] Início do processo.');
     
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
@@ -22,60 +22,66 @@ serve(async (req) => {
     );
 
     const { franchiseeId, customerData } = await req.json();
-    console.log('Dados recebidos - franchiseeId:', franchiseeId);
-    console.log('Dados recebidos - customerData:', JSON.stringify(customerData, null, 2));
-
+    console.log(`[CREATE-CUSTOMER] Dados recebidos para o franqueado ID: ${franchiseeId}`);
+    
     const { businessName, name, email, document, contactPhone } = customerData;
 
     if (!franchiseeId || !email || !businessName || !name) {
-      const errorMsg = 'Dados insuficientes para criar cliente.';
-      console.error(errorMsg, { franchiseeId, email, businessName, name });
-      throw new Error(errorMsg);
+      console.error('[CREATE-CUSTOMER] Erro: Dados insuficientes.', { franchiseeId, email, businessName, name });
+      return new Response(JSON.stringify({ error: 'Dados insuficientes para criar cliente.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+    console.log(`[CREATE-CUSTOMER] Validação inicial de dados concluída para o email: ${email}`);
+
+    // 1. Verificar se o cliente já existe na tabela 'customers'
+    console.log(`[CREATE-CUSTOMER] Etapa 1: Verificando se o cliente com email ${email} já existe.`);
+    const { data: existingCustomer, error: existingCustomerError } = await supabaseAdmin
+      .from('customers')
+      .select('id')
+      .eq('email', email)
+      .single();
+
+    if (existingCustomerError && existingCustomerError.code !== 'PGRST116') { // PGRST116: 'exact-one-row-not-found'
+      console.error('[CREATE-CUSTOMER] Erro ao verificar cliente existente:', existingCustomerError);
+      throw new Error('Erro ao verificar cliente existente.');
     }
 
-    // 1. Criar o usuário no Supabase Auth com uma senha temporária
-    console.log('Etapa 1: Criando usuário no Auth com senha temporária');
-    const tempPassword = generateTemporaryPassword();
-    console.log('Senha temporária gerada para', email);
-    
-    const { data: { user }, error: signUpError } = await supabaseAdmin.auth.signUp({
-      email,
-      password: tempPassword,
-      options: {
-        emailRedirectTo: 'https://agentsfy-ai.lovable.app/update-password'
-      }
+    if (existingCustomer) {
+      console.warn(`[CREATE-CUSTOMER] Conflito: Cliente com email ${email} já cadastrado.`);
+      return new Response(JSON.stringify({ error: 'Cliente com este e-mail já está cadastrado.' }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 409, // Conflict
+      });
+    }
+    console.log(`[CREATE-CUSTOMER] Verificação concluída. O email ${email} está disponível.`);
+
+    // 2. Convidar o usuário via Supabase Auth
+    console.log(`[CREATE-CUSTOMER] Etapa 2: Convidando usuário com email ${email} via Supabase Auth.`);
+    const { data: { user }, error: inviteError } = await supabaseAdmin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: 'https://agentsfy-ai.lovable.app/update-password',
     });
 
-    if (signUpError) {
-      console.error('Erro ao criar usuário no Auth:', signUpError.message);
-      // Trata o erro se o usuário já existir
-      if (signUpError.message.includes("already registered")) {
-        throw new Error("Este email de cliente já está cadastrado.");
+    if (inviteError) {
+      console.error(`[CREATE-CUSTOMER] Erro ao convidar usuário no Auth para ${email}:`, inviteError.message);
+      if (inviteError.message.includes("User already registered")) {
+        return new Response(JSON.stringify({ error: 'Este e-mail já está registrado no sistema de autenticação.' }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 409,
+        });
       }
-      throw signUpError;
+      throw inviteError;
     }
 
     if (!user) {
-      const errorMsg = "Não foi possível criar o usuário no sistema de autenticação.";
-      console.error(errorMsg);
-      throw new Error(errorMsg);
+      console.error(`[CREATE-CUSTOMER] Falha crítica: Não foi possível criar o usuário ${email} no Auth.`);
+      throw new Error("Não foi possível criar o usuário no sistema de autenticação.");
     }
-    
-    console.log('Usuário criado com sucesso no Auth:', user.id, user.email);
-
-    // 2. Enviar email de redefinição de senha imediatamente
-    console.log('Etapa 2: Enviando email de redefinição de senha');
-    const { error: resetError } = await supabaseAdmin.auth.admin.resetPasswordForUser(email);
-    if (resetError) {
-      console.error('Erro ao enviar email de redefinição:', resetError.message);
-      // Rollback: se falhar ao enviar o email de redefinição, deleta o usuário do Auth
-      await supabaseAdmin.auth.admin.deleteUser(user.id);
-      throw resetError;
-    }
-    console.log('Email de redefinição enviado com sucesso para', email);
+    console.log(`[CREATE-CUSTOMER] Usuário convidado com sucesso no Auth. User ID: ${user.id}`);
 
     // 3. Inserir os dados na tabela 'customers'
-    console.log('Etapa 3: Inserindo dados na tabela customers');
+    console.log(`[CREATE-CUSTOMER] Etapa 3: Inserindo dados na tabela 'customers' para o User ID: ${user.id}`);
     const customerRecord = {
       id: user.id,
       franchisee_id: franchiseeId,
@@ -87,8 +93,6 @@ serve(async (req) => {
       role: 'customer'
     };
     
-    console.log('Dados a serem inseridos:', JSON.stringify(customerRecord, null, 2));
-    
     const { data: newCustomer, error: customerError } = await supabaseAdmin
       .from('customers')
       .insert(customerRecord)
@@ -96,47 +100,32 @@ serve(async (req) => {
       .single();
 
     if (customerError) {
-      console.error('Erro ao inserir cliente na tabela customers:', customerError.message);
-      console.error('Dados que causaram o erro:', JSON.stringify(customerRecord, null, 2));
-      // Rollback: se falhar ao criar o perfil, deleta o usuário do Auth
+      console.error(`[CREATE-CUSTOMER] Erro ao inserir cliente na tabela 'customers' para User ID ${user.id}:`, customerError.message);
+      console.error('[CREATE-CUSTOMER] Dados que causaram o erro:', JSON.stringify(customerRecord, null, 2));
+      // Rollback: se falhar ao criar o perfil, deleta o usuário do Auth para evitar inconsistência.
       await supabaseAdmin.auth.admin.deleteUser(user.id);
+      console.log(`[CREATE-CUSTOMER] Rollback executado: Usuário ${user.id} deletado do Auth.`);
       throw customerError;
     }
     
-    console.log('Cliente inserido com sucesso na tabela customers:', newCustomer.id, newCustomer.email);
-
-    console.log('=== PROCESSO DE CRIAÇÃO DE CLIENTE CONCLUÍDO COM SUCESSO ===');
+    console.log(`[CREATE-CUSTOMER] Cliente inserido com sucesso na tabela 'customers'. Customer ID: ${newCustomer.id}`);
+    console.log('[CREATE-CUSTOMER] Processo concluído com sucesso.');
     
     return new Response(JSON.stringify({ 
       customer: newCustomer,
-      message: "Cliente criado com sucesso! Um email foi enviado para o cliente definir sua senha."
+      message: "Convite enviado com sucesso! O cliente receberá um e-mail para definir sua senha e acessar a plataforma."
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 200,
     });
 
   } catch (error) {
-    console.error('=== ERRO NO PROCESSO DE CRIAÇÃO DE CLIENTE ===');
-    console.error('Erro detalhado:', error.message);
-    console.error('Stack trace:', error.stack);
-    
+    console.error('[CREATE-CUSTOMER] Erro fatal no processo:', error.message);
     return new Response(JSON.stringify({ 
       error: error.message,
-      stack: error.stack
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
+      status: 500,
     });
   }
 });
-
-// Função para gerar uma senha temporária
-function generateTemporaryPassword(length: number = 12): string {
-  const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()";
-  let password = "";
-  for (let i = 0; i < length; i++) {
-    const randomIndex = Math.floor(Math.random() * charset.length);
-    password += charset[randomIndex];
-  }
-  return password;
-}

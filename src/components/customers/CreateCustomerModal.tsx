@@ -84,10 +84,19 @@ export default function CreateCustomerModal({ open, onClose, onSuccess }: Create
         }
       });
 
-      if (error) throw error;
+      // A função invoke do Supabase não lança um erro por status HTTP, precisamos verificar o 'error' no corpo da resposta.
+      if (error) {
+        // Extrai a mensagem de erro do corpo da resposta, se disponível
+        const responseBody = await error.context.json();
+        if (error.context.status === 409) {
+          throw new Error(responseBody.error || 'Este e-mail já está cadastrado.');
+        } else {
+          throw new Error(responseBody.error || 'Ocorreu um erro inesperado.');
+        }
+      }
       
       toast.dismiss(loadingToast);
-      toast.success(data.message || "Cliente criado com sucesso! Um email foi enviado para o cliente definir sua senha.");
+      toast.success(data.message || "Convite enviado com sucesso!");
       
       onSuccess(data.customer);
       onClose();
