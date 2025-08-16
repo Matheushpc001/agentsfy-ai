@@ -26,6 +26,8 @@ export default function AgentsContainer({
   const planName = "Profissional";
   const billingCycle = "monthly" as const;
 
+  const [testingAgent, setTestingAgent] = useState<Agent | null>(null);
+
   const {
     agents,
     customers,
@@ -105,7 +107,7 @@ export default function AgentsContainer({
   } = usePromptManagement();
 
   const handleTestAgent = (agent: Agent) => {
-    console.log("Testing agent:", agent.name);
+    setTestingAgent(agent);
   };
 
   const handleCreateAgentWithLimit = () => {
@@ -207,6 +209,14 @@ export default function AgentsContainer({
         onCreatePrompt={handleCreatePrompt}
         selectedPromptForAgent={selectedPromptForAgent}
       />
+
+      {testingAgent && (
+        <AgentTestDialog 
+          agent={testingAgent}
+          isOpen={!!testingAgent}
+          onClose={() => setTestingAgent(null)}
+        />
+      )}
     </div>
   );
 }

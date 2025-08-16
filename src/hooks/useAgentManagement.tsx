@@ -145,6 +145,8 @@ export default function useAgentManagement(
     handleSubmitAgent,
     handleConnectWhatsApp,
     handleClosePortalModal,
-    handleSendCredentialsEmail
+    handleSendCredentialsEmail,
+    handleDeleteAgent,
+    handleRestartAgent
   };
 }

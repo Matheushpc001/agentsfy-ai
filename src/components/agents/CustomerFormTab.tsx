@@ -70,7 +70,7 @@ export default function CustomerFormTab({
               {existingCustomers.length > 0 ? (
                 existingCustomers.map(customer => (
                   <SelectItem key={customer.id} value={customer.id}>
-                    {customer.businessName}
+                    {customer.business_name}
                   </SelectItem>
                 ))
               ) : (
