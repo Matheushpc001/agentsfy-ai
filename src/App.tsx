@@ -62,11 +62,21 @@ const AppRoutes = () => {
   // Show nothing while loading
   if (loading) return null;
 
+  // Se o usuário estiver na rota de atualização de senha, não faça nada.
+  if (window.location.pathname === '/update-password') {
+    return (
+        <Routes>
+            <Route path="/update-password" element={<UpdatePassword />} />
+        </Routes>
+    );
+  }
+
   return (
     <Routes>
       <Route path="/auth" element={user ? <Navigate to="/dashboard" replace /> : <Auth />} />
       <Route path="/login" element={<Navigate to="/auth" replace />} />
 
+      {/* A rota é movida para a lógica condicional acima para evitar redirecionamentos */}
       <Route path="/update-password" element={<UpdatePassword />} /> 
 
 

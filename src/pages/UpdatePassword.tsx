@@ -20,44 +20,29 @@ export default function UpdatePassword() {
   const { user } = useAuth();
 
   useEffect(() => {
-    // Se o usuário já estiver logado, redirecione para o dashboard
-    if (user) {
-      navigate('/dashboard');
+    // O cliente Supabase detecta o token na URL e dispara o evento
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      // Este evento é disparado quando o usuário clica no link de convite ou redefinição
+      if (event === 'PASSWORD_RECOVERY' && session) {
+        setIsAuthenticated(true);
+        toast.info("Autenticação validada! Por favor, defina sua nova senha.");
+      }
+    });
+
+    // Verifica se o evento já ocorreu e o usuário está pronto para definir a senha
+    // Isso lida com casos de recarregamento da página
+    if (supabase.auth.getSession()) {
+        supabase.auth.getUser().then(({data}) => {
+            if(data.user) {
+                setIsAuthenticated(true);
+            }
+        })
     }
 
-    // Verificar se temos os parâmetros de redefinição de senha na URL
-    const token = searchParams.get('token');
-    const type = searchParams.get('type');
-    
-    if (token && type === 'recovery') {
-      // Verificar o token de redefinição de senha
-      supabase.auth.verifyOtp({
-        type: 'recovery',
-        token_hash: token,
-      }).then(({ data, error }) => {
-        if (error) {
-          console.error("Erro ao verificar token de redefinição:", error);
-          toast.error("Link de redefinição inválido ou expirado.");
-        } else {
-          setIsAuthenticated(true);
-          toast.info("Autenticado com sucesso! Por favor, defina sua nova senha.");
-        }
-      });
-    } else {
-      // O cliente Supabase detecta o token na URL e dispara o evento
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-        // Este evento é disparado quando o usuário clica no link de convite
-        if (event === 'PASSWORD_RECOVERY' && session) {
-          setIsAuthenticated(true);
-          toast.info("Autenticado com sucesso! Por favor, defina sua nova senha.");
-        }
-      });
-
-      return () => {
-        subscription.unsubscribe();
-      };
-    }
-  }, [user, navigate, searchParams]);
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
