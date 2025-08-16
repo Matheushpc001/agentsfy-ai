@@ -8,6 +8,8 @@ import useAgentManagement from "@/hooks/useAgentManagement";
 import usePromptManagement from "@/hooks/usePromptManagement";
 import EvolutionIntegration from "@/components/evolution/EvolutionIntegration";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AgentsContainerProps {
   initialAgents: Agent[];
@@ -50,8 +52,39 @@ export default function AgentsContainer({
     handleSubmitAgent,
     handleConnectWhatsApp,
     handleClosePortalModal,
-    handleSendCredentialsEmail
+    handleSendCredentialsEmail,
+    handleDeleteAgent, // Importado
+    handleRestartAgent, // Importado
   } = useAgentManagement(initialAgents, initialCustomers, franchiseeId);
+
+  const [instanceStatuses, setInstanceStatuses] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const fetchStatuses = async () => {
+      const statuses: Record<string, string> = {};
+      for (const agent of agents) {
+        if (agent.evolution_api_config_id) {
+          try {
+            const { data, error } = await supabase.functions.invoke('evolution-api-manager', {
+              body: { action: 'check_status', config_id: agent.evolution_api_config_id },
+            });
+            if (error) throw error;
+            statuses[agent.id] = data.status;
+          } catch (e) {
+            statuses[agent.id] = 'error';
+            console.error(`Failed to fetch status for agent ${agent.name}:`, e);
+          }
+        }
+      }
+      setInstanceStatuses(statuses);
+    };
+
+    if (agents.length > 0) {
+      fetchStatuses();
+      const interval = setInterval(fetchStatuses, 30000); // Atualiza a cada 30 segundos
+      return () => clearInterval(interval);
+    }
+  }, [agents]);
 
   const {
     prompts,
@@ -71,10 +104,8 @@ export default function AgentsContainer({
     handleCreatePrompt,
   } = usePromptManagement();
 
-  // Handler for testing agents
   const handleTestAgent = (agent: Agent) => {
     console.log("Testing agent:", agent.name);
-    // This would open a test dialog or similar functionality
   };
 
   const handleCreateAgentWithLimit = () => {
@@ -114,10 +145,14 @@ export default function AgentsContainer({
             <div className="lg:col-span-3">
               <AgentsList
                 agents={agents}
+                customers={customers}
+                instanceStatuses={instanceStatuses}
                 onViewAgent={handleViewAgent}
                 onEditAgent={handleEditAgent}
                 onConnectAgent={handleConnectAgent}
                 onTest={handleTestAgent}
+                onDeleteAgent={handleDeleteAgent} // Passando a função
+                onRestartAgent={handleRestartAgent} // Passando a função
               />
             </div>
             

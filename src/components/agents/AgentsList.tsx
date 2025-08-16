@@ -3,34 +3,37 @@ import { useState } from "react";
 import { Bot, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import AgentCard from "@/components/agents/AgentCard";
-import { Agent } from "@/types";
+import { Agent, Customer } from "@/types";
 import AgentTestDialog from "@/components/agents/AgentTestDialog";
-import { Dialog } from "@/components/ui/dialog";
 
 interface AgentsListProps {
   agents: Agent[];
+  customers: Customer[];
+  instanceStatuses: Record<string, string>;
   onViewAgent: (agent: Agent) => void;
   onEditAgent: (agent: Agent) => void;
   onConnectAgent: (agent: Agent) => void;
   onTest: (agent: Agent) => void;
+  onDeleteAgent: (agent: Agent) => void;
+  onRestartAgent: (agent: Agent) => void;
 }
 
 export default function AgentsList({ 
   agents, 
+  customers,
+  instanceStatuses,
   onViewAgent, 
   onEditAgent, 
   onConnectAgent,
-  onTest 
+  onTest,
+  onDeleteAgent,
+  onRestartAgent
 }: AgentsListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [testingAgent, setTestingAgent] = useState<Agent | null>(null);
   
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchTerm(e.target.value.toLowerCase());
-  };
-
-  const handleTestAgent = (agent: Agent) => {
-    setTestingAgent(agent);
   };
 
   const filteredAgents = agents.filter(agent => 
@@ -53,16 +56,23 @@ export default function AgentsList({
 
       {filteredAgents.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredAgents.map(agent => (
-            <AgentCard 
-              key={agent.id} 
-              agent={agent} 
-              onView={onViewAgent}
-              onEdit={onEditAgent}
-              onConnect={onConnectAgent}
-              onTest={onTest}
-            />
-          ))}
+          {filteredAgents.map(agent => {
+            const customerName = customers.find(c => c.id === agent.customerId)?.business_name;
+            return (
+              <AgentCard 
+                key={agent.id} 
+                agent={agent} 
+                customerName={customerName}
+                instanceStatus={instanceStatuses[agent.id]}
+                onView={onViewAgent}
+                onEdit={onEditAgent}
+                onConnect={onConnectAgent}
+                onTest={onTest}
+                onDelete={onDeleteAgent}
+                onRestart={onRestartAgent}
+              />
+            );
+          })}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center h-64">
@@ -79,7 +89,6 @@ export default function AgentsList({
         </div>
       )}
       
-      {/* Dialog for testing agent */}
       {testingAgent && (
         <AgentTestDialog 
           agent={testingAgent}

@@ -252,10 +252,59 @@ export function useAgentSubmission({
     }, 1500);
   };
 
+  const handleDeleteAgent = async (agentToDelete: Agent) => {
+    const loadingToast = toast.loading(`Excluindo agente ${agentToDelete.name}...`);
+    try {
+      const { error } = await supabase.functions.invoke('delete-agent', {
+        body: { 
+          agent_id: agentToDelete.id,
+          evolution_config_id: agentToDelete.evolution_api_config_id 
+        },
+      });
+
+      if (error) throw new Error(await error.context.json().then(d => d.error));
+
+      setAgents(agents.filter(agent => agent.id !== agentToDelete.id));
+      toast.success("Agente excluído com sucesso!");
+
+    } catch (error: any) {
+      toast.error("Falha ao excluir agente", { description: error.message });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  };
+
+  const handleRestartAgent = async (agentToRestart: Agent) => {
+    if (!agentToRestart.evolution_api_config_id) {
+      toast.error("Este agente não possui uma instância na Evolution API para reiniciar.");
+      return;
+    }
+    const loadingToast = toast.loading(`Reiniciando agente ${agentToRestart.name}...`);
+    try {
+      const { error } = await supabase.functions.invoke('evolution-api-manager', {
+        body: { 
+          action: 'restart_instance',
+          config_id: agentToRestart.evolution_api_config_id 
+        },
+      });
+
+      if (error) throw new Error(await error.context.json().then(d => d.error));
+
+      toast.success("Agente reiniciado com sucesso! Aguarde um momento para a reconexão.");
+
+    } catch (error: any) {
+      toast.error("Falha ao reiniciar agente", { description: error.message });
+    } finally {
+      toast.dismiss(loadingToast);
+    }
+  };
+
   return {
     handleSubmitAgent,
     handleConnectWhatsApp,
     handleClosePortalModal,
     handleSendCredentialsEmail,
+    handleDeleteAgent, // Adicionado
+    handleRestartAgent, // Adicionado
   };
 }

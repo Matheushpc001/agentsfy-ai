@@ -42,6 +42,8 @@ serve(async (req) => {
         return await handleTestConnection(params);
       case 'force_status_sync':
         return await handleForceStatusSync(supabase, params);
+      case 'restart_instance': // NOVA AÇÃO
+        return await handleRestartInstance(supabase, params);
       
       // ### NOVAS AÇÕES PARA IA NATIVA DA EVOLUTION V2 ###
       case 'openai_set_creds':
