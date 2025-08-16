@@ -60,9 +60,9 @@ export default function UpdatePassword() {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
 
-      toast.success("Senha definida com sucesso! Você será redirecionado.");
-      // Fazer login automático após definir a senha
-      setTimeout(() => navigate('/dashboard'), 1500);
+      toast.success("Senha definida com sucesso! Você será redirecionado para o login.");
+      // Redireciona para a página de login para que o usuário possa entrar com a nova senha.
+      setTimeout(() => navigate('/auth'), 1500);
 
     } catch (error: any) {
       toast.error(error.message || "Não foi possível definir a senha.");

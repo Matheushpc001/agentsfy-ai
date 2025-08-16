@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
 import CreateCustomerModal from "@/components/customers/CreateCustomerModal";
+import ManageCustomerModal from "@/components/customers/ManageCustomerModal"; // Importa o novo modal
 
 // Função para buscar customers reais
 async function fetchRealCustomers(franchiseeId: string): Promise<Customer[]> {
@@ -28,15 +29,16 @@ async function fetchRealCustomers(franchiseeId: string): Promise<Customer[]> {
       id: customer.id,
       name: customer.name,
       email: customer.email,
-      businessName: customer.business_name,
+      business_name: customer.business_name,
       role: customer.role,
-      franchiseeId: customer.franchisee_id,
+      franchisee_id: customer.franchisee_id,
+      status: customer.status, // Adiciona o status
       agentCount: customer.agent_count || 0,
-      createdAt: customer.created_at,
+      created_at: customer.created_at,
       logo: customer.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(customer.business_name || customer.name)}&background=0D8ABC&color=fff`,
       document: customer.document,
-      contactPhone: customer.contact_phone,
-      portalUrl: customer.portal_url
+      contact_phone: customer.contact_phone,
+      portal_url: customer.portal_url
     })) || [];
   } catch (error) {
     console.error('Erro ao buscar customers:', error);
@@ -44,33 +46,15 @@ async function fetchRealCustomers(franchiseeId: string): Promise<Customer[]> {
   }
 }
 
-// Dados de fallback caso não haja customers
-const FALLBACK_CUSTOMERS: Customer[] = [
-  {
-    id: "fallback-1",
-    name: "Nenhum cliente encontrado",
-    email: "",
-    businessName: "Cadastre seu primeiro cliente",
-    role: "customer",
-    franchiseeId: "",
-    agentCount: 0,
-    createdAt: new Date().toISOString()
-  }
-];
-
 export default function Customers() {
   const { user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isManageModalOpen, setIsManageModalOpen] = useState(false); // Estado para o modal de gerenciamento
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [currentCustomer, setCurrentCustomer] = useState<Customer | null>(null);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    businessName: ""
-  });
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -102,13 +86,12 @@ export default function Customers() {
   const filteredCustomers = (customers || []).filter(customer =>
     customer && (
       customer.name?.toLowerCase().includes(searchTerm) ||
-      customer.businessName?.toLowerCase().includes(searchTerm) ||
+      customer.business_name?.toLowerCase().includes(searchTerm) ||
       customer.email?.toLowerCase().includes(searchTerm)
     )
   );
 
-  const handleCreationSuccess = (newCustomer: Customer) => {
-    setCustomers(prev => [newCustomer, ...prev]);
+  const handleActionSuccess = () => {
     loadCustomers(); 
   };
 
@@ -118,62 +101,18 @@ export default function Customers() {
   };
 
   const handleManageCustomer = (customer: Customer) => {
-    // In a real app, navigate to customer management page
-    toast.info(`Gerenciando ${customer.businessName}`);
+    setCurrentCustomer(customer);
+    setIsManageModalOpen(true);
   };
-
-  // const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  //   const { name, value } = e.target;
-  //   setFormData(prev => ({
-  //     ...prev,
-  //     [name]: value
-  //   }));
-  // };
-
-  // const handleAddSubmit = async (e: React.FormEvent) => {
-  //   e.preventDefault();
-    
-  //   if (!user) return;
-
-  //   try {
-  //     const { data: newCustomer, error } = await supabase
-  //       .from('customers')
-  //       .insert({
-  //         name: formData.name,
-  //         email: formData.email,
-  //         business_name: formData.businessName,
-  //         franchisee_id: user.id,
-  //         role: 'customer',
-  //         agent_count: 0
-  //       })
-  //       .select()
-  //       .single();
-
-  //     if (error) throw error;
-
-  //     // Recarregar lista de customers
-  //     await loadCustomers();
-      
-  //     setFormData({ name: "", email: "", businessName: "" });
-  //     setIsAddModalOpen(false);
-  //     toast.success(`Cliente ${formData.businessName} adicionado com sucesso!`);
-  //   } catch (error) {
-  //     console.error('Erro ao adicionar customer:', error);
-  //     toast.error('Erro ao adicionar cliente');
-  //   }
-  // };
 
   const handleCopyLink = () => {
     if (!currentCustomer) return;
     
-    // Generate customer portal URL
-        const portalUrl = `https://agentsfy-ai.lovable.app/a/${currentCustomer.id}`;
+    const portalUrl = `https://agentsfy-ai.lovable.app/a/${currentCustomer.id}`;
     
     navigator.clipboard.writeText(portalUrl).then(() => {
       setCopied(true);
       toast.success("Link copiado para a área de transferência!");
-      
-      // Reset copy status after 2 seconds
       setTimeout(() => setCopied(false), 2000);
     });
   };
@@ -181,7 +120,6 @@ export default function Customers() {
   return (
     <DashboardLayout title="Clientes">
       <div className="space-y-6">
-        {/* ... (resto do seu JSX da página principal permanece igual) ... */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center">
             <div className="bg-white dark:bg-gray-800 p-3 rounded-lg shadow-sm border flex items-center gap-2">
@@ -246,14 +184,19 @@ export default function Customers() {
         )}
       </div>
 
-      {/* ALTERADO: Usando o novo modal centralizado */}
       <CreateCustomerModal
         open={isAddModalOpen}
         onClose={() => setIsAddModalOpen(false)}
-        onSuccess={handleCreationSuccess}
+        onSuccess={handleActionSuccess}
       />
 
-      {/* Share Customer Modal (permanece igual) */}
+      <ManageCustomerModal
+        open={isManageModalOpen}
+        onClose={() => setIsManageModalOpen(false)}
+        customer={currentCustomer}
+        onSuccess={handleActionSuccess}
+      />
+
       <Dialog open={isShareModalOpen} onOpenChange={setIsShareModalOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
