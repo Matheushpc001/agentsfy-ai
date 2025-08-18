@@ -20,7 +20,8 @@ export default function Agents() {
           .select('*')
           .eq('franchisee_id', user.id);
         if (error) throw error;
-        setCustomers(data || []);
+        const mappedCustomers = data.map(c => ({ ...c, businessName: c.business_name })) as Customer[];
+        setCustomers(mappedCustomers || []);
       } catch (error) {
         console.error("Error fetching customers:", error);
       }
