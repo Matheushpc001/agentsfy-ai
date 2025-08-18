@@ -154,19 +154,11 @@ export default function AgentsContainer({
                 onEditAgent={handleEditAgent}
                 onConnectAgent={handleConnectAgent}
                 onTest={handleTestAgent}
-                onDeleteAgent={handleDeleteAgent} // Passando a função
-                onRestartAgent={handleRestartAgent} // Passando a função
+                onDeleteAgent={handleDeleteAgent} 
+                onRestartAgent={handleRestartAgent}
               />
-            </div>
-            
-            <div className="space-y-6">
-              <PlanInfoCard 
-                planName={planName}
-                billingCycle={billingCycle}
-                agentsUsed={totalAgents}
-                agentLimit={agentLimit}
-              />
-            </div>
+            </div>        
+
           </div>
         </TabsContent>
 
