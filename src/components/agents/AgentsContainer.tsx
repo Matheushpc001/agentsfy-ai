@@ -144,7 +144,7 @@ export default function AgentsContainer({
             agentLimit={agentLimit}
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 lg:items-start">
             <div className="lg:col-span-3">
               <AgentsList
                 agents={agents}
