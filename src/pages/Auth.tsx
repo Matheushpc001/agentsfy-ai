@@ -16,8 +16,7 @@ export default function Auth() {
   const [confirmPassword, setConfirmPassword] = useState(""); // Novo estado
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // Novo estado
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // Novo estado
+  const [showPassword, setShowPassword] = useState(false); // Controla ambos os campos
   const { login } = useAuth();
   const navigate = useNavigate();
   
@@ -204,6 +203,7 @@ export default function Auth() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  <p className="text-xs text-muted-foreground">A senha deve ter no mínimo 6 caracteres.</p>
                 </div>
 
                 <div className="space-y-2">
@@ -213,7 +213,7 @@ export default function Auth() {
                   <div className="relative">
                     <Input 
                       id="confirm-password" 
-                      type={showConfirmPassword ? "text" : "password"} 
+                      type={showPassword ? "text" : "password"} 
                       placeholder="Repita a senha" 
                       autoComplete="new-password" 
                       value={confirmPassword} 
@@ -222,9 +222,6 @@ export default function Auth() {
                       required 
                       minLength={6}
                     />
-                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
                   </div>
                 </div>
                 
