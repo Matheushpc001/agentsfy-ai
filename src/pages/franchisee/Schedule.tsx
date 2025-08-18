@@ -267,20 +267,41 @@ export default function Schedule() {
 
   const handleGoogleCalendarAuth = async () => {
     try {
-      // Usar a edge function para simular conexão
+      if (!selectedCustomer) {
+        toast.error('Selecione um cliente primeiro para configurar o Google Calendar');
+        return;
+      }
+
       const { data: result } = await supabase.functions.invoke('google-calendar-sync', {
         body: {
           action: 'connect_calendar',
-          customerId: user?.id
+          customerId: selectedCustomer
         }
       });
 
-      if (result?.success) {
-        setIsConnectedToGoogle(true);
-        toast.success(result.message);
-        await loadData();
+      if (result?.success && result?.auth_url) {
+        // Abrir nova janela para autorização OAuth
+        const authWindow = window.open(
+          result.auth_url,
+          'google-oauth',
+          'width=600,height=600,scrollbars=yes,resizable=yes'
+        );
+
+        // Verificar quando a janela for fechada
+        const checkClosed = setInterval(() => {
+          if (authWindow?.closed) {
+            clearInterval(checkClosed);
+            // Recarregar dados para verificar se a conexão foi bem-sucedida
+            setTimeout(() => {
+              loadData();
+              toast.success('Verificando conexão com Google Calendar...');
+            }, 1000);
+          }
+        }, 1000);
+
+        toast.success('Janela de autorização aberta. Complete o processo para conectar.');
       } else {
-        toast.error('Erro ao conectar com Google Calendar');
+        toast.error('Erro ao iniciar conexão com Google Calendar');
       }
     } catch (error) {
       console.error('Erro na conexão:', error);
@@ -729,15 +750,35 @@ export default function Schedule() {
           </DialogHeader>
           
           <div className="space-y-4">
-            {!isConnectedToGoogle && (
-              <div className="text-center py-4">
+            <div className="space-y-2">
+              <Label htmlFor="google-customer-select">Cliente</Label>
+              <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um cliente para conectar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {customers.map((customer) => (
+                    <SelectItem key={customer.id} value={customer.id}>
+                      {customer.business_name || customer.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {selectedCustomer && (
+              <div className="text-center py-4 border rounded-lg bg-blue-50">
+                <Calendar className="w-12 h-12 mx-auto text-blue-600 mb-3" />
                 <p className="text-sm text-muted-foreground mb-4">
-                  Primeiro, conecte sua conta Google
+                  Conecte o Google Calendar do cliente para sincronização automática
                 </p>
-                <Button onClick={handleGoogleCalendarAuth} className="w-full">
+                <Button onClick={handleGoogleCalendarAuth} className="w-full bg-blue-600 hover:bg-blue-700">
                   <Calendar className="w-4 h-4 mr-2" />
-                  Conectar Google Calendar
+                  Autorizar Google Calendar
                 </Button>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Uma nova janela será aberta para autorização
+                </p>
               </div>
             )}
             

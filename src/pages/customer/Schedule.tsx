@@ -123,14 +123,47 @@ export default function CustomerSchedule() {
     }
   };
 
-  const handleConnectGoogleCalendar = () => {
-    // Simulação da conexão - em produção seria OAuth real
-    toast.info('Para conectar ao Google Calendar, você precisará configurar as credenciais OAuth.');
-    
-    if (window.confirm('Simular conexão com seu Google Calendar para teste?')) {
-      setIsGoogleConnected(true);
-      toast.success('Conectado ao seu Google Calendar (modo simulação)');
-      saveGoogleConfig();
+  const handleConnectGoogleCalendar = async () => {
+    try {
+      if (!user) {
+        toast.error('Usuário não autenticado');
+        return;
+      }
+
+      const { data: result } = await supabase.functions.invoke('google-calendar-sync', {
+        body: {
+          action: 'connect_calendar',
+          customerId: user.id
+        }
+      });
+
+      if (result?.success && result?.auth_url) {
+        // Abrir nova janela para autorização OAuth
+        const authWindow = window.open(
+          result.auth_url,
+          'google-oauth',
+          'width=600,height=600,scrollbars=yes,resizable=yes'
+        );
+
+        // Verificar quando a janela for fechada
+        const checkClosed = setInterval(() => {
+          if (authWindow?.closed) {
+            clearInterval(checkClosed);
+            // Recarregar dados para verificar se a conexão foi bem-sucedida
+            setTimeout(() => {
+              loadData();
+              toast.success('Verificando conexão com Google Calendar...');
+            }, 1000);
+          }
+        }, 1000);
+
+        toast.success('Janela de autorização aberta. Complete o processo para conectar ao Google Calendar.');
+      } else {
+        toast.error('Erro ao iniciar conexão com Google Calendar');
+      }
+    } catch (error) {
+      console.error('Erro na conexão:', error);
+      toast.error('Erro ao conectar com Google Calendar');
     }
   };
 

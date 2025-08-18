@@ -76,3 +76,5 @@ Three distinct user roles with separate dashboards and permissions:
 - Path aliases configured with `@/` pointing to `src/`
 - Mobile-responsive design with viewport meta tag injection
 - Development tools: ESLint for code quality
+- pensar em ingles sempre mas responder sempre em pt-br portugues brasil
+- ao tetnar instalar uma lib, biblioteca ou dependencias, analisar antes se ela ja nao esta instalada, se estiver instalada nao reinstale
