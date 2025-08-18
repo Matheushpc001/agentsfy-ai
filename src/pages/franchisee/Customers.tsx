@@ -29,16 +29,16 @@ async function fetchRealCustomers(franchiseeId: string): Promise<Customer[]> {
       id: customer.id,
       name: customer.name,
       email: customer.email,
-      business_name: customer.business_name,
+      businessName: customer.business_name, // <-- CORRIGIDO
       role: customer.role,
-      franchisee_id: customer.franchisee_id,
-      status: customer.status, // Adiciona o status
+      franchiseeId: customer.franchisee_id,
+      status: customer.status,
       agentCount: customer.agent_count || 0,
-      created_at: customer.created_at,
+      createdAt: customer.created_at, // <-- CORRIGIDO
       logo: customer.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(customer.business_name || customer.name)}&background=0D8ABC&color=fff`,
       document: customer.document,
-      contact_phone: customer.contact_phone,
-      portal_url: customer.portal_url
+      contactPhone: customer.contact_phone,
+      portalUrl: customer.portal_url
     })) || [];
   } catch (error) {
     console.error('Erro ao buscar customers:', error);
