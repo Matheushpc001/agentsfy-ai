@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Bot } from "lucide-react";
+import { Bot, Eye, EyeOff } from "lucide-react"; // Importar ícones
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,8 +13,11 @@ import { supabase } from "@/integrations/supabase/client";
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState(""); // Novo estado
   const [name, setName] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // Novo estado
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false); // Novo estado
   const { login } = useAuth();
   const navigate = useNavigate();
   
@@ -41,6 +44,12 @@ export default function Auth() {
 
   const handleSignUp = async (e: FormEvent) => {
     e.preventDefault();
+
+    if (password !== confirmPassword) {
+      toast.error("As senhas não coincidem.");
+      return;
+    }
+
     setIsLoading(true);
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -118,16 +127,21 @@ export default function Auth() {
                   <label htmlFor="login-password" className="text-sm font-medium">
                     Senha
                   </label>
-                  <Input 
-                    id="login-password" 
-                    type="password" 
-                    placeholder="••••••••" 
-                    autoComplete="current-password" 
-                    value={password} 
-                    onChange={e => setPassword(e.target.value)} 
-                    disabled={isLoading} 
-                    required 
-                  />
+                  <div className="relative">
+                    <Input 
+                      id="login-password" 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="••••••••" 
+                      autoComplete="current-password" 
+                      value={password} 
+                      onChange={e => setPassword(e.target.value)} 
+                      disabled={isLoading} 
+                      required 
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 
                 <Button type="submit" className="w-full" disabled={isLoading}>
@@ -174,17 +188,44 @@ export default function Auth() {
                   <label htmlFor="signup-password" className="text-sm font-medium">
                     Senha
                   </label>
-                  <Input 
-                    id="signup-password" 
-                    type="password" 
-                    placeholder="••••••••" 
-                    autoComplete="new-password" 
-                    value={password} 
-                    onChange={e => setPassword(e.target.value)} 
-                    disabled={isLoading} 
-                    required 
-                    minLength={6}
-                  />
+                  <div className="relative">
+                    <Input 
+                      id="signup-password" 
+                      type={showPassword ? "text" : "password"} 
+                      placeholder="Mínimo 6 caracteres" 
+                      autoComplete="new-password" 
+                      value={password} 
+                      onChange={e => setPassword(e.target.value)} 
+                      disabled={isLoading} 
+                      required 
+                      minLength={6}
+                    />
+                    <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label htmlFor="confirm-password" className="text-sm font-medium">
+                    Confirmar Senha
+                  </label>
+                  <div className="relative">
+                    <Input 
+                      id="confirm-password" 
+                      type={showConfirmPassword ? "text" : "password"} 
+                      placeholder="Repita a senha" 
+                      autoComplete="new-password" 
+                      value={confirmPassword} 
+                      onChange={e => setConfirmPassword(e.target.value)} 
+                      disabled={isLoading} 
+                      required 
+                      minLength={6}
+                    />
+                    <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground">
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
                 </div>
                 
                 <Button type="submit" className="w-full" disabled={isLoading}>
