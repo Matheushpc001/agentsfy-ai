@@ -1,7 +1,5 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GoogleAuth } from "https://esm.sh/google-auth-library@10.0.0";
-import { calendar_v3 as CalendarV3 } from "https://esm.sh/googleapis@148.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -112,85 +110,75 @@ async function createGoogleCalendarEvent(
       );
     }
 
-    try {
-      // Configurar autenticação OAuth2
-      const auth = new GoogleAuth();
-      const oauth2Client = new auth.OAuth2(
-        Deno.env.get('GOOGLE_CLIENT_ID'),
-        Deno.env.get('GOOGLE_CLIENT_SECRET')
-      );
+    // Criar evento usando fetch diretamente para a API do Google Calendar
+    const calendarId = googleConfig.google_calendar_id || 'primary';
+    const eventPayload = {
+      summary: eventData.title,
+      description: eventData.description || '',
+      location: eventData.location || '',
+      start: {
+        dateTime: eventData.start_time,
+        timeZone: 'America/Sao_Paulo',
+      },
+      end: {
+        dateTime: eventData.end_time,
+        timeZone: 'America/Sao_Paulo',
+      },
+      attendees: eventData.customer_email ? [{ email: eventData.customer_email }] : [],
+      reminders: {
+        useDefault: false,
+        overrides: [
+          { method: 'email', minutes: 24 * 60 },
+          { method: 'popup', minutes: 15 },
+        ],
+      },
+    };
 
-      oauth2Client.setCredentials({
-        access_token: profile.google_calendar_token,
-        refresh_token: profile.google_calendar_refresh_token,
-      });
-
-      // Criar instância da API do Google Calendar
-      const calendar = new CalendarV3.Calendar({ auth: oauth2Client });
-
-      // Criar evento no Google Calendar
-      const event = {
-        summary: eventData.title,
-        description: eventData.description || '',
-        location: eventData.location || '',
-        start: {
-          dateTime: eventData.start_time,
-          timeZone: 'America/Sao_Paulo',
+    const response = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${profile.google_calendar_token}`,
+          'Content-Type': 'application/json',
         },
-        end: {
-          dateTime: eventData.end_time,
-          timeZone: 'America/Sao_Paulo',
-        },
-        attendees: eventData.customer_email ? [{ email: eventData.customer_email }] : [],
-        reminders: {
-          useDefault: false,
-          overrides: [
-            { method: 'email', minutes: 24 * 60 }, // 1 dia antes
-            { method: 'popup', minutes: 15 }, // 15 min antes
-          ],
-        },
-      };
+        body: JSON.stringify(eventPayload),
+      }
+    );
 
-      const response = await calendar.events.insert({
-        calendarId: googleConfig.google_calendar_id || 'primary',
-        resource: event,
-        sendUpdates: 'all', // Enviar convites aos participantes
-      });
-
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          google_event_id: response.data.id,
-          message: 'Evento criado no Google Calendar com sucesso!',
-          event_link: response.data.htmlLink
-        }),
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-
-    } catch (authError: any) {
-      console.error('Erro de autenticação Google:', authError);
-      
-      // Se token expirou, tentar refresh
-      if (authError.code === 401) {
-        try {
-          const refreshed = await refreshGoogleToken(supabase, customerId, profile.google_calendar_refresh_token);
-          if (refreshed) {
-            // Tentar novamente com novo token
-            return await createGoogleCalendarEvent(supabase, franchiseeId, eventData, customerId);
-          }
-        } catch (refreshError) {
-          console.error('Erro ao renovar token:', refreshError);
+    if (!response.ok) {
+      if (response.status === 401) {
+        // Token expirado, tentar refresh
+        const refreshed = await refreshGoogleToken(supabase, customerId, profile.google_calendar_refresh_token);
+        if (refreshed) {
+          // Tentar novamente com novo token
+          return await createGoogleCalendarEvent(supabase, franchiseeId, eventData, customerId);
         }
       }
+      
+      const errorText = await response.text();
+      console.error('Erro da API Google Calendar:', errorText);
       
       return new Response(
         JSON.stringify({ 
           success: false, 
-          message: 'Erro de autenticação com Google Calendar. Reconecte sua conta.'
+          message: 'Erro ao criar evento no Google Calendar. Tente reconectar sua conta.'
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const eventResult = await response.json();
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        google_event_id: eventResult.id,
+        message: 'Evento criado no Google Calendar com sucesso!',
+        event_link: eventResult.htmlLink
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
 
   } catch (error) {
     console.error('Error creating Google Calendar event:', error);
@@ -207,30 +195,29 @@ async function initiateGoogleOAuth(
   customerId: string
 ) {
   try {
-    // Criar URL de autorização OAuth2
-    const auth = new GoogleAuth();
-    const oauth2Client = new auth.OAuth2(
-      Deno.env.get('GOOGLE_CLIENT_ID'),
-      Deno.env.get('GOOGLE_CLIENT_SECRET'),
-      `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-calendar-oauth-callback`
-    );
-
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID') || '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com';
+    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-calendar-oauth-callback`;
+    
     const scopes = [
       'https://www.googleapis.com/auth/calendar',
-      'https://www.googleapis.com/auth/calendar.events',
+      'https://www.googleapis.com/auth/calendar.events'
     ];
 
-    const authUrl = oauth2Client.generateAuthUrl({
-      access_type: 'offline', // Para obter refresh token
-      scope: scopes,
-      state: JSON.stringify({ customerId, franchiseeId }), // Para identificar o usuário
-      prompt: 'consent', // Forçar tela de consentimento para obter refresh token
-    });
+    const state = JSON.stringify({ customerId, franchiseeId });
+    
+    const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
+    authUrl.searchParams.set('client_id', clientId);
+    authUrl.searchParams.set('redirect_uri', redirectUri);
+    authUrl.searchParams.set('response_type', 'code');
+    authUrl.searchParams.set('scope', scopes.join(' '));
+    authUrl.searchParams.set('access_type', 'offline');
+    authUrl.searchParams.set('prompt', 'consent');
+    authUrl.searchParams.set('state', state);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        auth_url: authUrl,
+        auth_url: authUrl.toString(),
         message: 'Acesse a URL para autorizar o acesso ao Google Calendar'
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -328,25 +315,36 @@ async function syncAppointmentsWithCalendar(
 // Função auxiliar para renovar token do Google
 async function refreshGoogleToken(supabase: any, customerId: string, refreshToken: string) {
   try {
-    const auth = new GoogleAuth();
-    const oauth2Client = new auth.OAuth2(
-      Deno.env.get('GOOGLE_CLIENT_ID'),
-      Deno.env.get('GOOGLE_CLIENT_SECRET')
-    );
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID') || '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com';
+    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') || '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';
 
-    oauth2Client.setCredentials({
-      refresh_token: refreshToken,
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }),
     });
 
-    const { credentials } = await oauth2Client.refreshAccessToken();
+    if (!response.ok) {
+      console.error('Erro ao renovar token:', await response.text());
+      return false;
+    }
+
+    const tokenData = await response.json();
     
-    if (credentials.access_token) {
+    if (tokenData.access_token) {
       // Salvar novo token
       await supabase
         .from('profiles')
         .update({ 
-          google_calendar_token: credentials.access_token,
-          google_calendar_refresh_token: credentials.refresh_token || refreshToken
+          google_calendar_token: tokenData.access_token,
+          google_calendar_refresh_token: tokenData.refresh_token || refreshToken
         })
         .eq('id', customerId);
       

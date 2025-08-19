@@ -1,7 +1,5 @@
 import { serve } from "https://deno.land/std@0.208.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { GoogleAuth } from "https://esm.sh/google-auth-library@10.0.0";
-import { google } from "https://esm.sh/googleapis@148.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -73,25 +71,47 @@ serve(async (req) => {
     // Decodificar state para obter customerId e franchiseeId
     const { customerId, franchiseeId } = JSON.parse(state);
 
-    // Configurar OAuth2 client
-    const auth = new GoogleAuth();
-    const oauth2Client = new auth.OAuth2(
-      Deno.env.get('GOOGLE_CLIENT_ID'),
-      Deno.env.get('GOOGLE_CLIENT_SECRET'),
-      `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-calendar-oauth-callback`
-    );
+    const clientId = Deno.env.get('GOOGLE_CLIENT_ID') || '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com';
+    const clientSecret = Deno.env.get('GOOGLE_CLIENT_SECRET') || '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';
+    const redirectUri = `${Deno.env.get('SUPABASE_URL')}/functions/v1/google-calendar-oauth-callback`;
 
     // Trocar código por tokens
-    const { tokens } = await oauth2Client.getToken(code);
+    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: redirectUri,
+      }),
+    });
+
+    if (!tokenResponse.ok) {
+      throw new Error('Erro ao obter tokens: ' + await tokenResponse.text());
+    }
+
+    const tokens = await tokenResponse.json();
 
     if (!tokens.access_token) {
       throw new Error('Não foi possível obter token de acesso');
     }
 
     // Obter informações do usuário do Google
-    oauth2Client.setCredentials(tokens);
-    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
-    const { data: userInfo } = await oauth2.userinfo.get();
+    const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+      headers: {
+        'Authorization': `Bearer ${tokens.access_token}`,
+      },
+    });
+
+    if (!userInfoResponse.ok) {
+      throw new Error('Erro ao obter informações do usuário');
+    }
+
+    const userInfo = await userInfoResponse.json();
 
     // Salvar tokens no perfil do usuário
     const { error: profileError } = await supabaseClient

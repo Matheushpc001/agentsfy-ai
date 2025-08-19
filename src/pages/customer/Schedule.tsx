@@ -124,40 +124,58 @@ export default function CustomerSchedule() {
         return;
       }
 
-      const { data: result } = await supabase.functions.invoke('google-calendar-sync', {
+      // Mostrar loading
+      toast.info('Preparando autorização Google Calendar...');
+
+      const { data: result, error } = await supabase.functions.invoke('google-calendar-sync', {
         body: {
           action: 'connect_calendar',
           customerId: user.id
         }
       });
 
+      if (error) {
+        console.error('Erro na Edge Function:', error);
+        toast.error('Erro interno: ' + error.message);
+        return;
+      }
+
       if (result?.success && result?.auth_url) {
-        // Abrir nova janela para autorização OAuth
+        console.log('URL de autorização recebida:', result.auth_url);
+        
+        // Abrir nova janela para autorização OAuth real
         const authWindow = window.open(
           result.auth_url,
           'google-oauth',
-          'width=600,height=600,scrollbars=yes,resizable=yes'
+          'width=600,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=yes'
         );
+
+        if (!authWindow) {
+          toast.error('Popup bloqueado. Permita popups para este site.');
+          return;
+        }
 
         // Verificar quando a janela for fechada
         const checkClosed = setInterval(() => {
           if (authWindow?.closed) {
             clearInterval(checkClosed);
+            console.log('Janela de autorização fechada, recarregando dados...');
             // Recarregar dados para verificar se a conexão foi bem-sucedida
             setTimeout(() => {
               loadData();
-              toast.success('Verificando conexão com Google Calendar...');
-            }, 1000);
+              toast.info('Verificando status da conexão...');
+            }, 1500);
           }
         }, 1000);
 
-        toast.success('Janela de autorização aberta. Complete o processo para conectar ao Google Calendar.');
+        toast.success('🔒 Janela do Google aberta! Complete a autorização para conectar seu Calendar.');
       } else {
-        toast.error('Erro ao iniciar conexão com Google Calendar');
+        console.error('Resposta inesperada:', result);
+        toast.error('Erro ao gerar URL de autorização: ' + (result?.message || 'Resposta inválida'));
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro na conexão:', error);
-      toast.error('Erro ao conectar com Google Calendar');
+      toast.error('Erro ao conectar: ' + (error?.message || 'Erro desconhecido'));
     }
   };
 
