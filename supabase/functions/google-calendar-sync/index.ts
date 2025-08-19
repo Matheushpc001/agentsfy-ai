@@ -45,9 +45,6 @@ serve(async (req) => {
       case 'create_event':
         return await createGoogleCalendarEvent(supabaseClient, user.id, eventData, customerId);
       
-      case 'connect_calendar':
-        return await initiateGoogleOAuth(supabaseClient, user.id, customerId);
-      
       case 'sync_appointments':
         return await syncAppointmentsWithCalendar(supabaseClient, user.id);
       

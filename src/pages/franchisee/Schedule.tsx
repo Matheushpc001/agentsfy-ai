@@ -267,66 +267,157 @@ export default function Schedule() {
   };
 
   const handleGoogleCalendarAuth = async () => {
-    try {
-      if (!selectedCustomer) {
-        toast.error('Selecione um cliente primeiro para configurar o Google Calendar');
-        return;
-      }
+    if (!selectedCustomer) {
+      toast.error('Selecione um cliente primeiro para configurar o Google Calendar');
+      return;
+    }
 
-      const selectedCustomerName = customers.find(c => c.id === selectedCustomer)?.business_name || 
-                                   customers.find(c => c.id === selectedCustomer)?.name || 'o cliente';
+    const selectedCustomerName = customers.find(c => c.id === selectedCustomer)?.business_name || 
+                                 customers.find(c => c.id === selectedCustomer)?.name || 'o cliente';
 
-      toast.info(`Preparando autorização do Google Calendar para ${selectedCustomerName}...`);
+    // Criar URL de autorização diretamente no frontend
+    const clientId = '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com';
+    const redirectUri = 'urn:ietf:wg:oauth:2.0:oob'; // URL especial para aplicações que não têm servidor
+    const scope = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
+    
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
+      `client_id=${encodeURIComponent(clientId)}&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `response_type=code&` +
+      `scope=${encodeURIComponent(scope)}&` +
+      `access_type=offline&` +
+      `prompt=consent`;
 
-      const { data: result, error } = await supabase.functions.invoke('google-calendar-sync', {
-        body: {
-          action: 'connect_calendar',
-          customerId: selectedCustomer
+    // Abrir janela de autorização
+    const authWindow = window.open(
+      authUrl,
+      'google-oauth',
+      'width=600,height=700,scrollbars=yes,resizable=yes'
+    );
+
+    if (!authWindow) {
+      toast.error('Popup bloqueado. Permita popups para este site.');
+      return;
+    }
+
+    // Mostrar modal para o usuário colar o código
+    const code = await new Promise<string>((resolve, reject) => {
+      const modal = document.createElement('div');
+      modal.style.cssText = `
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
+        background: rgba(0,0,0,0.5); display: flex; align-items: center; 
+        justify-content: center; z-index: 9999;
+      `;
+      
+      modal.innerHTML = `
+        <div style="background: white; padding: 24px; border-radius: 8px; max-width: 500px; width: 90%;">
+          <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Conectar Google Calendar</h3>
+          <p style="margin: 0 0 16px 0; color: #666;">
+            <strong>Cliente: ${selectedCustomerName}</strong><br><br>
+            1. Complete a autorização na janela que abriu<br>
+            2. Copie o código que aparecer<br>
+            3. Cole o código abaixo:
+          </p>
+          <input type="text" id="auth-code" placeholder="Cole aqui o código de autorização" 
+                 style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 16px;">
+          <div style="display: flex; gap: 8px; justify-content: flex-end;">
+            <button id="cancel-btn" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">
+              Cancelar
+            </button>
+            <button id="connect-btn" style="padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              Conectar
+            </button>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+
+      const codeInput = modal.querySelector('#auth-code') as HTMLInputElement;
+      const connectBtn = modal.querySelector('#connect-btn') as HTMLButtonElement;
+      const cancelBtn = modal.querySelector('#cancel-btn') as HTMLButtonElement;
+
+      connectBtn.onclick = () => {
+        const code = codeInput.value.trim();
+        if (code) {
+          document.body.removeChild(modal);
+          resolve(code);
+        } else {
+          alert('Por favor, insira o código de autorização');
         }
+      };
+
+      cancelBtn.onclick = () => {
+        document.body.removeChild(modal);
+        reject(new Error('Cancelado pelo usuário'));
+      };
+
+      // Auto-focus no input
+      setTimeout(() => codeInput.focus(), 100);
+    });
+
+    try {
+      // Trocar código por tokens
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: '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',
+          code: code,
+          grant_type: 'authorization_code',
+          redirect_uri: redirectUri,
+        }),
       });
 
-      if (error) {
-        console.error('Erro na Edge Function:', error);
-        toast.error('Erro interno: ' + error.message);
-        return;
+      if (!response.ok) {
+        throw new Error('Erro ao obter tokens: ' + await response.text());
       }
 
-      if (result?.success && result?.auth_url) {
-        console.log('URL de autorização gerada para cliente:', selectedCustomer);
-        
-        // Abrir nova janela para autorização OAuth real
-        const authWindow = window.open(
-          result.auth_url,
-          'google-oauth',
-          'width=600,height=700,scrollbars=yes,resizable=yes,menubar=no,toolbar=no,location=yes'
-        );
+      const tokens = await response.json();
 
-        if (!authWindow) {
-          toast.error('Popup bloqueado. Permita popups para este site e tente novamente.');
-          return;
-        }
+      // Obter informações do usuário
+      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { 'Authorization': `Bearer ${tokens.access_token}` },
+      });
 
-        // Verificar quando a janela for fechada
-        const checkClosed = setInterval(() => {
-          if (authWindow?.closed) {
-            clearInterval(checkClosed);
-            console.log('Janela OAuth fechada, verificando conexão...');
-            // Recarregar dados para verificar se a conexão foi bem-sucedida
-            setTimeout(() => {
-              loadData();
-              toast.info('Verificando se a autorização foi concluída...');
-            }, 1500);
-          }
-        }, 1000);
+      const userInfo = await userInfoResponse.json();
 
-        toast.success(`🔒 Janela do Google aberta para ${selectedCustomerName}! O cliente deve completar a autorização.`);
-      } else {
-        console.error('Resposta inesperada da Edge Function:', result);
-        toast.error('Erro ao gerar autorização: ' + (result?.message || 'Resposta inválida'));
-      }
+      // Salvar tokens no perfil do cliente
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          google_calendar_token: tokens.access_token,
+          google_calendar_refresh_token: tokens.refresh_token,
+          google_calendar_email: userInfo.email,
+        })
+        .eq('id', selectedCustomer);
+
+      if (profileError) throw profileError;
+
+      // Criar configuração do Google Calendar
+      const { error: configError } = await supabase
+        .from('google_calendar_configs')
+        .upsert({
+          franchisee_id: user?.id,
+          customer_id: selectedCustomer,
+          google_calendar_id: 'primary',
+          is_active: true,
+        });
+
+      if (configError) throw configError;
+
+      toast.success(`✅ Google Calendar conectado para ${selectedCustomerName}! (${userInfo.email})`);
+      setSelectedCustomer('');
+      await loadData();
+
     } catch (error: any) {
       console.error('Erro na conexão:', error);
-      toast.error('Erro ao conectar: ' + (error?.message || 'Erro desconhecido'));
+      if (error.message !== 'Cancelado pelo usuário') {
+        toast.error('Erro ao conectar: ' + error.message);
+      }
     }
   };
 
