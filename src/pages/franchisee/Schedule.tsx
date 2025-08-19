@@ -35,6 +35,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 // Tipos para o sistema de agendamento
 interface Appointment {
@@ -750,11 +751,21 @@ export default function Schedule() {
           </DialogHeader>
           
           <div className="space-y-4">
+            <Alert className="border-blue-200 bg-blue-50">
+              <Calendar className="h-4 w-4 text-blue-600" />
+              <AlertDescription>
+                <strong className="text-blue-800">Como funciona a integração:</strong><br />
+                • Você seleciona um cliente abaixo<br />
+                • O cliente autoriza o Google Calendar dele<br />
+                • Quando você criar agendamentos, eles aparecerão automaticamente no Google Calendar do cliente
+              </AlertDescription>
+            </Alert>
+
             <div className="space-y-2">
-              <Label htmlFor="google-customer-select">Cliente</Label>
+              <Label htmlFor="google-customer-select">Selecione o Cliente</Label>
               <Select value={selectedCustomer} onValueChange={setSelectedCustomer}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selecione um cliente para conectar" />
+                  <SelectValue placeholder="Escolha qual cliente conectar ao Google Calendar" />
                 </SelectTrigger>
                 <SelectContent>
                   {customers.map((customer) => (
@@ -767,17 +778,20 @@ export default function Schedule() {
             </div>
 
             {selectedCustomer && (
-              <div className="text-center py-4 border rounded-lg bg-blue-50">
-                <Calendar className="w-12 h-12 mx-auto text-blue-600 mb-3" />
-                <p className="text-sm text-muted-foreground mb-4">
-                  Conecte o Google Calendar do cliente para sincronização automática
+              <div className="text-center py-6 border rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-200">
+                <div className="w-16 h-16 mx-auto mb-4 bg-blue-600 rounded-full flex items-center justify-center">
+                  <Calendar className="w-8 h-8 text-white" />
+                </div>
+                <h4 className="text-lg font-semibold text-blue-900 mb-2">Conectar Google Calendar</h4>
+                <p className="text-sm text-blue-700 mb-4 max-w-sm mx-auto">
+                  Este cliente precisa autorizar uma única vez. Depois, todos os agendamentos aparecerão automaticamente no Google Calendar dele.
                 </p>
-                <Button onClick={handleGoogleCalendarAuth} className="w-full bg-blue-600 hover:bg-blue-700">
+                <Button onClick={handleGoogleCalendarAuth} className="bg-blue-600 hover:bg-blue-700 px-8">
                   <Calendar className="w-4 h-4 mr-2" />
-                  Autorizar Google Calendar
+                  Iniciar Autorização Google
                 </Button>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Uma nova janela será aberta para autorização
+                <p className="text-xs text-blue-600 mt-3">
+                  🔒 Seguro • Uma nova janela será aberta para o cliente autorizar
                 </p>
               </div>
             )}

@@ -53,13 +53,7 @@ export default function CustomerSchedule() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
-  const [googleCalendarId, setGoogleCalendarId] = useState("");
-  const [isConnectModalOpen, setIsConnectModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-
-  const [newGoogleConfig, setNewGoogleConfig] = useState({
-    google_calendar_id: "primary",
-  });
 
   useEffect(() => {
     if (user) {
@@ -182,16 +176,15 @@ export default function CustomerSchedule() {
       const { error } = await supabase
         .from('google_calendar_configs')
         .upsert({
-          franchisee_id: customerData?.franchisee_id, // ID do franqueado que atende este cliente
-          customer_id: user.id, // ID do cliente atual
-          google_calendar_id: newGoogleConfig.google_calendar_id,
+          franchisee_id: customerData?.franchisee_id,
+          customer_id: user.id,
+          google_calendar_id: "primary", // Usar calendário principal por padrão
           is_active: true,
         });
 
       if (error) throw error;
 
       toast.success('Configuração do Google Calendar salva!');
-      setIsConnectModalOpen(false);
       await loadData();
     } catch (error) {
       console.error('Erro ao salvar configuração:', error);
@@ -266,7 +259,7 @@ export default function CustomerSchedule() {
           
           <div className="flex gap-2">
             {!isGoogleConnected ? (
-              <Button onClick={() => setIsConnectModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={handleConnectGoogleCalendar} className="bg-blue-600 hover:bg-blue-700">
                 <Calendar className="w-4 h-4 mr-2" />
                 Conectar Google Calendar
               </Button>
@@ -285,12 +278,25 @@ export default function CustomerSchedule() {
         </div>
 
         {/* Alert explicativo */}
-        <Alert>
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            <strong>Como funciona:</strong> Conecte seu Google Calendar para que seus agendamentos com franqueados sejam automaticamente sincronizados com sua agenda pessoal.
-          </AlertDescription>
-        </Alert>
+        {!isGoogleConnected && (
+          <Alert className="border-blue-200 bg-blue-50">
+            <Calendar className="h-4 w-4 text-blue-600" />
+            <AlertDescription>
+              <strong className="text-blue-800">Conecte seu Google Calendar</strong><br />
+              Clique no botão acima para autorizar. Seus agendamentos aparecerão automaticamente no seu Google Calendar pessoal com lembretes configurados.
+            </AlertDescription>
+          </Alert>
+        )}
+        
+        {isGoogleConnected && (
+          <Alert className="border-green-200 bg-green-50">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <AlertDescription>
+              <strong className="text-green-800">Google Calendar conectado!</strong><br />
+              Todos os agendamentos criados pelo seu franqueado aparecem automaticamente no seu Google Calendar.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Calendário */}
@@ -378,52 +384,6 @@ export default function CustomerSchedule() {
         </div>
       </div>
 
-      {/* Modal para conectar Google Calendar */}
-      <Dialog open={isConnectModalOpen} onOpenChange={setIsConnectModalOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Conectar Google Calendar</DialogTitle>
-            <DialogDescription>
-              Sincronize seus agendamentos com seu Google Calendar pessoal
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4">
-            <Alert>
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                Seus agendamentos serão automaticamente adicionados ao seu Google Calendar quando criados pelo franqueado.
-              </AlertDescription>
-            </Alert>
-
-            <div className="space-y-2">
-              <Label htmlFor="calendar-id">Google Calendar (opcional)</Label>
-              <Input
-                id="calendar-id"
-                value={newGoogleConfig.google_calendar_id}
-                onChange={(e) => setNewGoogleConfig(prev => ({ ...prev, google_calendar_id: e.target.value }))}
-                placeholder="primary"
-              />
-              <p className="text-xs text-muted-foreground">
-                Deixe "primary" para usar seu calendário principal, ou insira o ID de um calendário específico
-              </p>
-            </div>
-
-            <div className="text-center py-4">
-              <Button onClick={handleConnectGoogleCalendar} className="w-full bg-blue-600 hover:bg-blue-700">
-                <Calendar className="w-4 h-4 mr-2" />
-                Conectar com Google Calendar
-              </Button>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsConnectModalOpen(false)}>
-              Cancelar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </DashboardLayout>
   );
 }
