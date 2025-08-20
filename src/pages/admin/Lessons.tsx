@@ -45,6 +45,7 @@ interface LessonCategory {
   name: string;
   description?: string;
   icon?: string;
+  lessons_count?: number;
 }
 
 interface Lesson {
@@ -274,6 +275,41 @@ const handleCreateCategory = async () => {
   }
 };
 
+const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
+  // Verificar se há aulas nesta categoria
+  const categoryLessons = lessons.filter(lesson => lesson.category_id === categoryId);
+  
+  if (categoryLessons.length > 0) {
+    toast.error(`Não é possível deletar a categoria "${categoryName}" pois ela possui ${categoryLessons.length} aula(s). Delete as aulas primeiro.`);
+    return;
+  }
+
+  if (!confirm(`Tem certeza que deseja excluir a categoria "${categoryName}"?`)) {
+    return;
+  }
+
+  try {
+    console.log('Deletando categoria:', categoryId);
+    
+    const { data, error } = await supabase.functions.invoke('delete-lesson-category', {
+      body: { categoryId }
+    });
+
+    if (error) {
+      const errorBody = await error.context.json();
+      throw new Error(errorBody.error || "Erro ao deletar categoria via função.");
+    }
+
+    console.log('Categoria deletada:', data);
+    toast.success('Categoria deletada com sucesso!');
+    await loadData(); // Recarrega os dados
+
+  } catch (error: any) {
+    console.error('Erro ao deletar categoria:', error);
+    toast.error(`Erro ao deletar categoria: ${error.message}`);
+  }
+};
+
   const resetLessonForm = () => {
     setNewLesson({
       title: "",
@@ -393,9 +429,20 @@ const handleCreateCategory = async () => {
               {categories.map((category) => {
                 const categoryLessons = lessons.filter(l => l.category_id === category.id);
                 return (
-                  <TabsTrigger key={category.id} value={category.id}>
-                    {category.name} ({categoryLessons.length})
-                  </TabsTrigger>
+                  <div key={category.id} className="flex items-center">
+                    <TabsTrigger value={category.id}>
+                      {category.name} ({categoryLessons.length})
+                    </TabsTrigger>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteCategory(category.id, category.name)}
+                      className="ml-2 h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                      title={`Deletar categoria "${category.name}"`}
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
                 );
               })}
             </TabsList>

@@ -78,3 +78,27 @@ Three distinct user roles with separate dashboards and permissions:
 - Development tools: ESLint for code quality
 - pensar em ingles sempre mas responder sempre em pt-br portugues brasil
 - ao tetnar instalar uma lib, biblioteca ou dependencias, analisar antes se ela ja nao esta instalada, se estiver instalada nao reinstale
+
+## Supabase Integration
+- Project ID: `kzxiqdakyfxtyyuybwtl`
+- Edge Functions located in `/supabase/functions/`
+- Database migrations in `/supabase/migrations/`
+- Supabase CLI available via `supabase` command for local development
+- Types are auto-generated in `src/integrations/supabase/types.ts`
+
+## External Service Integrations
+- **Evolution API**: WhatsApp integration via Supabase Edge Functions
+- **OpenAI**: AI agent responses via `openai-handler` Edge Function
+- **Anthropic**: Claude AI integration via `@anthropic-ai/sdk`
+- **Google Calendar**: OAuth integration for scheduling features
+
+## Lovable Platform
+- This is a Lovable project (project ID: `3f253a16-b26d-4956-959b-871525025d74`)
+- Uses `lovable-tagger` for component development tracking
+- Changes made in Lovable sync automatically with this repository
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

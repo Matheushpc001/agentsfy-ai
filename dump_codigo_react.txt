@@ -1,6 +1,6 @@
 =============================================
  DUMP DO PROJETO: React Project
- GERADO EM: Wed, Aug 20, 2025  3:05:13 PM
+ GERADO EM: Wed, Aug 20, 2025  4:07:38 PM
 =============================================\n
 ================================================================================
 ARQUIVO: ./.gitignore
@@ -681,77 +681,7 @@ Para que o Google Calendar funcione em produção (`https://agentsfy-ai.lovable.
 ================================================================================
 ARQUIVO: ./logs/logs.txt
 ================================================================================\n
-{
-  "event_message": "Erro ao inserir no Supabase: {}\n",
-  "id": "0f46cff3-4d25-42cf-ad8d-ccf898f03caa",
-  "metadata": [
-    {
-      "boot_time": null,
-      "cpu_time_used": null,
-      "deployment_id": "kzxiqdakyfxtyyuybwtl_d80483b7-7642-46f2-8bd6-eaef3bed15bc_4",
-      "event_type": "Log",
-      "execution_id": "ca4b79e8-66b2-49a8-bd02-3d2f25f017c2",
-      "function_id": "d80483b7-7642-46f2-8bd6-eaef3bed15bc",
-      "level": "error",
-      "memory_used": [],
-      "project_ref": "kzxiqdakyfxtyyuybwtl",
-      "reason": null,
-      "region": "sa-east-1",
-      "served_by": "supabase-edge-runtime-1.68.0-develop.39 (compatible with Deno v2.1.4)",
-      "timestamp": "2025-08-20T17:59:56.782Z",
-      "version": "4"
-    }
-  ],
-  "timestamp": 1755712796782000
-}
 
-{
-  "event_message": "Erro capturado no bloco catch principal: {}\n",
-  "id": "7725033e-d5f0-4f2d-9c85-f127470e7c4d",
-  "metadata": [
-    {
-      "boot_time": null,
-      "cpu_time_used": null,
-      "deployment_id": "kzxiqdakyfxtyyuybwtl_d80483b7-7642-46f2-8bd6-eaef3bed15bc_4",
-      "event_type": "Log",
-      "execution_id": "ca4b79e8-66b2-49a8-bd02-3d2f25f017c2",
-      "function_id": "d80483b7-7642-46f2-8bd6-eaef3bed15bc",
-      "level": "error",
-      "memory_used": [],
-      "project_ref": "kzxiqdakyfxtyyuybwtl",
-      "reason": null,
-      "region": "sa-east-1",
-      "served_by": "supabase-edge-runtime-1.68.0-develop.39 (compatible with Deno v2.1.4)",
-      "timestamp": "2025-08-20T17:59:56.782Z",
-      "version": "4"
-    }
-  ],
-  "timestamp": 1755712796782000
-}
-
-{
-  "event_message": "TypeError: Cannot read properties of undefined (reading 'includes')\n    at Server.<anonymous> (file:///tmp/user_fn_kzxiqdakyfxtyyuybwtl_d80483b7-7642-46f2-8bd6-eaef3bed15bc_4/source/supabase/functions/create-lesson-category/index.ts:89:29)\n    at eventLoopTick (ext:core/01_core.js:175:7)\n    at async Server.#respond (https://deno.land/std@0.168.0/http/server.ts:221:18)\n",
-  "id": "6c687218-558a-4553-adce-2400512dd1fe",
-  "metadata": [
-    {
-      "boot_time": null,
-      "cpu_time_used": null,
-      "deployment_id": "kzxiqdakyfxtyyuybwtl_d80483b7-7642-46f2-8bd6-eaef3bed15bc_4",
-      "event_type": "Log",
-      "execution_id": "ca4b79e8-66b2-49a8-bd02-3d2f25f017c2",
-      "function_id": "d80483b7-7642-46f2-8bd6-eaef3bed15bc",
-      "level": "error",
-      "memory_used": [],
-      "project_ref": "kzxiqdakyfxtyyuybwtl",
-      "reason": null,
-      "region": "sa-east-1",
-      "served_by": "supabase-edge-runtime-1.68.0-develop.39 (compatible with Deno v2.1.4)",
-      "timestamp": "2025-08-20T17:59:56.783Z",
-      "version": "4"
-    }
-  ],
-  "timestamp": 1755712796783000
-}
 
 
 ================================================================================
@@ -32327,11 +32257,12 @@ serve(async (req) => {
 ================================================================================
 ARQUIVO: ./supabase/functions/create-lesson-category/index.ts
 ================================================================================\n
-// supabase/functions/create-lesson-category/index.ts
+// ARQUIVO FINAL E ROBUSTO: supabase/functions/create-lesson-category/index.ts
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-console.log("🚀 Função create-lesson-category iniciada");
+console.log("🚀 Função create-lesson-category v4.0 (robusta) iniciada");
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -32339,76 +32270,59 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  console.log(`Recebida requisição com método: ${req.method}`);
   if (req.method === 'OPTIONS') {
-    console.log("Tratando requisição OPTIONS (preflight)");
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    console.log("Criando cliente Supabase Admin");
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    console.log("Verificando autorização do usuário");
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-        console.error("Cabeçalho de autorização ausente");
-        throw new Error("Cabeçalho de autorização ausente");
+      throw { status: 401, message: "Cabeçalho de autorização ausente" };
     }
-    
-    const supabase = createClient(
+
+    const supabaseUserClient = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_ANON_KEY')!,
       { global: { headers: { Authorization: authHeader } } }
     );
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-    if (userError) {
-        console.error("Erro ao obter usuário:", userError);
-        throw new Error(`Erro de autenticação: ${userError.message}`);
-    }
+    const { data: { user } } = await supabaseUserClient.auth.getUser();
     if (!user) {
-        console.error("Usuário não autenticado");
-        throw new Error("Usuário não autenticado");
+      throw { status: 401, message: "Usuário não autenticado" };
     }
     console.log("Usuário autenticado:", { id: user.id, email: user.email });
 
-    console.log(`Verificando se o usuário ${user.id} é admin`);
-    const { data: isAdminData, error: isAdminError } = await supabaseAdmin.rpc('is_admin', { user_id: user.id });
-
-    if (isAdminError) {
-        console.error("Erro ao chamar a RPC is_admin:", isAdminError);
-        throw new Error(`Erro ao verificar permissões: ${isAdminError.message}`);
+    const { data: isAdmin, error: rpcError } = await supabaseAdmin.rpc('is_admin', { user_id: user.id });
+    if (rpcError) throw rpcError;
+    
+    if (!isAdmin) {
+      console.error("Acesso negado. Usuário não é administrador.");
+      throw { status: 403, message: "Acesso negado. Apenas administradores podem criar categorias." };
     }
-    console.log("Resultado da verificação de admin:", isAdminData);
-    if (!isAdminData) {
-        console.error("Acesso negado. Usuário não é administrador.");
-        throw new Error("Acesso negado. Apenas administradores podem criar categorias.");
-    }
+    console.log("Permissão de administrador confirmada.");
 
-    console.log("Processando corpo da requisição (JSON)");
     const categoryData = await req.json();
     console.log("Dados da categoria recebidos:", categoryData);
-
-    if (!categoryData.name) {
-      console.error("Validação falhou: nome da categoria é obrigatório");
-      throw new Error("O nome da categoria é obrigatório.");
+    if (!categoryData.name || String(categoryData.name).trim() === '') {
+      throw { status: 400, message: "O nome da categoria é obrigatório." };
     }
 
-    console.log("Inserindo categoria no banco de dados");
-    const { data, error } = await supabaseAdmin
+    console.log("Inserindo categoria no banco de dados...");
+    const { data, error: insertError } = await supabaseAdmin
       .from('lesson_categories')
       .insert(categoryData)
       .select()
       .single();
 
-    if (error) {
-      console.error("Erro ao inserir no Supabase:", error);
-      throw error;
+    if (insertError) {
+      console.error("Erro do Supabase ao inserir:", insertError);
+      // Lança o erro do Supabase para ser capturado pelo catch principal
+      throw { status: 500, message: `Erro no banco de dados: ${insertError.message}` };
     }
 
     console.log("Categoria criada com sucesso:", data);
@@ -32418,10 +32332,16 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("Erro capturado no bloco catch principal:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
+    // Bloco catch aprimorado para lidar com qualquer tipo de erro
+    const errorMessage = error.message || "Ocorreu um erro inesperado.";
+    const errorStatus = error.status || 500;
+    
+    console.error(`Erro capturado no bloco catch principal (Status: ${errorStatus}):`, errorMessage);
+    console.error("Detalhes do erro:", error); // Loga o objeto de erro completo
+
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: error.message.includes("Acesso negado") ? 403 : 500,
+      status: errorStatus,
     });
   }
 });
@@ -35310,37 +35230,37 @@ USING (
 );
 
 -- Create a view for admins that excludes sensitive data
-CREATE OR REPLACE VIEW admin_agents_view AS
-SELECT 
-  id,
-  name,
-  sector,
-  customer_id,
-  franchisee_id,
-  whatsapp_connected,
-  is_active,
-  message_count,
-  response_time,
-  phone_number,
-  created_at,
-  updated_at,
-  -- Mask API key for admin view
-  CASE 
-    WHEN open_ai_key IS NOT NULL AND open_ai_key != '' 
-    THEN 'sk-****' || RIGHT(open_ai_key, 4)
-    ELSE NULL 
-  END as open_ai_key_masked
-FROM agents;
+-- CREATE OR REPLACE VIEW admin_agents_view AS
+-- SELECT 
+--   id,
+--   name,
+--   sector,
+--   customer_id,
+--   franchisee_id,
+--   whatsapp_connected,
+--   is_active,
+--   message_count,
+--   response_time,
+--   phone_number,
+--   created_at,
+--   updated_at,
+--   -- Mask API key for admin view
+--   CASE 
+--     WHEN open_ai_key IS NOT NULL AND open_ai_key != '' 
+--     THEN 'sk-****' || RIGHT(open_ai_key, 4)
+--     ELSE NULL 
+--   END as open_ai_key_masked
+-- FROM agents;
 
--- Grant admin access to the view
-GRANT SELECT ON admin_agents_view TO authenticated;
+-- -- Grant admin access to the view
+-- GRANT SELECT ON admin_agents_view TO authenticated;
 
--- Create RLS policy for the admin view
-ALTER TABLE admin_agents_view ENABLE ROW LEVEL SECURITY;
+-- -- Create RLS policy for the admin view
+-- ALTER TABLE admin_agents_view ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Admins can view agent metadata" ON admin_agents_view
-FOR SELECT 
-USING (is_admin(auth.uid()));
+-- CREATE POLICY "Admins can view agent metadata" ON admin_agents_view
+-- FOR SELECT 
+-- USING (is_admin(auth.uid()));
 
 -- Create trigger to automatically encrypt API keys on insert/update
 CREATE OR REPLACE FUNCTION encrypt_agent_api_key_trigger()
@@ -35917,28 +35837,28 @@ $$;
 ================================================================================
 ARQUIVO: ./supabase/migrations/20250813124008_1c583e15-594a-4acf-846e-b731942c40f3.sql
 ================================================================================\n
--- Remove the security definer view and replace with a safer approach
-DROP VIEW IF EXISTS admin_agents_view;
+-- -- Remove the security definer view and replace with a safer approach
+-- DROP VIEW IF EXISTS admin_agents_view;
 
--- Instead of a security definer view, we'll modify the admin function to be safer
--- And ensure admins can only access non-sensitive data through proper functions
+-- -- Instead of a security definer view, we'll modify the admin function to be safer
+-- -- And ensure admins can only access non-sensitive data through proper functions
 
--- Create a limited admin access policy that excludes API keys completely
-DROP POLICY IF EXISTS "Admins can read agent metadata only" ON agents;
-DROP POLICY IF EXISTS "Admins can read non-sensitive agent data" ON agents;
+-- -- Create a limited admin access policy that excludes API keys completely
+-- DROP POLICY IF EXISTS "Admins can read agent metadata only" ON agents;
+-- DROP POLICY IF EXISTS "Admins can read non-sensitive agent data" ON agents;
 
--- Create a new restricted admin policy
-CREATE POLICY "Admins can read limited agent data" ON agents
-FOR SELECT 
-USING (
-  is_admin(auth.uid()) AND 
-  -- This ensures admins can read the table but the application layer
-  -- must use admin_safe_agents() function to get data safely
-  true
-);
+-- -- Create a new restricted admin policy
+-- CREATE POLICY "Admins can read limited agent data" ON agents
+-- FOR SELECT 
+-- USING (
+--   is_admin(auth.uid()) AND 
+--   -- This ensures admins can read the table but the application layer
+--   -- must use admin_safe_agents() function to get data safely
+--   true
+-- );
 
--- But we recommend admins use the admin_safe_agents() function instead
--- which automatically excludes sensitive data
+-- -- But we recommend admins use the admin_safe_agents() function instead
+-- -- which automatically excludes sensitive data
 
 
 ================================================================================
@@ -36360,6 +36280,25 @@ FOR UPDATE USING (is_admin(auth.uid()));
 
 CREATE POLICY "Admins can delete lessons" ON lessons
 FOR DELETE USING (is_admin(auth.uid()));
+
+
+================================================================================
+ARQUIVO: ./supabase/migrations/20250820190006_fix_insert_policy_for_service_role.sql
+================================================================================\n
+-- Remove a política de INSERT anterior que bloqueava a service_role.
+DROP POLICY IF EXISTS "Admins can insert lesson categories" ON public.lesson_categories;
+
+-- Cria uma nova política de INSERT que funciona tanto para usuários admin logados
+-- quanto para a service_role (que opera como o usuário 'postgres').
+CREATE POLICY "Admins can insert lesson categories"
+ON public.lesson_categories
+FOR INSERT
+WITH CHECK (
+  -- Permite a inserção se o usuário da sessão for o superusuário do banco (usado pela service_role)
+  session_user = 'postgres' OR
+  -- Ou se o usuário autenticado tiver a role de admin, verificado pela sua função RPC.
+  is_admin(auth.uid())
+);
 
 
 ================================================================================

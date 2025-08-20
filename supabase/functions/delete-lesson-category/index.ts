@@ -1,9 +1,8 @@
-// ARQUIVO FINAL E ROBUSTO: supabase/functions/create-lesson-category/index.ts
-
+// Edge Function para deletar categorias de aulas
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-console.log("🚀 Função create-lesson-category v4.0 (robusta) iniciada");
+console.log("🗑️ Função delete-lesson-category iniciada");
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -36,52 +35,66 @@ serve(async (req) => {
     if (!user) {
       throw { status: 401, message: "Usuário não autenticado" };
     }
-    console.log("Usuário autenticado:", { id: user.id, email: user.email });
 
+    // Verificar se é admin
     const { data: isAdmin, error: rpcError } = await supabaseAdmin.rpc('is_admin', { user_id: user.id });
     if (rpcError) throw rpcError;
     
     if (!isAdmin) {
-      console.error("Acesso negado. Usuário não é administrador.");
-      throw { status: 403, message: "Acesso negado. Apenas administradores podem criar categorias." };
-    }
-    console.log("Permissão de administrador confirmada.");
-
-    const categoryData = await req.json();
-    console.log("Dados da categoria recebidos:", categoryData);
-    if (!categoryData.name || String(categoryData.name).trim() === '') {
-      throw { status: 400, message: "O nome da categoria é obrigatório." };
+      throw { status: 403, message: "Acesso negado. Apenas administradores podem deletar categorias." };
     }
 
-    console.log("Inserindo categoria no banco de dados...");
-    const { data, error: insertError } = await supabaseAdmin
+    // Obter category_id do body
+    const { categoryId } = await req.json();
+    
+    if (!categoryId) {
+      throw { status: 400, message: "ID da categoria é obrigatório" };
+    }
+
+    console.log("Deletando categoria:", categoryId);
+
+    // Verificar se a categoria tem aulas associadas
+    const { data: lessonsCount, error: countError } = await supabaseAdmin
+      .from('lessons')
+      .select('id', { count: 'exact', head: true })
+      .eq('category_id', categoryId);
+
+    if (countError) {
+      console.error("Erro ao verificar aulas:", countError);
+      throw { status: 500, message: `Erro ao verificar aulas: ${countError.message}` };
+    }
+
+    // Se tem aulas, não pode deletar
+    if (lessonsCount && lessonsCount.length > 0) {
+      throw { status: 400, message: "Não é possível deletar categoria que possui aulas. Delete as aulas primeiro." };
+    }
+
+    // Deletar categoria
+    const { data, error: deleteError } = await supabaseAdmin
       .from('lesson_categories')
-      .insert(categoryData)
+      .delete()
+      .eq('id', categoryId)
       .select()
       .single();
 
-    if (insertError) {
-      console.error("Erro do Supabase ao inserir:", insertError);
-      console.error("Código do erro:", insertError.code);
-      console.error("Detalhes do erro:", insertError.details);
-      console.error("Dica do erro:", insertError.hint);
-      
-      // Lança o erro do Supabase para ser capturado pelo catch principal
-      const errorMessage = insertError.message || insertError.details || insertError.hint || 'Erro desconhecido no banco de dados';
+    if (deleteError) {
+      console.error("Erro ao deletar categoria:", deleteError);
+      const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Erro desconhecido ao deletar categoria';
       throw { status: 500, message: `Erro no banco de dados: ${errorMessage}` };
     }
 
-    console.log("Categoria criada com sucesso:", data);
-    return new Response(JSON.stringify(data), {
+    if (!data) {
+      throw { status: 404, message: "Categoria não encontrada" };
+    }
+
+    console.log("Categoria deletada com sucesso:", data);
+    return new Response(JSON.stringify({ message: "Categoria deletada com sucesso", data }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 201, // Created
+      status: 200,
     });
 
   } catch (error) {
-    // Bloco catch aprimorado para lidar com qualquer tipo de erro
     console.error("Erro completo capturado:", error);
-    console.error("Tipo do erro:", typeof error);
-    console.error("Propriedades do erro:", Object.keys(error || {}));
     
     let errorMessage = "Ocorreu um erro inesperado.";
     let errorStatus = 500;
