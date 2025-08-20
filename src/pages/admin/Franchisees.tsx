@@ -129,10 +129,19 @@ export default function Franchisees() {
       toast.success(`Franqueado ${formData.name} atualizado com sucesso!`);
       setIsEditModalOpen(false);
       setEditingFranchisee(null);
+      resetFranchiseeForm();
     } catch (error) {
       console.error('Erro ao atualizar franqueado:', error);
       toast.error('Erro ao atualizar franqueado. Tente novamente.');
     }
+  };
+
+  const resetFranchiseeForm = () => {
+    setFormData({
+      name: "",
+      email: "",
+      isActive: true
+    });
   };
 
   const renderSkeleton = () => (
@@ -231,7 +240,10 @@ export default function Franchisees() {
               disabled={isLoading}
             />
           </div>
-          <Button onClick={() => setIsAddModalOpen(true)} className="w-full sm:w-auto">
+          <Button onClick={() => {
+            resetFranchiseeForm();
+            setIsAddModalOpen(true);
+          }} className="w-full sm:w-auto">
             <PlusCircle className="mr-2 h-4 w-4" />
             Novo Franqueado
           </Button>
@@ -282,7 +294,10 @@ export default function Franchisees() {
               <Label htmlFor="isActive">Ativo</Label>
             </div>
             <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-              <Button variant="outline" type="button" onClick={() => setIsAddModalOpen(false)} className="w-full sm:w-auto">
+              <Button variant="outline" type="button" onClick={() => {
+                setIsAddModalOpen(false);
+                resetFranchiseeForm();
+              }} className="w-full sm:w-auto">
                 Cancelar
               </Button>
               <Button type="submit" className="w-full sm:w-auto">Adicionar</Button>
@@ -333,7 +348,11 @@ export default function Franchisees() {
               <Label htmlFor="edit-isActive">Ativo</Label>
             </div>
             <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-              <Button variant="outline" type="button" onClick={() => setIsEditModalOpen(false)} className="w-full sm:w-auto">
+              <Button variant="outline" type="button" onClick={() => {
+                setIsEditModalOpen(false);
+                setEditingFranchisee(null);
+                resetFranchiseeForm();
+              }} className="w-full sm:w-auto">
                 Cancelar
               </Button>
               <Button type="submit" className="w-full sm:w-auto">Salvar Alterações</Button>

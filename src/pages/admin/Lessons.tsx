@@ -250,19 +250,38 @@ export default function Lessons() {
     }
 
     try {
-      const { error } = await supabase
+      console.log('Tentando criar categoria:', newCategory);
+      
+      // Primeiro, vamos verificar se o usuário tem privilégios de admin
+      const { data: debugData } = await supabase.rpc('debug_user_status');
+      console.log('Status do usuário:', debugData);
+      
+      const { data, error } = await supabase
         .from('lesson_categories')
-        .insert(newCategory);
+        .insert(newCategory)
+        .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Erro detalhado:', error);
+        throw error;
+      }
 
+      console.log('Categoria criada:', data);
       toast.success('Categoria criada com sucesso!');
       setIsCategoryModalOpen(false);
       resetCategoryForm();
       await loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao criar categoria:', error);
-      toast.error('Erro ao criar categoria');
+      
+      // Mostrar erro mais específico para o usuário
+      if (error.message?.includes('RLS')) {
+        toast.error('Erro de permissão: Você precisa ter privilégios de administrador');
+      } else if (error.message?.includes('duplicate')) {
+        toast.error('Já existe uma categoria com este nome');
+      } else {
+        toast.error(`Erro ao criar categoria: ${error.message || 'Erro desconhecido'}`);
+      }
     }
   };
 
