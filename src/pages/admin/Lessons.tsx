@@ -129,7 +129,7 @@ export default function Lessons() {
         .from('lessons')
         .select(`
           *,
-          lesson_categories (
+          category:lesson_categories (
             id,
             name,
             description,
@@ -424,28 +424,37 @@ const handleDeleteCategory = async (categoryId: string, categoryName: string) =>
           </div>
         ) : (
           <Tabs defaultValue="all" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="all">Todas ({lessons.length})</TabsTrigger>
-              {categories.map((category) => {
-                const categoryLessons = lessons.filter(l => l.category_id === category.id);
-                return (
-                  <div key={category.id} className="flex items-center">
-                    <TabsTrigger value={category.id}>
+            <div className="flex items-center gap-4 mb-4">
+              <TabsList>
+                <TabsTrigger value="all">Todas ({lessons.length})</TabsTrigger>
+                {categories.map((category) => {
+                  const categoryLessons = lessons.filter(l => l.category_id === category.id);
+                  return (
+                    <TabsTrigger key={category.id} value={category.id}>
                       {category.name} ({categoryLessons.length})
                     </TabsTrigger>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => handleDeleteCategory(category.id, category.name)}
-                      className="ml-2 h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                      title={`Deletar categoria "${category.name}"`}
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </Button>
-                  </div>
-                );
-              })}
-            </TabsList>
+                  );
+                })}
+              </TabsList>
+              
+              {/* Menu de ações das categorias */}
+              <div className="flex items-center gap-2 ml-auto">
+                <Label className="text-sm text-muted-foreground">Gerenciar Categorias:</Label>
+                {categories.map((category) => (
+                  <Button
+                    key={`delete-${category.id}`}
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteCategory(category.id, category.name)}
+                    className="h-8 px-2 text-muted-foreground hover:text-destructive"
+                    title={`Deletar categoria "${category.name}"`}
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    {category.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
 
             <TabsContent value="all">
               <LessonsGrid 
