@@ -78,6 +78,7 @@ export default function Schedule() {
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
   const [googleEvents, setGoogleEvents] = useState<any[]>([]);
   const [showGoogleAuth, setShowGoogleAuth] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const isMobile = useIsMobile();
@@ -92,10 +93,6 @@ export default function Schedule() {
     customer_id: "",
   });
 
-  const [googleConfig, setGoogleConfig] = useState({
-    customer_id: "",
-    google_calendar_id: "",
-  });
 
   useEffect(() => {
     if (user) {
@@ -468,36 +465,6 @@ export default function Schedule() {
     }
   };
 
-  const handleSaveGoogleConfig = async () => {
-    if (!user || !googleConfig.customer_id) {
-      toast.error('Selecione um cliente');
-      return;
-    }
-
-    try {
-      const { error } = await supabase
-        .from('google_calendar_configs')
-        .upsert({
-          franchisee_id: user.id,
-          customer_id: googleConfig.customer_id,
-          google_calendar_id: googleConfig.google_calendar_id,
-          is_active: true,
-        });
-
-      if (error) throw error;
-
-      toast.success('Configuração do Google Calendar salva!');
-      setIsGoogleConfigModalOpen(false);
-      setGoogleConfig({
-        customer_id: "",
-        google_calendar_id: "",
-      });
-      await loadData();
-    } catch (error) {
-      console.error('Erro ao salvar configuração:', error);
-      toast.error('Erro ao salvar configuração');
-    }
-  };
 
   const handleEditAppointment = (appointment: Appointment) => {
     setEditingAppointment(appointment);
@@ -1204,54 +1171,9 @@ export default function Schedule() {
               </div>
             )}
             
-            {isConnectedToGoogle && (
-              <>
-                <div className="space-y-2">
-                  <Label htmlFor="google-customer">Cliente</Label>
-                  <Select value={googleConfig.customer_id} onValueChange={(value) => 
-                    setGoogleConfig(prev => ({ ...prev, customer_id: value }))
-                  }>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione um cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((customer) => (
-                        <SelectItem key={customer.id} value={customer.id}>
-                          {customer.business_name || customer.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="calendar-id">ID do Google Calendar (opcional)</Label>
-                  <Input
-                    id="calendar-id"
-                    value={googleConfig.google_calendar_id}
-                    onChange={(e) => setGoogleConfig(prev => ({ ...prev, google_calendar_id: e.target.value }))}
-                    placeholder="primary ou ID específico do calendário"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Deixe vazio para usar o calendário principal
-                  </p>
-                </div>
-              </>
-            )}
           </div>
 
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setIsGoogleConfigModalOpen(false)}
-            >
-              Cancelar
-            </Button>
-            {isConnectedToGoogle && (
-              <Button onClick={handleSaveGoogleConfig}>
-                Salvar Configuração
-              </Button>
-            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
