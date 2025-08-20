@@ -243,47 +243,36 @@ export default function Lessons() {
     }
   };
 
-  const handleCreateCategory = async () => {
-    if (!newCategory.name) {
-      toast.error('Nome da categoria é obrigatório');
-      return;
+const handleCreateCategory = async () => {
+  if (!newCategory.name) {
+    toast.error('Nome da categoria é obrigatório');
+    return;
+  }
+
+  try {
+    console.log('Invocando a Edge Function para criar categoria:', newCategory);
+    
+    // CHAMADA PARA A EDGE FUNCTION
+    const { data, error } = await supabase.functions.invoke('create-lesson-category', {
+      body: newCategory
+    });
+
+    if (error) {
+      const errorBody = await error.context.json();
+      throw new Error(errorBody.error || "Erro ao criar categoria via função.");
     }
 
-    try {
-      console.log('Tentando criar categoria:', newCategory);
-      
-      // Primeiro, vamos verificar se o usuário tem privilégios de admin
-      const { data: debugData } = await supabase.rpc('debug_user_status');
-      console.log('Status do usuário:', debugData);
-      
-      const { data, error } = await supabase
-        .from('lesson_categories')
-        .insert(newCategory)
-        .select();
+    console.log('Categoria criada:', data);
+    toast.success('Categoria criada com sucesso!');
+    setIsCategoryModalOpen(false);
+    resetCategoryForm();
+    await loadData(); // Recarrega os dados para mostrar a nova categoria
 
-      if (error) {
-        console.error('Erro detalhado:', error);
-        throw error;
-      }
-
-      console.log('Categoria criada:', data);
-      toast.success('Categoria criada com sucesso!');
-      setIsCategoryModalOpen(false);
-      resetCategoryForm();
-      await loadData();
-    } catch (error: any) {
-      console.error('Erro ao criar categoria:', error);
-      
-      // Mostrar erro mais específico para o usuário
-      if (error.message?.includes('RLS')) {
-        toast.error('Erro de permissão: Você precisa ter privilégios de administrador');
-      } else if (error.message?.includes('duplicate')) {
-        toast.error('Já existe uma categoria com este nome');
-      } else {
-        toast.error(`Erro ao criar categoria: ${error.message || 'Erro desconhecido'}`);
-      }
-    }
-  };
+  } catch (error: any) {
+    console.error('Erro ao criar categoria:', error);
+    toast.error(`Erro ao criar categoria: ${error.message}`);
+  }
+};
 
   const resetLessonForm = () => {
     setNewLesson({

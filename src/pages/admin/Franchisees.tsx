@@ -1,6 +1,6 @@
 // src/pages/admin/Franchisees.tsx
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import DashboardLayout from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,6 +9,7 @@ import FranchiseeCard from "@/components/franchisees/FranchiseeCard";
 import { Franchisee } from "@/types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch"; // Usando Switch para consistência de UI
 import { toast } from "sonner";
 import { franchiseeService } from "@/services/franchiseeService";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 
 export default function Franchisees() {
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Para feedback de UI durante chamadas de API
   const [error, setError] = useState<string | null>(null);
   const [franchisees, setFranchisees] = useState<Franchisee[]>([]);
   
@@ -26,27 +28,29 @@ export default function Franchisees() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingFranchisee, setEditingFranchisee] = useState<Franchisee | null>(null);
   const [viewingFranchisee, setViewingFranchisee] = useState<Franchisee | null>(null);
+  
+  // Estado unificado para os formulários de adição e edição
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     isActive: true
   });
 
-  useEffect(() => {
-    const fetchFranchisees = async () => {
-      try {
-        setIsLoading(true);
-        setError(null);
-        const data = await franchiseeService.getFranchisees();
-        setFranchisees(data);
-      } catch (e) {
-        setError("Falha ao carregar dados dos franqueados. Verifique se você tem permissão de administrador.");
-        console.error(e);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  const fetchFranchisees = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await franchiseeService.getFranchisees();
+      setFranchisees(data);
+    } catch (e: any) {
+      setError(`Falha ao carregar dados dos franqueados. ${e.message}`);
+      console.error(e);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchFranchisees();
   }, []);
 
@@ -65,21 +69,11 @@ export default function Franchisees() {
   };
 
   const handleDeleteFranchisee = async (franchisee: Franchisee) => {
-    if (!confirm(`Tem certeza que deseja excluir o franqueado "${franchisee.name}"? Esta ação não pode ser desfeita.`)) {
+    if (!confirm(`Tem certeza que deseja excluir o franqueado "${franchisee.name}"? Esta é uma ação crítica e irreversível.`)) {
       return;
     }
-
-    try {
-      await franchiseeService.deleteFranchisee(franchisee.id);
-      
-      // Remover da lista local
-      setFranchisees(prev => prev.filter(f => f.id !== franchisee.id));
-      
-      toast.success(`Franqueado ${franchisee.name} excluído com sucesso!`);
-    } catch (error) {
-      console.error('Erro ao excluir franqueado:', error);
-      toast.error('Erro ao excluir franqueado. Tente novamente.');
-    }
+    // A lógica de exclusão segura deve ser implementada em uma Edge Function
+    await franchiseeService.deleteFranchisee(franchisee.id);
   };
 
   const handleEditFranchisee = (franchisee: Franchisee) => {
@@ -91,57 +85,50 @@ export default function Franchisees() {
     });
     setIsEditModalOpen(true);
   };
-
-  const handleFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+  
+  const resetForm = () => {
+    setFormData({ name: "", email: "", isActive: true });
+  };
+  
+  const handleAddSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      await franchiseeService.createFranchisee({ name: formData.name, email: formData.email });
+      toast.success(`Convite enviado com sucesso para ${formData.email}!`);
+      setIsAddModalOpen(false);
+      resetForm();
+      fetchFranchisees(); // Recarrega a lista para mostrar o novo franqueado
+    } catch (error: any) {
+      console.error('Erro ao adicionar franqueado:', error);
+      toast.error(`Erro ao adicionar franqueado: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleAddSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    // TODO: Implementar a chamada ao serviço para criar um franqueado no Supabase
-    // Exemplo: await franchiseeService.createFranchisee(formData);
-    toast.success(`Funcionalidade de adicionar franqueado a ser implementada.`);
-    setIsAddModalOpen(false);
-  };
-
-  const handleEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
     if (!editingFranchisee) {
-      toast.error('Erro interno: franqueado não selecionado');
+      toast.error('Erro interno: Franqueado não selecionado para edição.');
       return;
     }
 
+    setIsSubmitting(true);
     try {
-      await franchiseeService.updateFranchisee(editingFranchisee.id, formData);
-      
-      // Atualizar lista local
-      setFranchisees(prev => prev.map(f => 
-        f.id === editingFranchisee.id 
-          ? { ...f, ...formData }
-          : f
-      ));
-      
+      await franchiseeService.updateFranchisee(editingFranchisee.id, {
+        name: formData.name,
+        isActive: formData.isActive
+      });
       toast.success(`Franqueado ${formData.name} atualizado com sucesso!`);
       setIsEditModalOpen(false);
-      setEditingFranchisee(null);
-      resetFranchiseeForm();
-    } catch (error) {
+      fetchFranchisees(); // Recarrega a lista para refletir as mudanças
+    } catch (error: any) {
       console.error('Erro ao atualizar franqueado:', error);
-      toast.error('Erro ao atualizar franqueado. Tente novamente.');
+      toast.error(`Erro ao atualizar franqueado: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const resetFranchiseeForm = () => {
-    setFormData({
-      name: "",
-      email: "",
-      isActive: true
-    });
   };
 
   const renderSkeleton = () => (
@@ -167,6 +154,7 @@ export default function Franchisees() {
             <div className="flex space-x-2 pt-2">
                 <Skeleton className="h-9 flex-1 rounded-md" />
                 <Skeleton className="h-9 flex-1 rounded-md" />
+                <Skeleton className="h-9 flex-1 rounded-md" />
             </div>
         </CardContent>
       </Card>
@@ -187,7 +175,7 @@ export default function Franchisees() {
         <div className="text-center py-10 text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
           <p className="font-semibold">Erro ao carregar dados</p>
           <p className="text-sm mt-1">{error}</p>
-          <Button variant="outline" onClick={() => window.location.reload()} className="mt-4">
+          <Button variant="outline" onClick={fetchFranchisees} className="mt-4">
             Tentar Novamente
           </Button>
         </div>
@@ -241,7 +229,7 @@ export default function Franchisees() {
             />
           </div>
           <Button onClick={() => {
-            resetFranchiseeForm();
+            resetForm();
             setIsAddModalOpen(true);
           }} className="w-full sm:w-auto">
             <PlusCircle className="mr-2 h-4 w-4" />
@@ -258,49 +246,18 @@ export default function Franchisees() {
           <DialogHeader>
             <DialogTitle>Adicionar Novo Franqueado</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleAddSubmit} className="space-y-4">
+          <form onSubmit={handleAddSubmit} className="space-y-4 pt-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
-                name="name"
-                placeholder="Nome do franqueado"
-                value={formData.name}
-                onChange={handleFormChange}
-                required
-              />
+              <Label htmlFor="add-name">Nome</Label>
+              <Input id="add-name" name="name" value={formData.name} onChange={(e) => setFormData(p => ({...p, name: e.target.value}))} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                placeholder="email@exemplo.com"
-                value={formData.email}
-                onChange={handleFormChange}
-                required
-              />
+              <Label htmlFor="add-email">Email</Label>
+              <Input id="add-email" name="email" type="email" value={formData.email} onChange={(e) => setFormData(p => ({...p, email: e.target.value}))} required />
             </div>
-            <div className="flex items-center space-x-2">
-              <input 
-                type="checkbox" 
-                id="isActive" 
-                name="isActive"
-                checked={formData.isActive}
-                onChange={handleFormChange}
-                className="h-4 w-4 rounded border-gray-300"
-              />
-              <Label htmlFor="isActive">Ativo</Label>
-            </div>
-            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-              <Button variant="outline" type="button" onClick={() => {
-                setIsAddModalOpen(false);
-                resetFranchiseeForm();
-              }} className="w-full sm:w-auto">
-                Cancelar
-              </Button>
-              <Button type="submit" className="w-full sm:w-auto">Adicionar</Button>
+            <DialogFooter className="pt-4">
+              <Button variant="outline" type="button" onClick={() => setIsAddModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Enviando..." : "Enviar Convite"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -312,50 +269,22 @@ export default function Franchisees() {
           <DialogHeader>
             <DialogTitle>Editar Franqueado</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleEditSubmit} className="space-y-4">
+          <form onSubmit={handleEditSubmit} className="space-y-4 pt-4">
             <div className="space-y-2">
               <Label htmlFor="edit-name">Nome</Label>
-              <Input
-                id="edit-name"
-                name="name"
-                placeholder="Nome do franqueado"
-                value={formData.name}
-                onChange={handleFormChange}
-                required
-              />
+              <Input id="edit-name" name="name" value={formData.name} onChange={(e) => setFormData(p => ({...p, name: e.target.value}))} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="edit-email">Email</Label>
-              <Input
-                id="edit-email"
-                name="email"
-                type="email"
-                placeholder="email@exemplo.com"
-                value={formData.email}
-                onChange={handleFormChange}
-                required
-              />
+              <Label htmlFor="edit-email">Email (não pode ser alterado)</Label>
+              <Input id="edit-email" name="email" type="email" value={formData.email} disabled />
             </div>
-            <div className="flex items-center space-x-2">
-              <input 
-                type="checkbox" 
-                id="edit-isActive" 
-                name="isActive"
-                checked={formData.isActive}
-                onChange={handleFormChange}
-                className="h-4 w-4 rounded border-gray-300"
-              />
+            <div className="flex items-center space-x-2 pt-2">
+              <Switch id="edit-isActive" checked={formData.isActive} onCheckedChange={(checked) => setFormData(p => ({...p, isActive: checked}))} />
               <Label htmlFor="edit-isActive">Ativo</Label>
             </div>
-            <DialogFooter className="flex-col sm:flex-row gap-2 sm:gap-0">
-              <Button variant="outline" type="button" onClick={() => {
-                setIsEditModalOpen(false);
-                setEditingFranchisee(null);
-                resetFranchiseeForm();
-              }} className="w-full sm:w-auto">
-                Cancelar
-              </Button>
-              <Button type="submit" className="w-full sm:w-auto">Salvar Alterações</Button>
+            <DialogFooter className="pt-4">
+              <Button variant="outline" type="button" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
+              <Button type="submit" disabled={isSubmitting}>{isSubmitting ? "Salvando..." : "Salvar Alterações"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -368,40 +297,40 @@ export default function Franchisees() {
             <DialogTitle>Detalhes do Franqueado</DialogTitle>
           </DialogHeader>
           {viewingFranchisee && (
-            <div className="space-y-4">
+            <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label className="text-sm font-medium">Nome</Label>
-                  <p className="text-sm text-muted-foreground">{viewingFranchisee.name}</p>
+                  <Label className="text-xs text-muted-foreground">Nome</Label>
+                  <p className="font-medium">{viewingFranchisee.name}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Email</Label>
-                  <p className="text-sm text-muted-foreground">{viewingFranchisee.email}</p>
+                  <Label className="text-xs text-muted-foreground">Email</Label>
+                  <p className="font-medium">{viewingFranchisee.email}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Status</Label>
+                  <Label className="text-xs text-muted-foreground">Status</Label>
                   <Badge className={viewingFranchisee.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
                     {viewingFranchisee.isActive ? "Ativo" : "Inativo"}
                   </Badge>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Data de Cadastro</Label>
-                  <p className="text-sm text-muted-foreground">
+                  <Label className="text-xs text-muted-foreground">Data de Cadastro</Label>
+                  <p className="font-medium">
                     {new Date(viewingFranchisee.createdAt).toLocaleDateString("pt-BR")}
                   </p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Agentes</Label>
-                  <p className="text-sm text-muted-foreground">{viewingFranchisee.agentCount}</p>
+                  <Label className="text-xs text-muted-foreground">Agentes</Label>
+                  <p className="font-medium">{viewingFranchisee.agentCount}</p>
                 </div>
                 <div>
-                  <Label className="text-sm font-medium">Clientes</Label>
-                  <p className="text-sm text-muted-foreground">{viewingFranchisee.customerCount}</p>
+                  <Label className="text-xs text-muted-foreground">Clientes</Label>
+                  <p className="font-medium">{viewingFranchisee.customerCount}</p>
                 </div>
                 <div className="col-span-2">
-                  <Label className="text-sm font-medium">Receita</Label>
-                  <p className="text-sm text-muted-foreground">
-                    R$ {viewingFranchisee.revenue.toLocaleString("pt-BR")}
+                  <Label className="text-xs text-muted-foreground">Receita Estimada</Label>
+                  <p className="font-medium text-lg text-green-600">
+                    R$ {viewingFranchisee.revenue.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               </div>
