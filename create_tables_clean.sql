@@ -1,7 +1,69 @@
--- Script completo para criar o sistema de aulas
+-- Script limpo para criar sistema de aulas (SEM dados de exemplo)
 -- Execute este script no SQL Editor do Supabase
 
--- 1. Criar tabela lessons (se não existir)
+-- 1. Criar tabela lesson_categories (se não existir)
+CREATE TABLE IF NOT EXISTS lesson_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  icon TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Habilitar RLS na tabela lesson_categories
+ALTER TABLE lesson_categories ENABLE ROW LEVEL SECURITY;
+
+-- 3. Remover políticas existentes (se houver)
+DROP POLICY IF EXISTS "Anyone can view lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can manage lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can insert lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can update lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can delete lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can insert lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can update lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can delete lesson categories" ON lesson_categories;
+
+-- 4. Criar políticas para lesson_categories
+CREATE POLICY "lesson_categories_select_policy" 
+ON lesson_categories 
+FOR SELECT 
+USING (true);
+
+CREATE POLICY "lesson_categories_insert_policy" 
+ON lesson_categories 
+FOR INSERT 
+WITH CHECK (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lesson_categories_update_policy" 
+ON lesson_categories 
+FOR UPDATE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lesson_categories_delete_policy" 
+ON lesson_categories 
+FOR DELETE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+-- 5. Criar tabela lessons (se não existir)
 CREATE TABLE IF NOT EXISTS lessons (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   title TEXT NOT NULL,
@@ -19,17 +81,10 @@ CREATE TABLE IF NOT EXISTS lessons (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Habilitar RLS na tabela lessons
+-- 6. Habilitar RLS na tabela lessons
 ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
 
--- 3. Remover políticas existentes da tabela lessons (se houver)
-DROP POLICY IF EXISTS "Anyone can view published lessons" ON lessons;
-DROP POLICY IF EXISTS "Admins can manage lessons" ON lessons;
-DROP POLICY IF EXISTS "Admins can insert lessons" ON lessons;
-DROP POLICY IF EXISTS "Admins can update lessons" ON lessons;
-DROP POLICY IF EXISTS "Admins can delete lessons" ON lessons;
-
--- 4. Criar políticas para lessons
+-- 7. Criar políticas para lessons
 CREATE POLICY "lessons_select_policy" 
 ON lessons 
 FOR SELECT 
@@ -70,10 +125,7 @@ USING (
   ))
 );
 
--- 5. Conceder permissões para service_role
-GRANT ALL ON lessons TO service_role;
-
--- 6. Criar tabela user_lesson_progress (se não existir)
+-- 8. Criar tabela user_lesson_progress (se não existir)
 CREATE TABLE IF NOT EXISTS user_lesson_progress (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
@@ -86,10 +138,10 @@ CREATE TABLE IF NOT EXISTS user_lesson_progress (
   UNIQUE(user_id, lesson_id)
 );
 
--- 7. Habilitar RLS na tabela user_lesson_progress
+-- 9. Habilitar RLS na tabela user_lesson_progress
 ALTER TABLE user_lesson_progress ENABLE ROW LEVEL SECURITY;
 
--- 8. Criar políticas para user_lesson_progress
+-- 10. Criar políticas para user_lesson_progress
 CREATE POLICY "user_lesson_progress_policy" 
 ON user_lesson_progress 
 FOR ALL 
@@ -102,10 +154,13 @@ USING (
   ))
 );
 
--- 9. Conceder permissões
+-- 11. Conceder permissões para service_role
+GRANT ALL ON lesson_categories TO service_role;
+GRANT ALL ON lessons TO service_role;
 GRANT ALL ON user_lesson_progress TO service_role;
+GRANT USAGE ON SCHEMA public TO service_role;
 
--- 10. Criar função para atualizar updated_at (se não existir)
+-- 12. Criar função para atualizar updated_at (se não existir)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -114,7 +169,13 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 11. Criar triggers para updated_at
+-- 13. Criar triggers para updated_at
+DROP TRIGGER IF EXISTS update_lesson_categories_updated_at ON lesson_categories;
+CREATE TRIGGER update_lesson_categories_updated_at 
+  BEFORE UPDATE ON lesson_categories 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+
 DROP TRIGGER IF EXISTS update_lessons_updated_at ON lessons;
 CREATE TRIGGER update_lessons_updated_at 
   BEFORE UPDATE ON lessons 
@@ -127,9 +188,7 @@ CREATE TRIGGER update_user_lesson_progress_updated_at
   FOR EACH ROW 
   EXECUTE FUNCTION update_updated_at_column();
 
--- 12. Tabela criada sem dados de exemplo - pronta para uso
-
--- 13. Verificar se tudo foi criado corretamente
+-- 14. Verificar se tudo foi criado corretamente
 SELECT 'lesson_categories' as table_name, COUNT(*) as count FROM lesson_categories
 UNION ALL
 SELECT 'lessons' as table_name, COUNT(*) as count FROM lessons

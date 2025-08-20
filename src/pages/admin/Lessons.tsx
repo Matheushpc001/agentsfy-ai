@@ -45,7 +45,10 @@ interface LessonCategory {
   name: string;
   description?: string;
   icon?: string;
+  is_active?: boolean;
   lessons_count?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface Lesson {
@@ -72,6 +75,7 @@ export default function Lessons() {
   const [categories, setCategories] = useState<LessonCategory[]>([]);
   const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isCategoryManageModalOpen, setIsCategoryManageModalOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [editingCategory, setEditingCategory] = useState<LessonCategory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -310,6 +314,45 @@ const handleDeleteCategory = async (categoryId: string, categoryName: string) =>
   }
 };
 
+const handleUpdateCategory = async (categoryId: string, updates: Partial<LessonCategory>) => {
+  try {
+    console.log('Atualizando categoria:', categoryId, updates);
+    
+    const { error } = await supabase
+      .from('lesson_categories')
+      .update(updates)
+      .eq('id', categoryId);
+
+    if (error) throw error;
+
+    toast.success('Categoria atualizada com sucesso!');
+    await loadData();
+    setEditingCategory(null);
+
+  } catch (error: any) {
+    console.error('Erro ao atualizar categoria:', error);
+    toast.error(`Erro ao atualizar categoria: ${error.message}`);
+  }
+};
+
+const handleToggleCategoryActive = async (categoryId: string, isActive: boolean) => {
+  try {
+    const { error } = await supabase
+      .from('lesson_categories')
+      .update({ is_active: isActive })
+      .eq('id', categoryId);
+
+    if (error) throw error;
+
+    toast.success(`Categoria ${isActive ? 'ativada' : 'desativada'} com sucesso!`);
+    await loadData();
+
+  } catch (error: any) {
+    console.error('Erro ao alterar status da categoria:', error);
+    toast.error(`Erro ao alterar status da categoria: ${error.message}`);
+  }
+};
+
   const resetLessonForm = () => {
     setNewLesson({
       title: "",
@@ -410,6 +453,13 @@ const handleDeleteCategory = async (categoryId: string, categoryName: string) =>
               <Plus className="w-4 h-4 mr-2" />
               Nova Categoria
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsCategoryManageModalOpen(true)}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Gerenciar Categorias
+            </Button>
             <Button onClick={() => setIsLessonModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Nova Aula
@@ -424,37 +474,17 @@ const handleDeleteCategory = async (categoryId: string, categoryName: string) =>
           </div>
         ) : (
           <Tabs defaultValue="all" className="space-y-4">
-            <div className="flex items-center gap-4 mb-4">
-              <TabsList>
-                <TabsTrigger value="all">Todas ({lessons.length})</TabsTrigger>
-                {categories.map((category) => {
-                  const categoryLessons = lessons.filter(l => l.category_id === category.id);
-                  return (
-                    <TabsTrigger key={category.id} value={category.id}>
-                      {category.name} ({categoryLessons.length})
-                    </TabsTrigger>
-                  );
-                })}
-              </TabsList>
-              
-              {/* Menu de ações das categorias */}
-              <div className="flex items-center gap-2 ml-auto">
-                <Label className="text-sm text-muted-foreground">Gerenciar Categorias:</Label>
-                {categories.map((category) => (
-                  <Button
-                    key={`delete-${category.id}`}
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDeleteCategory(category.id, category.name)}
-                    className="h-8 px-2 text-muted-foreground hover:text-destructive"
-                    title={`Deletar categoria "${category.name}"`}
-                  >
-                    <Trash2 className="w-4 h-4 mr-1" />
-                    {category.name}
-                  </Button>
-                ))}
-              </div>
-            </div>
+            <TabsList>
+              <TabsTrigger value="all">Todas ({lessons.length})</TabsTrigger>
+              {categories.filter(cat => cat.is_active !== false).map((category) => {
+                const categoryLessons = lessons.filter(l => l.category_id === category.id);
+                return (
+                  <TabsTrigger key={category.id} value={category.id}>
+                    {category.name} ({categoryLessons.length})
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
 
             <TabsContent value="all">
               <LessonsGrid 
@@ -465,7 +495,7 @@ const handleDeleteCategory = async (categoryId: string, categoryName: string) =>
               />
             </TabsContent>
 
-            {categories.map((category) => {
+            {categories.filter(cat => cat.is_active !== false).map((category) => {
               const categoryLessons = lessons.filter(l => l.category_id === category.id);
               return (
                 <TabsContent key={category.id} value={category.id}>
@@ -710,6 +740,188 @@ const handleDeleteCategory = async (categoryId: string, categoryName: string) =>
             </Button>
             <Button onClick={handleCreateCategory}>
               Criar Categoria
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para Gerenciar Categorias */}
+      <Dialog open={isCategoryManageModalOpen} onOpenChange={setIsCategoryManageModalOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Categorias</DialogTitle>
+            <DialogDescription>
+              Edite, ative/desative ou delete categorias existentes
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {categories.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                <p>Nenhuma categoria encontrada</p>
+                <p className="text-sm">Crie uma nova categoria para começar</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {categories.map((category) => {
+                  const categoryLessons = lessons.filter(l => l.category_id === category.id);
+                  const isEditing = editingCategory?.id === category.id;
+                  
+                  return (
+                    <Card key={category.id} className={`p-4 ${category.is_active === false ? 'opacity-60 bg-muted/30' : ''}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          {isEditing ? (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label className="text-xs">Nome</Label>
+                                  <Input
+                                    value={newCategory.name}
+                                    onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="Nome da categoria"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Ícone</Label>
+                                  <Select value={newCategory.icon} onValueChange={(value) => 
+                                    setNewCategory(prev => ({ ...prev, icon: value }))
+                                  }>
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="BookOpen">Livro</SelectItem>
+                                      <SelectItem value="PlayCircle">Play</SelectItem>
+                                      <SelectItem value="Settings">Configurações</SelectItem>
+                                      <SelectItem value="MessageCircle">Mensagem</SelectItem>
+                                      <SelectItem value="Brain">Cérebro</SelectItem>
+                                      <SelectItem value="BarChart">Gráfico</SelectItem>
+                                      <SelectItem value="TrendingUp">Tendência</SelectItem>
+                                      <SelectItem value="HelpCircle">Ajuda</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Descrição</Label>
+                                <Textarea
+                                  value={newCategory.description}
+                                  onChange={(e) => setNewCategory(prev => ({ ...prev, description: e.target.value }))}
+                                  placeholder="Descrição da categoria..."
+                                  rows={2}
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    handleUpdateCategory(category.id, {
+                                      name: newCategory.name,
+                                      description: newCategory.description,
+                                      icon: newCategory.icon
+                                    });
+                                  }}
+                                >
+                                  Salvar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingCategory(null);
+                                    resetCategoryForm();
+                                  }}
+                                >
+                                  Cancelar
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="font-semibold">{category.name}</h3>
+                                <Badge variant={category.is_active !== false ? "default" : "secondary"}>
+                                  {category.is_active !== false ? "Ativa" : "Inativa"}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  {categoryLessons.length} aula(s)
+                                </Badge>
+                              </div>
+                              {category.description && (
+                                <p className="text-sm text-muted-foreground mb-2">{category.description}</p>
+                              )}
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>Ícone: {category.icon}</span>
+                                <span>•</span>
+                                <span>Criada em: {new Date(category.created_at || '').toLocaleDateString('pt-BR')}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {!isEditing && (
+                          <div className="flex items-center gap-2 ml-4">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingCategory(category);
+                                setNewCategory({
+                                  name: category.name,
+                                  description: category.description || '',
+                                  icon: category.icon || 'BookOpen'
+                                });
+                              }}
+                              title="Editar categoria"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleToggleCategoryActive(category.id, !(category.is_active !== false))}
+                              title={category.is_active !== false ? "Desativar categoria" : "Ativar categoria"}
+                            >
+                              {category.is_active !== false ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteCategory(category.id, category.name)}
+                              className="text-destructive hover:text-destructive"
+                              title="Deletar categoria"
+                              disabled={categoryLessons.length > 0}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCategoryManageModalOpen(false);
+                setEditingCategory(null);
+                resetCategoryForm();
+              }}
+            >
+              Fechar
             </Button>
           </DialogFooter>
         </DialogContent>
