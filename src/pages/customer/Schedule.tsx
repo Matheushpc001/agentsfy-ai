@@ -168,6 +168,12 @@ export default function CustomerSchedule() {
       const baseUrl = window.location.origin;
       const redirectUri = `${baseUrl}/oauth/callback`;
       
+      console.log('🔄 Trocando código por tokens...', {
+        clientId: clientId.substring(0, 20) + '...',
+        redirectUri,
+        codeLength: code.trim().length
+      });
+
       const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -182,6 +188,22 @@ export default function CustomerSchedule() {
 
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('❌ Erro detalhado da troca de tokens:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText,
+          redirectUri: redirectUri,
+          codeUsed: code.trim().substring(0, 10) + '...'
+        });
+        
+        if (response.status === 400 && errorText.includes('invalid_grant')) {
+          // Limpar campo do código
+          const input = document.getElementById('auth-code') as HTMLInputElement;
+          if (input) input.value = '';
+          
+          throw new Error('❌ Código expirou ou já foi usado. Clique em "Abrir Autorização Google" para obter um novo código.');
+        }
+        
         throw new Error(`Erro do Google: ${response.status} - ${errorText}`);
       }
 
@@ -463,9 +485,11 @@ export default function CustomerSchedule() {
               <Calendar className="h-4 w-4 text-blue-600" />
               <AlertDescription>
                 <strong className="text-blue-800">Como funciona:</strong><br />
-                1. Clique no link abaixo para autorizar<br />
-                2. Copie o código que aparecer<br />
-                3. Cole aqui e conecte
+                1. Clique em "Abrir Autorização Google"<br />
+                2. Autorize na janela que abrir<br />
+                3. Copie o código da página de callback<br />
+                4. Cole aqui e clique "Conectar"<br />
+                <span className="text-orange-600">⚠️ Use o código imediatamente (expira em 10 min)</span>
               </AlertDescription>
             </Alert>
 
@@ -490,6 +514,7 @@ export default function CustomerSchedule() {
                       const target = e.target as HTMLInputElement;
                       if (target.value.trim()) {
                         handleAuthCodeSubmit(target.value);
+                        target.value = ''; // Limpar após uso
                       }
                     }
                   }}
@@ -499,12 +524,16 @@ export default function CustomerSchedule() {
                     const input = document.getElementById('auth-code') as HTMLInputElement;
                     if (input?.value.trim()) {
                       handleAuthCodeSubmit(input.value);
+                      input.value = ''; // Limpar após uso
                     }
                   }}
                 >
                   Conectar
                 </Button>
               </div>
+              <p className="text-xs text-muted-foreground">
+                ⚠️ O código expira em 10 minutos e só pode ser usado uma vez
+              </p>
             </div>
           </div>
         </DialogContent>

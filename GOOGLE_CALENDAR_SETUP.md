@@ -235,11 +235,18 @@ supabase functions logs google-calendar-oauth-callback
 
 ### **Erro: "Invalid redirect URI"**
 - Verifique a URL de callback no Google Cloud Console
-- URL deve ser exatamente: `https://[seu-projeto].supabase.co/functions/v1/google-calendar-oauth-callback`
+- URL deve ser exatamente: `https://agentsfy-ai.lovable.app/oauth/callback`
 
 ### **Erro: "Token inválido"**
 - Sistema tenta renovar automaticamente
 - Se continuar, usuário precisa reconectar
+
+### **Erro 400: "invalid_grant" ou "bad request"**
+- **Causa mais comum:** Código de autorização expirou (válido apenas 10 minutos)
+- **Causa:** Código já foi usado (códigos OAuth são de uso único)
+- **Solução:** Gerar novo código clicando em "Abrir Autorização Google" novamente
+- **Prevenção:** Use o código imediatamente após obter
+- **Verificar:** Não copie espaços extras no início/fim do código
 
 ## 📞 **SUPORTE TÉCNICO**
 
