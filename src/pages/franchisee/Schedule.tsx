@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Plus, User, X, Settings, ExternalLink, Calendar, Edit, Trash2, CheckCircle } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Plus, User, X, Settings, ExternalLink, Calendar, Edit, Trash2, CheckCircle, Copy } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -74,11 +74,10 @@ export default function Schedule() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [googleConfigs, setGoogleConfigs] = useState<GoogleCalendarConfig[]>([]);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
-  const [isGoogleConfigModalOpen, setIsGoogleConfigModalOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState<string>("");
-  const [isConnectedToGoogle, setIsConnectedToGoogle] = useState(false);
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [googleEvents, setGoogleEvents] = useState<any[]>([]);
+  const [showGoogleAuth, setShowGoogleAuth] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
   const isMobile = useIsMobile();
@@ -118,15 +117,7 @@ export default function Schedule() {
       
       setCustomers(customersData || []);
 
-      // Carregar configurações do Google Calendar
-      const { data: configsData } = await supabase
-        .from('google_calendar_configs')
-        .select('*')
-        .eq('franchisee_id', user.id);
-      
-      setGoogleConfigs(configsData || []);
-
-      // Carregar agendamentos
+      // Carregar agendamentos do sistema
       const startOfDay = new Date(selectedDate.setHours(0, 0, 0, 0)).toISOString();
       const endOfDay = new Date(selectedDate.setHours(23, 59, 59, 999)).toISOString();
       
@@ -147,20 +138,53 @@ export default function Schedule() {
 
       setAppointments(appointmentsData || []);
 
-      // Verificar se está conectado ao Google Calendar
+      // Verificar conexão Google Calendar
       const { data: profileData } = await supabase
         .from('profiles')
         .select('google_calendar_token')
         .eq('id', user.id)
         .single();
       
-      setIsConnectedToGoogle(!!profileData?.google_calendar_token);
+      const connected = !!profileData?.google_calendar_token;
+      setIsGoogleConnected(connected);
+      
+      // Se conectado, carregar eventos do Google Calendar
+      if (connected) {
+        await loadGoogleEvents(profileData.google_calendar_token, startOfDay, endOfDay);
+      }
       
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
       toast.error('Erro ao carregar agenda');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadGoogleEvents = async (token: string, startDate: string, endDate: string) => {
+    try {
+      const response = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+        `timeMin=${encodeURIComponent(startDate)}&` +
+        `timeMax=${encodeURIComponent(endDate)}&` +
+        `singleEvents=true&orderBy=startTime`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setGoogleEvents(data.items || []);
+      } else {
+        console.log('Erro ao carregar eventos do Google:', response.status);
+        setGoogleEvents([]);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar eventos do Google:', error);
+      setGoogleEvents([]);
     }
   };
 
@@ -216,37 +240,102 @@ export default function Schedule() {
         throw error;
       }
 
-      // Tentar sincronizar com Google Calendar
+      // Tentar sincronizar com Google Calendar do franqueado
       try {
-        const selectedCustomer = customers.find(c => c.id === newAppointment.customer_id);
-        
-        const { data: syncResult } = await supabase.functions.invoke('google-calendar-sync', {
-          body: {
-            action: 'create_event',
-            customerId: newAppointment.customer_id,
-            eventData: {
-              title: newAppointment.title,
-              description: newAppointment.description,
-              start_time: startDateTime.toISOString(),
-              end_time: endDateTime.toISOString(),
-              location: newAppointment.location,
-              customer_email: selectedCustomer?.email
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('google_calendar_token, google_calendar_refresh_token')
+          .eq('id', user.id)
+          .single();
+
+        if (profileData?.google_calendar_token) {
+          const selectedCustomer = customers.find(c => c.id === newAppointment.customer_id);
+          
+          const eventPayload = {
+            summary: newAppointment.title,
+            description: `Cliente: ${selectedCustomer?.business_name || selectedCustomer?.name || 'N/A'}\n\n${newAppointment.description || ''}`,
+            location: newAppointment.location || '',
+            start: {
+              dateTime: startDateTime.toISOString(),
+              timeZone: 'America/Sao_Paulo',
+            },
+            end: {
+              dateTime: endDateTime.toISOString(),
+              timeZone: 'America/Sao_Paulo',
+            },
+            attendees: selectedCustomer?.email ? [{ email: selectedCustomer.email }] : [],
+            reminders: {
+              useDefault: false,
+              overrides: [
+                { method: 'email', minutes: 24 * 60 },
+                { method: 'popup', minutes: 15 },
+              ],
+            },
+          };
+
+          const response = await fetch(
+            'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+            {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${profileData.google_calendar_token}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(eventPayload),
             }
+          );
+
+          if (response.ok) {
+            const eventResult = await response.json();
+            
+            // Atualizar agendamento com ID do evento do Google
+            await supabase
+              .from('appointments')
+              .update({ google_event_id: eventResult.id })
+              .eq('id', appointmentData.id);
+
+            toast.success('🎉 Agendamento criado e sincronizado com seu Google Calendar!');
+          } else if (response.status === 401 && profileData.google_calendar_refresh_token) {
+            // Token expirado, tentar refresh
+            const newToken = await refreshGoogleToken(profileData.google_calendar_refresh_token);
+            if (newToken) {
+              // Tentar novamente com novo token
+              const retryResponse = await fetch(
+                'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+                {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${newToken}`,
+                    'Content-Type': 'application/json',
+                  },
+                  body: JSON.stringify(eventPayload),
+                }
+              );
+
+              if (retryResponse.ok) {
+                const eventResult = await retryResponse.json();
+                await supabase
+                  .from('appointments')
+                  .update({ google_event_id: eventResult.id })
+                  .eq('id', appointmentData.id);
+                toast.success('🎉 Agendamento criado e sincronizado com seu Google Calendar!');
+              } else {
+                toast.success('Agendamento criado! (Erro na sincronização com Google Calendar)');
+              }
+            } else {
+              toast.success('Agendamento criado! (Reconecte seu Google Calendar para sincronização)');
+            }
+          } else {
+            const errorText = await response.text();
+            console.error('Erro na sincronização:', errorText);
+            toast.success('Agendamento criado! (Erro na sincronização com Google Calendar)');
           }
-        });
-
-        // Se sincronização foi bem-sucedida, atualizar com o ID do evento
-        if (syncResult?.success && syncResult?.google_event_id) {
-          await supabase
-            .from('appointments')
-            .update({ google_event_id: syncResult.google_event_id })
-            .eq('id', appointmentData.id);
+        } else {
+          toast.success('Agendamento criado com sucesso!');
         }
-
-        toast.success(`Agendamento criado com sucesso! ${syncResult?.message || ''}`);
       } catch (syncError) {
         console.warn('Erro na sincronização com Google Calendar:', syncError);
-        toast.success('Agendamento criado com sucesso! (Sincronização com Google Calendar não disponível)');
+        toast.success('Agendamento criado com sucesso!');
       }
 
       setIsAppointmentModalOpen(false);
@@ -267,157 +356,115 @@ export default function Schedule() {
   };
 
   const handleGoogleCalendarAuth = async () => {
-    if (!selectedCustomer) {
-      toast.error('Selecione um cliente primeiro para configurar o Google Calendar');
-      return;
-    }
-
-    const selectedCustomerName = customers.find(c => c.id === selectedCustomer)?.business_name || 
-                                 customers.find(c => c.id === selectedCustomer)?.name || 'o cliente';
-
-    // Criar URL de autorização diretamente no frontend
     const clientId = '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com';
-    const redirectUri = 'urn:ietf:wg:oauth:2.0:oob'; // URL especial para aplicações que não têm servidor
-    const scope = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
     
+    // URL de autorização simples
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(clientId)}&` +
-      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+      `redirect_uri=urn:ietf:wg:oauth:2.0:oob&` +
       `response_type=code&` +
-      `scope=${encodeURIComponent(scope)}&` +
+      `scope=${encodeURIComponent('https://www.googleapis.com/auth/calendar')}&` +
       `access_type=offline&` +
       `prompt=consent`;
 
     // Abrir janela de autorização
-    const authWindow = window.open(
-      authUrl,
-      'google-oauth',
-      'width=600,height=700,scrollbars=yes,resizable=yes'
-    );
+    window.open(authUrl, 'google-auth', 'width=600,height=700');
+    
+    // Mostrar modal para colar código
+    setShowGoogleAuth(true);
+  };
 
-    if (!authWindow) {
-      toast.error('Popup bloqueado. Permita popups para este site.');
-      return;
-    }
-
-    // Mostrar modal para o usuário colar o código
-    const code = await new Promise<string>((resolve, reject) => {
-      const modal = document.createElement('div');
-      modal.style.cssText = `
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-        background: rgba(0,0,0,0.5); display: flex; align-items: center; 
-        justify-content: center; z-index: 9999;
-      `;
-      
-      modal.innerHTML = `
-        <div style="background: white; padding: 24px; border-radius: 8px; max-width: 500px; width: 90%;">
-          <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Conectar Google Calendar</h3>
-          <p style="margin: 0 0 16px 0; color: #666;">
-            <strong>Cliente: ${selectedCustomerName}</strong><br><br>
-            1. Complete a autorização na janela que abriu<br>
-            2. Copie o código que aparecer<br>
-            3. Cole o código abaixo:
-          </p>
-          <input type="text" id="auth-code" placeholder="Cole aqui o código de autorização" 
-                 style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 16px;">
-          <div style="display: flex; gap: 8px; justify-content: flex-end;">
-            <button id="cancel-btn" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">
-              Cancelar
-            </button>
-            <button id="connect-btn" style="padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer;">
-              Conectar
-            </button>
-          </div>
-        </div>
-      `;
-
-      document.body.appendChild(modal);
-
-      const codeInput = modal.querySelector('#auth-code') as HTMLInputElement;
-      const connectBtn = modal.querySelector('#connect-btn') as HTMLButtonElement;
-      const cancelBtn = modal.querySelector('#cancel-btn') as HTMLButtonElement;
-
-      connectBtn.onclick = () => {
-        const code = codeInput.value.trim();
-        if (code) {
-          document.body.removeChild(modal);
-          resolve(code);
-        } else {
-          alert('Por favor, insira o código de autorização');
-        }
-      };
-
-      cancelBtn.onclick = () => {
-        document.body.removeChild(modal);
-        reject(new Error('Cancelado pelo usuário'));
-      };
-
-      // Auto-focus no input
-      setTimeout(() => codeInput.focus(), 100);
-    });
-
+  const refreshGoogleToken = async (refreshToken: string): Promise<string | null> => {
     try {
-      // Trocar código por tokens
+      const clientId = '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com';
+      const clientSecret = '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';
+
       const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           client_id: clientId,
-          client_secret: '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',
-          code: code,
-          grant_type: 'authorization_code',
-          redirect_uri: redirectUri,
+          client_secret: clientSecret,
+          refresh_token: refreshToken,
+          grant_type: 'refresh_token',
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao obter tokens: ' + await response.text());
+        console.error('Erro ao renovar token:', await response.text());
+        return null;
+      }
+
+      const tokenData = await response.json();
+      
+      if (tokenData.access_token && user) {
+        // Salvar novo token
+        await supabase
+          .from('profiles')
+          .update({ 
+            google_calendar_token: tokenData.access_token,
+            google_calendar_refresh_token: tokenData.refresh_token || refreshToken
+          })
+          .eq('id', user.id);
+        
+        return tokenData.access_token;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Erro ao renovar token Google:', error);
+      return null;
+    }
+  };
+
+  const handleAuthCodeSubmit = async (code: string) => {
+    if (!user || !code.trim()) {
+      toast.error('Código de autorização obrigatório');
+      return;
+    }
+
+    try {
+      const clientId = '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com';
+      const clientSecret = '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';
+      
+      // Trocar código por tokens
+      const response = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          code: code.trim(),
+          grant_type: 'authorization_code',
+          redirect_uri: 'urn:ietf:wg:oauth:2.0:oob',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erro do Google: ${response.status} - ${errorText}`);
       }
 
       const tokens = await response.json();
-
-      // Obter informações do usuário
-      const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-        headers: { 'Authorization': `Bearer ${tokens.access_token}` },
-      });
-
-      const userInfo = await userInfoResponse.json();
-
-      // Salvar tokens no perfil do cliente
+      
+      // Salvar tokens no perfil do franqueado (SUA conta)
       const { error: profileError } = await supabase
         .from('profiles')
         .update({
           google_calendar_token: tokens.access_token,
           google_calendar_refresh_token: tokens.refresh_token,
-          google_calendar_email: userInfo.email,
         })
-        .eq('id', selectedCustomer);
+        .eq('id', user.id);
 
       if (profileError) throw profileError;
 
-      // Criar configuração do Google Calendar
-      const { error: configError } = await supabase
-        .from('google_calendar_configs')
-        .upsert({
-          franchisee_id: user?.id,
-          customer_id: selectedCustomer,
-          google_calendar_id: 'primary',
-          is_active: true,
-        });
-
-      if (configError) throw configError;
-
-      toast.success(`✅ Google Calendar conectado para ${selectedCustomerName}! (${userInfo.email})`);
-      setSelectedCustomer('');
+      toast.success('✅ Seu Google Calendar foi conectado com sucesso!');
+      setShowGoogleAuth(false);
       await loadData();
 
     } catch (error: any) {
       console.error('Erro na conexão:', error);
-      if (error.message !== 'Cancelado pelo usuário') {
-        toast.error('Erro ao conectar: ' + error.message);
-      }
+      toast.error('Erro ao conectar: ' + (error.message || 'Erro desconhecido'));
     }
   };
 
@@ -500,7 +547,80 @@ export default function Schedule() {
 
       if (error) throw error;
 
-      toast.success('Agendamento atualizado com sucesso!');
+      // Tentar sincronizar atualização com Google Calendar
+      try {
+        if (editingAppointment.google_event_id) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('google_calendar_token, google_calendar_refresh_token')
+            .eq('id', user.id)
+            .single();
+
+          if (profileData?.google_calendar_token) {
+            const selectedCustomer = customers.find(c => c.id === newAppointment.customer_id);
+            
+            const eventPayload = {
+              summary: newAppointment.title.trim(),
+              description: `Cliente: ${selectedCustomer?.business_name || selectedCustomer?.name || 'N/A'}\n\n${newAppointment.description || ''}`,
+              location: newAppointment.location?.trim() || '',
+              start: {
+                dateTime: startDateTime.toISOString(),
+                timeZone: 'America/Sao_Paulo',
+              },
+              end: {
+                dateTime: endDateTime.toISOString(),
+                timeZone: 'America/Sao_Paulo',
+              },
+              attendees: selectedCustomer?.email ? [{ email: selectedCustomer.email }] : [],
+            };
+
+            let token = profileData.google_calendar_token;
+            let response = await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/primary/events/${editingAppointment.google_event_id}`,
+              {
+                method: 'PUT',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(eventPayload),
+              }
+            );
+
+            // Se token expirou, tentar refresh
+            if (response.status === 401 && profileData.google_calendar_refresh_token) {
+              const newToken = await refreshGoogleToken(profileData.google_calendar_refresh_token);
+              if (newToken) {
+                response = await fetch(
+                  `https://www.googleapis.com/calendar/v3/calendars/primary/events/${editingAppointment.google_event_id}`,
+                  {
+                    method: 'PUT',
+                    headers: {
+                      'Authorization': `Bearer ${newToken}`,
+                      'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(eventPayload),
+                  }
+                );
+              }
+            }
+
+            if (response.ok) {
+              toast.success('🎉 Agendamento atualizado e sincronizado com Google Calendar!');
+            } else {
+              toast.success('Agendamento atualizado! (Erro na sincronização com Google Calendar)');
+            }
+          } else {
+            toast.success('Agendamento atualizado com sucesso!');
+          }
+        } else {
+          toast.success('Agendamento atualizado com sucesso!');
+        }
+      } catch (syncError) {
+        console.warn('Erro na sincronização com Google Calendar:', syncError);
+        toast.success('Agendamento atualizado com sucesso!');
+      }
+
       setIsAppointmentModalOpen(false);
       setEditingAppointment(null);
       setNewAppointment({
@@ -523,6 +643,13 @@ export default function Schedule() {
     if (!confirm('Tem certeza que deseja excluir este agendamento?')) return;
 
     try {
+      // Buscar informações do agendamento antes de excluir
+      const { data: appointment } = await supabase
+        .from('appointments')
+        .select('google_event_id')
+        .eq('id', appointmentId)
+        .single();
+
       const { error } = await supabase
         .from('appointments')
         .delete()
@@ -530,7 +657,59 @@ export default function Schedule() {
 
       if (error) throw error;
 
-      toast.success('Agendamento excluído com sucesso!');
+      // Tentar excluir do Google Calendar se existir
+      try {
+        if (appointment?.google_event_id) {
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('google_calendar_token, google_calendar_refresh_token')
+            .eq('id', user?.id)
+            .single();
+
+          if (profileData?.google_calendar_token) {
+            let token = profileData.google_calendar_token;
+            let response = await fetch(
+              `https://www.googleapis.com/calendar/v3/calendars/primary/events/${appointment.google_event_id}`,
+              {
+                method: 'DELETE',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                },
+              }
+            );
+
+            // Se token expirou, tentar refresh
+            if (response.status === 401 && profileData.google_calendar_refresh_token) {
+              const newToken = await refreshGoogleToken(profileData.google_calendar_refresh_token);
+              if (newToken) {
+                response = await fetch(
+                  `https://www.googleapis.com/calendar/v3/calendars/primary/events/${appointment.google_event_id}`,
+                  {
+                    method: 'DELETE',
+                    headers: {
+                      'Authorization': `Bearer ${newToken}`,
+                    },
+                  }
+                );
+              }
+            }
+
+            if (response.ok) {
+              toast.success('🎉 Agendamento excluído e removido do Google Calendar!');
+            } else {
+              toast.success('Agendamento excluído! (Erro ao remover do Google Calendar)');
+            }
+          } else {
+            toast.success('Agendamento excluído com sucesso!');
+          }
+        } else {
+          toast.success('Agendamento excluído com sucesso!');
+        }
+      } catch (syncError) {
+        console.warn('Erro na sincronização com Google Calendar:', syncError);
+        toast.success('Agendamento excluído com sucesso!');
+      }
+
       await loadData();
     } catch (error) {
       console.error('Erro ao excluir agendamento:', error);
@@ -592,13 +771,25 @@ export default function Schedule() {
           </div>
           
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setIsGoogleConfigModalOpen(true)}
-            >
-              <Settings className="w-4 h-4 mr-2" />
-              Google Calendar
-            </Button>
+            {!isGoogleConnected ? (
+              <Button
+                variant="outline"
+                onClick={() => setShowGoogleAuth(true)}
+                className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Conectar Google Calendar
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                className="bg-green-50 border-green-200 text-green-700"
+                disabled
+              >
+                <CheckCircle className="w-4 h-4 mr-2" />
+                Google Conectado
+              </Button>
+            )}
             
             <Button onClick={() => setIsAppointmentModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
@@ -642,6 +833,42 @@ export default function Schedule() {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {/* Eventos do Google Calendar */}
+                  {googleEvents.map((event) => (
+                    <div key={`google-${event.id}`} className="flex items-start space-x-3 p-4 border rounded-lg bg-blue-50 border-blue-200">
+                      <Calendar className="w-4 h-4 mt-2 text-blue-600" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h4 className="font-medium truncate text-blue-800">{event.summary || 'Evento sem título'}</h4>
+                          <Badge variant="outline" className="text-xs bg-blue-100 text-blue-700 border-blue-300">
+                            Google Calendar
+                          </Badge>
+                        </div>
+                        <div className="text-sm text-blue-600 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Clock className="w-3 h-3" />
+                            <span>
+                              {event.start?.dateTime ? 
+                                `${format(new Date(event.start.dateTime), "HH:mm")} - ${format(new Date(event.end?.dateTime || event.start.dateTime), "HH:mm")}` :
+                                'Dia inteiro'
+                              }
+                            </span>
+                          </div>
+                          {event.location && (
+                            <div className="flex items-center gap-2">
+                              <CalendarIcon className="w-3 h-3" />
+                              <span>{event.location}</span>
+                            </div>
+                          )}
+                        </div>
+                        {event.description && (
+                          <p className="text-sm text-blue-600 mt-2">{event.description}</p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  
+                  {/* Agendamentos do sistema */}
                   {appointments.map((appointment) => (
                     <div
                       key={appointment.id}
@@ -851,8 +1078,78 @@ export default function Schedule() {
         </DialogContent>
       </Dialog>
 
-      {/* Modal para configuração do Google Calendar */}
-      <Dialog open={isGoogleConfigModalOpen} onOpenChange={setIsGoogleConfigModalOpen}>
+      {/* Modal de autenticação Google simples */}
+      <Dialog open={showGoogleAuth} onOpenChange={setShowGoogleAuth}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Conectar Google Calendar</DialogTitle>
+            <DialogDescription>
+              Conecte SEU Google Calendar para sincronizar agendamentos
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <Alert className="border-blue-200 bg-blue-50">
+              <Calendar className="h-4 w-4 text-blue-600" />
+              <AlertDescription>
+                <strong className="text-blue-800">Como funciona:</strong><br />
+                1. Clique no link abaixo para autorizar<br />
+                2. Copie o código que aparecer<br />
+                3. Cole aqui e conecte
+              </AlertDescription>
+            </Alert>
+
+            <div className="text-center py-4">
+              <Button 
+                onClick={handleGoogleCalendarAuth}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Abrir Autorização Google
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="auth-code">Cole o código de autorização:</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="auth-code"
+                  placeholder="Cole aqui o código do Google..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const target = e.target as HTMLInputElement;
+                      if (target.value.trim()) {
+                        handleAuthCodeSubmit(target.value);
+                      }
+                    }
+                  }}
+                />
+                <Button 
+                  onClick={() => {
+                    const input = document.getElementById('auth-code') as HTMLInputElement;
+                    if (input?.value.trim()) {
+                      handleAuthCodeSubmit(input.value);
+                    } else {
+                      toast.error('Cole o código de autorização primeiro');
+                    }
+                  }}
+                >
+                  Conectar
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowGoogleAuth(false)}>
+              Cancelar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para configuração do Google Calendar - REMOVIDO */}
+      <Dialog open={false} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Configurar Google Calendar</DialogTitle>
