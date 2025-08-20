@@ -7,55 +7,14 @@ import { MessageCircle, Zap, Clock, Bot } from "lucide-react";
 import { DashboardStatCard } from "@/components/ui/dashboard-stat-card";
 import { BillingChart } from "@/components/analytics/BillingChart";
 import { FranchiseeTable } from "@/components/analytics/FranchiseeTable";
+import { useAnalyticsData } from "@/hooks/useAnalyticsData";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Mock data for analytics
-const MOCK_DAILY_MESSAGES = [
-  { day: "dom", value: 4580 },
-  { day: "seg", value: 5240 },
-  { day: "ter", value: 4920 },
-  { day: "qua", value: 5100 },
-  { day: "qui", value: 4800 },
-  { day: "sex", value: 5300 },
-  { day: "sab", value: 5680 }
-];
-
-const MOCK_MONTHLY_REVENUE = [
-  { month: "jan", value: 8740 },
-  { month: "fev", value: 9450 },
-  { month: "mar", value: 10200 },
-  { month: "abr", value: 11980 }
-];
-
-const MOCK_FRANCHISEES = [
-  {
-    name: "João Silva",
-    agents: 8,
-    revenue: "R$ 1.497,00"
-  },
-  {
-    name: "Ana Souza",
-    agents: 12,
-    revenue: "R$ 2.992,50"
-  },
-  {
-    name: "Carlos Mendes",
-    agents: 5,
-    revenue: "R$ 1.048,70"
-  },
-  {
-    name: "Patricia Lima",
-    agents: 15,
-    revenue: "R$ 3.745,20"
-  },
-  {
-    name: "Roberto Alves",
-    agents: 2,
-    revenue: "R$ 297,00"
-  }
-];
+// Removed mock data - now using real data from useAnalyticsData hook
 
 export default function Analytics() {
   const [periodTab, setPeriodTab] = useState("7d");
+  const { data: analyticsData, isLoading, error } = useAnalyticsData(periodTab);
 
   // Formatter for currency values
   const currencyFormatter = new Intl.NumberFormat('pt-BR', {
@@ -63,6 +22,39 @@ export default function Analytics() {
     currency: 'BRL',
     minimumFractionDigits: 2
   });
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Estatísticas">
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Skeleton key={i} className="h-[200px] rounded-lg" />
+            ))}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-[120px] rounded-lg" />
+            ))}
+          </div>
+          <Skeleton className="h-[400px] rounded-lg" />
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <DashboardLayout title="Estatísticas">
+        <div className="text-center py-10 text-destructive bg-destructive/10 border border-destructive/20 rounded-lg">
+          <p className="font-semibold">Erro ao carregar estatísticas</p>
+          <p className="text-sm mt-1">{error}</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  if (!analyticsData) return null;
 
   return (
     <DashboardLayout title="Estatísticas">
@@ -81,37 +73,37 @@ export default function Analytics() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <DashboardStatCard 
             title="Faturamento" 
-            value={currencyFormatter.format(50598.98)} 
+            value={currencyFormatter.format(analyticsData.totalRevenue)} 
             change={{
               value: 9.2,
               positive: true,
               label: "desde mês anterior"
             }} 
-            chartData={MOCK_MONTHLY_REVENUE} 
+            chartData={analyticsData.monthlyRevenue} 
             chartColor="#0EA5E9" 
           />
           
           <DashboardStatCard 
             title="Vendas Realizadas" 
-            value="120" 
+            value={analyticsData.totalSales.toString()} 
             change={{
               value: 10.5,
               positive: true,
               label: "desde semana anterior"
             }} 
-            chartData={MOCK_DAILY_MESSAGES} 
+            chartData={analyticsData.dailyMessages} 
             chartColor="#0EA5E9" 
           />
           
           <DashboardStatCard 
             title="Média por Venda" 
-            value={currencyFormatter.format(421.66)} 
+            value={currencyFormatter.format(analyticsData.averageRevenuePerSale)} 
             change={{
               value: 2.8,
               positive: false,
               label: "desde mês anterior"
             }} 
-            chartData={[...MOCK_DAILY_MESSAGES].reverse()} 
+            chartData={[...analyticsData.dailyMessages].reverse()} 
             chartColor="#0EA5E9" 
           />
         </div>
@@ -120,8 +112,8 @@ export default function Analytics() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           <StatCard 
             title="Total de Mensagens" 
-            value={periodTab === "7d" ? "35,620" : periodTab === "30d" ? "142,480" : "428,640"} 
-            description={`Últimos ${periodTab === "7d" ? "7 dias" : periodTab === "30d" ? "30 dias" : "3 meses"}`} 
+            value={analyticsData.totalMessages.toLocaleString('pt-BR')} 
+            description={`Últimos ${periodTab === "7d" ? "7 dias" : periodTab === "30d" ? "30 dias" : periodTab === "90d" ? "90 dias" : "12 meses"}`} 
             icon={<MessageCircle size={20} />} 
             trend={{
               value: 8,
@@ -131,14 +123,14 @@ export default function Analytics() {
           
           <StatCard 
             title="Tokens Consumidos" 
-            value={periodTab === "7d" ? "489k" : periodTab === "30d" ? "1.8M" : "5.4M"} 
+            value={analyticsData.tokensConsumed} 
             description="Total" 
             icon={<Zap size={20} />} 
           />
           
           <StatCard 
             title="Tempo de Resposta" 
-            value="2.1s" 
+            value={analyticsData.averageResponseTime} 
             description="Média geral" 
             icon={<Clock size={20} />} 
             trend={{
@@ -149,8 +141,8 @@ export default function Analytics() {
           
           <StatCard 
             title="Agentes Ativos" 
-            value="42/50" 
-            description="84% ativos" 
+            value={`${analyticsData.activeAgents.active}/${analyticsData.activeAgents.total}`} 
+            description={`${analyticsData.activeAgents.percentage}% ativos`} 
             icon={<Bot size={20} />} 
           />
         </div>
@@ -159,7 +151,7 @@ export default function Analytics() {
         <BillingChart userRole="admin" />
 
         {/* Usage by franchisees */}
-        <FranchiseeTable franchisees={MOCK_FRANCHISEES} />
+        <FranchiseeTable franchisees={analyticsData.franchiseeData} />
       </div>
     </DashboardLayout>
   );

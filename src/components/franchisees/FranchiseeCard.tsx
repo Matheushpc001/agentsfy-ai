@@ -10,9 +10,10 @@ interface FranchiseeCardProps {
   franchisee: Franchisee;
   onView: (franchisee: Franchisee) => void;
   onEdit: (franchisee: Franchisee) => void;
+  onDelete: (franchisee: Franchisee) => void;
 }
 
-export default function FranchiseeCard({ franchisee, onView, onEdit }: FranchiseeCardProps) {
+export default function FranchiseeCard({ franchisee, onView, onEdit, onDelete }: FranchiseeCardProps) {
   const formattedDate = new Date(franchisee.createdAt).toLocaleDateString("pt-BR");
 
   return (
@@ -69,12 +70,15 @@ export default function FranchiseeCard({ franchisee, onView, onEdit }: Franchise
           </div>
         </div>
 
-        <div className="flex space-x-2 pt-1 md:pt-2">
+        <div className="flex space-x-1 pt-1 md:pt-2">
           <Button variant="outline" size="sm" onClick={() => onView(franchisee)} className="flex-1 text-xs md:text-sm h-8 md:h-9">
             Detalhes
           </Button>
           <Button variant="default" size="sm" onClick={() => onEdit(franchisee)} className="flex-1 text-xs md:text-sm h-8 md:h-9">
             Editar
+          </Button>
+          <Button variant="destructive" size="sm" onClick={() => onDelete(franchisee)} className="flex-1 text-xs md:text-sm h-8 md:h-9">
+            Excluir
           </Button>
         </div>
       </CardContent>

@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { franchiseeService } from "@/services/franchiseeService";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 export default function Franchisees() {
   const [isLoading, setIsLoading] = useState(true);
@@ -22,7 +23,9 @@ export default function Franchisees() {
   const [searchTerm, setSearchTerm] = useState("");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const [editingFranchisee, setEditingFranchisee] = useState<Franchisee | null>(null);
+  const [viewingFranchisee, setViewingFranchisee] = useState<Franchisee | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -57,8 +60,26 @@ export default function Franchisees() {
   );
 
   const handleViewFranchisee = (franchisee: Franchisee) => {
-    toast.info(`Visualizando detalhes de ${franchisee.name}`);
-    // Futuramente, isso navegaria para /admin/franchisees/${franchisee.id}
+    setViewingFranchisee(franchisee);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleDeleteFranchisee = async (franchisee: Franchisee) => {
+    if (!confirm(`Tem certeza que deseja excluir o franqueado "${franchisee.name}"? Esta ação não pode ser desfeita.`)) {
+      return;
+    }
+
+    try {
+      await franchiseeService.deleteFranchisee(franchisee.id);
+      
+      // Remover da lista local
+      setFranchisees(prev => prev.filter(f => f.id !== franchisee.id));
+      
+      toast.success(`Franqueado ${franchisee.name} excluído com sucesso!`);
+    } catch (error) {
+      console.error('Erro ao excluir franqueado:', error);
+      toast.error('Erro ao excluir franqueado. Tente novamente.');
+    }
   };
 
   const handleEditFranchisee = (franchisee: Franchisee) => {
@@ -87,12 +108,31 @@ export default function Franchisees() {
     setIsAddModalOpen(false);
   };
 
-  const handleEditSubmit = (e: React.FormEvent) => {
+  const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Implementar a chamada ao serviço para atualizar um franqueado no Supabase
-    // Exemplo: await franchiseeService.updateFranchisee(editingFranchisee.id, formData);
-    toast.success(`Funcionalidade de editar franqueado a ser implementada.`);
-    setIsEditModalOpen(false);
+    
+    if (!editingFranchisee) {
+      toast.error('Erro interno: franqueado não selecionado');
+      return;
+    }
+
+    try {
+      await franchiseeService.updateFranchisee(editingFranchisee.id, formData);
+      
+      // Atualizar lista local
+      setFranchisees(prev => prev.map(f => 
+        f.id === editingFranchisee.id 
+          ? { ...f, ...formData }
+          : f
+      ));
+      
+      toast.success(`Franqueado ${formData.name} atualizado com sucesso!`);
+      setIsEditModalOpen(false);
+      setEditingFranchisee(null);
+    } catch (error) {
+      console.error('Erro ao atualizar franqueado:', error);
+      toast.error('Erro ao atualizar franqueado. Tente novamente.');
+    }
   };
 
   const renderSkeleton = () => (
@@ -154,6 +194,7 @@ export default function Franchisees() {
               franchisee={franchisee} 
               onView={handleViewFranchisee}
               onEdit={handleEditFranchisee}
+              onDelete={handleDeleteFranchisee}
             />
           ))}
         </div>
@@ -298,6 +339,60 @@ export default function Franchisees() {
               <Button type="submit" className="w-full sm:w-auto">Salvar Alterações</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Details Modal */}
+      <Dialog open={isDetailsModalOpen} onOpenChange={setIsDetailsModalOpen}>
+        <DialogContent className="sm:max-w-md max-w-[90vw]">
+          <DialogHeader>
+            <DialogTitle>Detalhes do Franqueado</DialogTitle>
+          </DialogHeader>
+          {viewingFranchisee && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-sm font-medium">Nome</Label>
+                  <p className="text-sm text-muted-foreground">{viewingFranchisee.name}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Email</Label>
+                  <p className="text-sm text-muted-foreground">{viewingFranchisee.email}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Status</Label>
+                  <Badge className={viewingFranchisee.isActive ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}>
+                    {viewingFranchisee.isActive ? "Ativo" : "Inativo"}
+                  </Badge>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Data de Cadastro</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {new Date(viewingFranchisee.createdAt).toLocaleDateString("pt-BR")}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Agentes</Label>
+                  <p className="text-sm text-muted-foreground">{viewingFranchisee.agentCount}</p>
+                </div>
+                <div>
+                  <Label className="text-sm font-medium">Clientes</Label>
+                  <p className="text-sm text-muted-foreground">{viewingFranchisee.customerCount}</p>
+                </div>
+                <div className="col-span-2">
+                  <Label className="text-sm font-medium">Receita</Label>
+                  <p className="text-sm text-muted-foreground">
+                    R$ {viewingFranchisee.revenue.toLocaleString("pt-BR")}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDetailsModalOpen(false)}>
+              Fechar
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </DashboardLayout>

@@ -34,5 +34,41 @@ export const franchiseeService = {
     return (data || []).map(mapFranchiseeFromDB);
   },
   
-  // Aqui adicionar outras funções como create, update, delete...
+  async updateFranchisee(id: string, data: { name: string; email: string; isActive: boolean }): Promise<void> {
+    console.log('Atualizando franqueado:', id, data);
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({
+        name: data.name,
+        email: data.email,
+        is_active: data.isActive,
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Erro ao atualizar franqueado:', error);
+      toast.error('Erro ao atualizar franqueado no banco de dados.');
+      throw new Error(error.message);
+    }
+
+    console.log('Franqueado atualizado com sucesso!');
+  },
+
+  async deleteFranchisee(id: string): Promise<void> {
+    console.log('Excluindo franqueado:', id);
+
+    const { error } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Erro ao excluir franqueado:', error);
+      toast.error('Erro ao excluir franqueado do banco de dados.');
+      throw new Error(error.message);
+    }
+
+    console.log('Franqueado excluído com sucesso!');
+  },
 };
