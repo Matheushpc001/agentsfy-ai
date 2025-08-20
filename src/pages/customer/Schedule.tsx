@@ -53,6 +53,7 @@ export default function CustomerSchedule() {
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [showGoogleAuth, setShowGoogleAuth] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -97,7 +98,6 @@ export default function CustomerSchedule() {
 
       if (configData) {
         setIsGoogleConnected(true);
-        setGoogleCalendarId(configData.google_calendar_id || "primary");
       }
 
       // Verificar se tem token do Google salvo
@@ -118,18 +118,25 @@ export default function CustomerSchedule() {
   };
 
   const handleConnectGoogleCalendar = async () => {
-    // Criar URL de autorização diretamente no frontend
+    if (!user) {
+      toast.error('Usuário não autenticado');
+      return;
+    }
+
     const clientId = '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com';
-    const redirectUri = 'urn:ietf:wg:oauth:2.0:oob'; // URL especial para aplicações que não têm servidor
-    const scope = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events';
+    
+    // Usar redirect_uri local para desenvolvimento e produção
+    const baseUrl = window.location.origin;
+    const redirectUri = `${baseUrl}/oauth/callback`;
     
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(clientId)}&` +
       `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `response_type=code&` +
-      `scope=${encodeURIComponent(scope)}&` +
+      `scope=${encodeURIComponent('https://www.googleapis.com/auth/calendar')}&` +
       `access_type=offline&` +
-      `prompt=consent`;
+      `prompt=consent&` +
+      `state=${encodeURIComponent(JSON.stringify({ userId: user.id }))}`;
 
     // Abrir janela de autorização
     const authWindow = window.open(
@@ -144,78 +151,38 @@ export default function CustomerSchedule() {
     }
 
     // Mostrar modal para o usuário colar o código
-    const code = await new Promise<string>((resolve, reject) => {
-      const modal = document.createElement('div');
-      modal.style.cssText = `
-        position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-        background: rgba(0,0,0,0.5); display: flex; align-items: center; 
-        justify-content: center; z-index: 9999;
-      `;
-      
-      modal.innerHTML = `
-        <div style="background: white; padding: 24px; border-radius: 8px; max-width: 500px; width: 90%;">
-          <h3 style="margin: 0 0 16px 0; font-size: 18px; font-weight: 600;">Conectar Google Calendar</h3>
-          <p style="margin: 0 0 16px 0; color: #666;">
-            1. Complete a autorização na janela que abriu<br>
-            2. Copie o código que aparecer<br>
-            3. Cole o código abaixo:
-          </p>
-          <input type="text" id="auth-code" placeholder="Cole aqui o código de autorização" 
-                 style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 16px;">
-          <div style="display: flex; gap: 8px; justify-content: flex-end;">
-            <button id="cancel-btn" style="padding: 8px 16px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer;">
-              Cancelar
-            </button>
-            <button id="connect-btn" style="padding: 8px 16px; background: #1a73e8; color: white; border: none; border-radius: 4px; cursor: pointer;">
-              Conectar
-            </button>
-          </div>
-        </div>
-      `;
+    setShowGoogleAuth(true);
+  };
 
-      document.body.appendChild(modal);
-
-      const codeInput = modal.querySelector('#auth-code') as HTMLInputElement;
-      const connectBtn = modal.querySelector('#connect-btn') as HTMLButtonElement;
-      const cancelBtn = modal.querySelector('#cancel-btn') as HTMLButtonElement;
-
-      connectBtn.onclick = () => {
-        const code = codeInput.value.trim();
-        if (code) {
-          document.body.removeChild(modal);
-          resolve(code);
-        } else {
-          alert('Por favor, insira o código de autorização');
-        }
-      };
-
-      cancelBtn.onclick = () => {
-        document.body.removeChild(modal);
-        reject(new Error('Cancelado pelo usuário'));
-      };
-
-      // Auto-focus no input
-      setTimeout(() => codeInput.focus(), 100);
-    });
+  const handleAuthCodeSubmit = async (code: string) => {
+    if (!user || !code.trim()) {
+      toast.error('Código de autorização obrigatório');
+      return;
+    }
 
     try {
+      const clientId = '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com';
+      const clientSecret = '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';
+      
       // Trocar código por tokens
+      const baseUrl = window.location.origin;
+      const redirectUri = `${baseUrl}/oauth/callback`;
+      
       const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: new URLSearchParams({
           client_id: clientId,
-          client_secret: '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',
-          code: code,
+          client_secret: clientSecret,
+          code: code.trim(),
           grant_type: 'authorization_code',
           redirect_uri: redirectUri,
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Erro ao obter tokens: ' + await response.text());
+        const errorText = await response.text();
+        throw new Error(`Erro do Google: ${response.status} - ${errorText}`);
       }
 
       const tokens = await response.json();
@@ -224,6 +191,10 @@ export default function CustomerSchedule() {
       const userInfoResponse = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
         headers: { 'Authorization': `Bearer ${tokens.access_token}` },
       });
+
+      if (!userInfoResponse.ok) {
+        throw new Error('Erro ao obter informações do usuário');
+      }
 
       const userInfo = await userInfoResponse.json();
 
@@ -243,6 +214,7 @@ export default function CustomerSchedule() {
       await saveGoogleConfig();
 
       toast.success(`✅ Google Calendar conectado com sucesso! (${userInfo.email})`);
+      setShowGoogleAuth(false);
       await loadData();
 
     } catch (error: any) {
@@ -475,6 +447,68 @@ export default function CustomerSchedule() {
           </Card>
         </div>
       </div>
+
+      {/* Modal de autenticação Google */}
+      <Dialog open={showGoogleAuth} onOpenChange={setShowGoogleAuth}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Conectar Google Calendar</DialogTitle>
+            <DialogDescription>
+              Conecte seu Google Calendar para sincronizar agendamentos
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <Alert className="border-blue-200 bg-blue-50">
+              <Calendar className="h-4 w-4 text-blue-600" />
+              <AlertDescription>
+                <strong className="text-blue-800">Como funciona:</strong><br />
+                1. Clique no link abaixo para autorizar<br />
+                2. Copie o código que aparecer<br />
+                3. Cole aqui e conecte
+              </AlertDescription>
+            </Alert>
+
+            <div className="text-center py-4">
+              <Button 
+                onClick={handleConnectGoogleCalendar}
+                className="w-full bg-blue-600 hover:bg-blue-700"
+              >
+                <Calendar className="w-4 h-4 mr-2" />
+                Abrir Autorização Google
+              </Button>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="auth-code">Cole o código de autorização:</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="auth-code"
+                  placeholder="Cole aqui o código do Google..."
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const target = e.target as HTMLInputElement;
+                      if (target.value.trim()) {
+                        handleAuthCodeSubmit(target.value);
+                      }
+                    }
+                  }}
+                />
+                <Button 
+                  onClick={() => {
+                    const input = document.getElementById('auth-code') as HTMLInputElement;
+                    if (input?.value.trim()) {
+                      handleAuthCodeSubmit(input.value);
+                    }
+                  }}
+                >
+                  Conectar
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
     </DashboardLayout>
   );
