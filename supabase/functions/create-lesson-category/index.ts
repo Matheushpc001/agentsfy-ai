@@ -1,36 +1,16 @@
-// ARQUIVO FINAL CORRIGIDO: supabase/functions/create-lesson-category/index.ts
+// ARQUIVO FINAL E ROBUSTO: supabase/functions/create-lesson-category/index.ts
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-console.log("🚀 Função create-lesson-category v3.0 iniciada");
+console.log("🚀 Função create-lesson-category v4.0 (robusta) iniciada");
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Função para verificar se o usuário é admin
-async function isUserAdmin(supabaseAdmin: SupabaseClient, userId: string): Promise<boolean> {
-  console.log(`Verificando se o usuário ${userId} é admin via RPC 'is_admin'`);
-  
-  // Note que o nome do parâmetro deve corresponder exatamente ao da sua função SQL.
-  // Se sua função espera 'p_user_id', use aqui. Se espera 'user_id', use 'user_id'.
-  const { data: isAdmin, error: rpcError } = await supabaseAdmin.rpc('is_admin', { 
-    user_id: userId 
-  });
-
-  if (rpcError) {
-    console.error("Erro ao chamar a RPC is_admin:", rpcError.message);
-    throw new Error(`Erro ao verificar permissões: ${rpcError.message}`);
-  }
-  
-  console.log(`Resultado da verificação de admin: ${isAdmin}`);
-  return isAdmin === true;
-}
-
 serve(async (req) => {
-  console.log(`Recebida requisição com método: ${req.method}`);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -43,7 +23,7 @@ serve(async (req) => {
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-      throw new Error("Cabeçalho de autorização ausente");
+      throw { status: 401, message: "Cabeçalho de autorização ausente" };
     }
 
     const supabaseUserClient = createClient(
@@ -54,26 +34,23 @@ serve(async (req) => {
 
     const { data: { user } } = await supabaseUserClient.auth.getUser();
     if (!user) {
-      throw new Error("Usuário não autenticado");
+      throw { status: 401, message: "Usuário não autenticado" };
     }
     console.log("Usuário autenticado:", { id: user.id, email: user.email });
 
-    // Verificação de Admin
-    const hasAdminRole = await isUserAdmin(supabaseAdmin, user.id);
-    if (!hasAdminRole) {
+    const { data: isAdmin, error: rpcError } = await supabaseAdmin.rpc('is_admin', { user_id: user.id });
+    if (rpcError) throw rpcError;
+    
+    if (!isAdmin) {
       console.error("Acesso negado. Usuário não é administrador.");
-      return new Response(JSON.stringify({ error: "Acesso negado. Apenas administradores podem criar categorias." }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 403, // Forbidden
-      });
+      throw { status: 403, message: "Acesso negado. Apenas administradores podem criar categorias." };
     }
+    console.log("Permissão de administrador confirmada.");
 
-    console.log("Processando corpo da requisição (JSON)");
     const categoryData = await req.json();
     console.log("Dados da categoria recebidos:", categoryData);
-
-    if (!categoryData.name || typeof categoryData.name !== 'string' || categoryData.name.trim() === '') {
-      throw new Error("O nome da categoria é obrigatório.");
+    if (!categoryData.name || String(categoryData.name).trim() === '') {
+      throw { status: 400, message: "O nome da categoria é obrigatório." };
     }
 
     console.log("Inserindo categoria no banco de dados...");
@@ -84,8 +61,9 @@ serve(async (req) => {
       .single();
 
     if (insertError) {
-      console.error("Erro ao inserir no Supabase:", insertError.message);
-      throw insertError;
+      console.error("Erro do Supabase ao inserir:", insertError);
+      // Lança o erro do Supabase para ser capturado pelo catch principal
+      throw { status: 500, message: `Erro no banco de dados: ${insertError.message}` };
     }
 
     console.log("Categoria criada com sucesso:", data);
@@ -95,11 +73,16 @@ serve(async (req) => {
     });
 
   } catch (error) {
-    console.error("Erro capturado no bloco catch principal:", error.message);
-    return new Response(JSON.stringify({ error: error.message }), {
+    // Bloco catch aprimorado para lidar com qualquer tipo de erro
+    const errorMessage = error.message || "Ocorreu um erro inesperado.";
+    const errorStatus = error.status || 500;
+    
+    console.error(`Erro capturado no bloco catch principal (Status: ${errorStatus}):`, errorMessage);
+    console.error("Detalhes do erro:", error); // Loga o objeto de erro completo
+
+    return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: error.message.includes("autentica") || error.message.includes("Acesso negado") ? 403 : 
-              error.message.includes("obrigatório") ? 400 : 500,
+      status: errorStatus,
     });
   }
 });

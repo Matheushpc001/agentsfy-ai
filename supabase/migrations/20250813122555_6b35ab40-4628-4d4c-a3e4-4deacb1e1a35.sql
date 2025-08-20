@@ -81,37 +81,37 @@ USING (
 );
 
 -- Create a view for admins that excludes sensitive data
-CREATE OR REPLACE VIEW admin_agents_view AS
-SELECT 
-  id,
-  name,
-  sector,
-  customer_id,
-  franchisee_id,
-  whatsapp_connected,
-  is_active,
-  message_count,
-  response_time,
-  phone_number,
-  created_at,
-  updated_at,
-  -- Mask API key for admin view
-  CASE 
-    WHEN open_ai_key IS NOT NULL AND open_ai_key != '' 
-    THEN 'sk-****' || RIGHT(open_ai_key, 4)
-    ELSE NULL 
-  END as open_ai_key_masked
-FROM agents;
+-- CREATE OR REPLACE VIEW admin_agents_view AS
+-- SELECT 
+--   id,
+--   name,
+--   sector,
+--   customer_id,
+--   franchisee_id,
+--   whatsapp_connected,
+--   is_active,
+--   message_count,
+--   response_time,
+--   phone_number,
+--   created_at,
+--   updated_at,
+--   -- Mask API key for admin view
+--   CASE 
+--     WHEN open_ai_key IS NOT NULL AND open_ai_key != '' 
+--     THEN 'sk-****' || RIGHT(open_ai_key, 4)
+--     ELSE NULL 
+--   END as open_ai_key_masked
+-- FROM agents;
 
--- Grant admin access to the view
-GRANT SELECT ON admin_agents_view TO authenticated;
+-- -- Grant admin access to the view
+-- GRANT SELECT ON admin_agents_view TO authenticated;
 
--- Create RLS policy for the admin view
-ALTER TABLE admin_agents_view ENABLE ROW LEVEL SECURITY;
+-- -- Create RLS policy for the admin view
+-- ALTER TABLE admin_agents_view ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Admins can view agent metadata" ON admin_agents_view
-FOR SELECT 
-USING (is_admin(auth.uid()));
+-- CREATE POLICY "Admins can view agent metadata" ON admin_agents_view
+-- FOR SELECT 
+-- USING (is_admin(auth.uid()));
 
 -- Create trigger to automatically encrypt API keys on insert/update
 CREATE OR REPLACE FUNCTION encrypt_agent_api_key_trigger()
