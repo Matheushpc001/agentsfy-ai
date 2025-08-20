@@ -355,14 +355,18 @@ export default function Schedule() {
   const handleGoogleCalendarAuth = async () => {
     const clientId = '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com';
     
-    // URL de autorização simples
+    // Usar redirect_uri local para desenvolvimento
+    const baseUrl = window.location.origin;
+    const redirectUri = `${baseUrl}/oauth/callback`;
+    
     const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?` +
       `client_id=${encodeURIComponent(clientId)}&` +
-      `redirect_uri=urn:ietf:wg:oauth:2.0:oob&` +
+      `redirect_uri=${encodeURIComponent(redirectUri)}&` +
       `response_type=code&` +
       `scope=${encodeURIComponent('https://www.googleapis.com/auth/calendar')}&` +
       `access_type=offline&` +
-      `prompt=consent`;
+      `prompt=consent&` +
+      `state=${encodeURIComponent(JSON.stringify({ userId: user?.id }))}`;
 
     // Abrir janela de autorização
     window.open(authUrl, 'google-auth', 'width=600,height=700');
@@ -425,6 +429,9 @@ export default function Schedule() {
       const clientSecret = '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';
       
       // Trocar código por tokens
+      const baseUrl = window.location.origin;
+      const redirectUri = `${baseUrl}/oauth/callback`;
+      
       const response = await fetch('https://oauth2.googleapis.com/token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -433,7 +440,7 @@ export default function Schedule() {
           client_secret: clientSecret,
           code: code.trim(),
           grant_type: 'authorization_code',
-          redirect_uri: 'urn:ietf:wg:oauth:2.0:oob',
+          redirect_uri: redirectUri,
         }),
       });
 

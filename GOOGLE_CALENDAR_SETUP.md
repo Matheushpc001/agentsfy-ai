@@ -3,24 +3,27 @@
 ## 🎯 **COMO FUNCIONA O SISTEMA**
 
 ### **Fluxo Completo:**
-1. **FRANQUEADO** cria agendamentos para seus clientes na aba "Agenda"
-2. **CLIENTE** se conecta ao próprio Google Calendar na aba "Agenda" 
-3. Quando o franqueado cria um agendamento, ele aparece automaticamente no Google Calendar do cliente
+1. **FRANQUEADO** conecta SEU próprio Google Calendar na aba "Agenda"
+2. **FRANQUEADO** cria agendamentos para seus clientes na aba "Agenda"
+3. Agendamentos aparecem automaticamente no Google Calendar do FRANQUEADO
+4. **CLIENTE** visualiza agendamentos através do sistema (não precisa conectar Google Calendar)
 
 ---
 
 ## 👥 **PAPÉIS E FUNCIONALIDADES**
 
 ### **🏢 FRANQUEADO (Quem gerencia):**
+- ✅ Conecta SEU próprio Google Calendar
 - ✅ Cria agendamentos para seus clientes
 - ✅ Edita, cancela e marca como concluído
 - ✅ Vê agenda de todos os seus clientes
+- ✅ Vê eventos do Google Calendar misturados com agendamentos do sistema
 - ✅ Interface completa de gestão
 
 ### **🧑‍💼 CLIENTE (Quem recebe agendamento):**
-- ✅ Conecta SEU próprio Google Calendar
 - ✅ Vê agendamentos criados pelo franqueado
-- ✅ Agendamentos aparecem automaticamente no seu Google Calendar pessoal
+- ✅ Interface simplificada para visualização
+- ❌ Não precisa conectar Google Calendar
 - ❌ Não pode criar agendamentos (só o franqueado pode)
 
 ---
@@ -64,23 +67,48 @@
 ### **3. Credenciais OAuth:**
 - **Tipo de aplicação:** Web Application
 - **Nome:** AgentsFy Calendar
-- **URIs de redirecionamento:**
+- **URIs de redirecionamento autorizados:**
   ```
-  https://kzxiqdakyfxtyyuybwtl.supabase.co/functions/v1/google-calendar-oauth-callback
+  https://agentsfy-ai.lovable.app/oauth/callback
+  http://localhost:8080/oauth/callback
+  http://localhost:8081/oauth/callback
+  http://localhost:8082/oauth/callback
+  http://localhost:8083/oauth/callback
+  http://localhost:8084/oauth/callback
+  http://localhost:8085/oauth/callback
   ```
+  
+  **🎯 IMPORTANTE:** A primeira URL é para PRODUÇÃO, as outras para desenvolvimento local.
 
-### **4. Variáveis de Ambiente no Supabase:**
-Vá em **Supabase Dashboard > Settings > Edge Functions** e adicione:
-```bash
-GOOGLE_CLIENT_ID=98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com
-GOOGLE_CLIENT_SECRET=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
+### **4. Configuração Local:**
+As credenciais estão hardcoded no código para desenvolvimento:
+```javascript
+clientId: '98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com'
+clientSecret: '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'
 ```
 
-### **5. Deploy das Edge Functions:**
-```bash
-supabase functions deploy google-calendar-sync
-supabase functions deploy google-calendar-oauth-callback
-```
+**Para produção:** Mova essas credenciais para variáveis de ambiente seguras.
+
+### **5. ⚠️ AÇÃO NECESSÁRIA - ATUALIZAR GOOGLE CLOUD CONSOLE:**
+1. Vá para: https://console.cloud.google.com/apis/credentials
+2. Encontre o Client ID: `98233404583-nl4nicefn19jic2877vsge2hdj43qvqp.apps.googleusercontent.com`
+3. Clique em "Edit" (ícone de lápis)
+4. Na seção "Authorized redirect URIs", **ADICIONE estas URLs:**
+   ```
+   https://agentsfy-ai.lovable.app/oauth/callback
+   http://localhost:8080/oauth/callback
+   http://localhost:8081/oauth/callback
+   http://localhost:8082/oauth/callback
+   http://localhost:8083/oauth/callback
+   http://localhost:8084/oauth/callback
+   http://localhost:8085/oauth/callback
+   ```
+   
+   **🌐 A primeira URL é sua PRODUÇÃO, as outras são para desenvolvimento local.**
+
+5. Clique em "SAVE"
+
+**⚠️ Sem essa configuração, o OAuth não funcionará em produção!**
 
 ---
 

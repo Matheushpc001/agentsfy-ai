@@ -34,6 +34,7 @@ import AIAgentConfig from "./pages/customer/AIAgentConfig";
 import CustomerSchedule from "./pages/customer/Schedule";
 
 import UpdatePassword from "./pages/UpdatePassword";
+import OAuthCallback from "./pages/OAuthCallback";
 
 // Protected route component
 interface ProtectedRouteProps {
@@ -81,6 +82,7 @@ const AppRoutes = () => {
 
 
       <Route path="/a/:customerId" element={<CustomerPortalLogin />} />
+      <Route path="/oauth/callback" element={<OAuthCallback />} />
 
       {/* Protected routes */}
       <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} allowedRoles={["admin", "franchisee", "customer"]} />} />
