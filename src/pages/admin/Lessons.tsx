@@ -34,7 +34,8 @@ import {
   Eye,
   EyeOff,
   Upload,
-  PlayCircle
+  PlayCircle,
+  AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -80,6 +81,21 @@ export default function Lessons() {
   const [editingCategory, setEditingCategory] = useState<LessonCategory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Estado para modal de confirmação
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type: 'delete' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    type: 'delete'
+  });
+
   const [newLesson, setNewLesson] = useState<{
     title: string;
     description: string;
@@ -115,6 +131,27 @@ export default function Lessons() {
       loadData();
     }
   }, [user]);
+
+  // Função helper para abrir modal de confirmação
+  const openConfirmModal = (title: string, message: string, onConfirm: () => void, type: 'delete' | 'warning' | 'info' = 'delete') => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      type
+    });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal({
+      isOpen: false,
+      title: '',
+      message: '',
+      onConfirm: () => {},
+      type: 'delete'
+    });
+  };
 
   const loadData = async () => {
     try {
@@ -213,22 +250,31 @@ export default function Lessons() {
   };
 
   const handleDeleteLesson = async (lessonId: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta aula?')) return;
+    const lesson = lessons.find(l => l.id === lessonId);
+    const lessonTitle = lesson?.title || 'esta aula';
 
-    try {
-      const { error } = await supabase
-        .from('lessons')
-        .delete()
-        .eq('id', lessonId);
+    openConfirmModal(
+      'Excluir Aula',
+      `Tem certeza que deseja excluir a aula "${lessonTitle}"? Esta ação não pode ser desfeita.`,
+      async () => {
+        try {
+          const { error } = await supabase
+            .from('lessons')
+            .delete()
+            .eq('id', lessonId);
 
-      if (error) throw error;
+          if (error) throw error;
 
-      toast.success('Aula excluída com sucesso!');
-      await loadData();
-    } catch (error) {
-      console.error('Erro ao excluir aula:', error);
-      toast.error('Erro ao excluir aula');
-    }
+          toast.success('Aula excluída com sucesso!');
+          await loadData();
+          closeConfirmModal();
+        } catch (error) {
+          console.error('Erro ao excluir aula:', error);
+          toast.error('Erro ao excluir aula');
+        }
+      },
+      'delete'
+    );
   };
 
   const handleTogglePublished = async (lesson: Lesson) => {
@@ -284,34 +330,43 @@ const handleDeleteCategory = async (categoryId: string, categoryName: string) =>
   const categoryLessons = lessons.filter(lesson => lesson.category_id === categoryId);
   
   if (categoryLessons.length > 0) {
-    toast.error(`Não é possível deletar a categoria "${categoryName}" pois ela possui ${categoryLessons.length} aula(s). Delete as aulas primeiro.`);
+    openConfirmModal(
+      'Não é possível deletar',
+      `A categoria "${categoryName}" possui ${categoryLessons.length} aula(s). Delete as aulas primeiro para poder excluir a categoria.`,
+      () => closeConfirmModal(),
+      'warning'
+    );
     return;
   }
 
-  if (!confirm(`Tem certeza que deseja excluir a categoria "${categoryName}"?`)) {
-    return;
-  }
+  openConfirmModal(
+    'Excluir Categoria',
+    `Tem certeza que deseja excluir a categoria "${categoryName}"? Esta ação não pode ser desfeita.`,
+    async () => {
+      try {
+        console.log('Deletando categoria:', categoryId);
+        
+        const { data, error } = await supabase.functions.invoke('delete-lesson-category', {
+          body: { categoryId }
+        });
 
-  try {
-    console.log('Deletando categoria:', categoryId);
-    
-    const { data, error } = await supabase.functions.invoke('delete-lesson-category', {
-      body: { categoryId }
-    });
+        if (error) {
+          const errorBody = await error.context.json();
+          throw new Error(errorBody.error || "Erro ao deletar categoria via função.");
+        }
 
-    if (error) {
-      const errorBody = await error.context.json();
-      throw new Error(errorBody.error || "Erro ao deletar categoria via função.");
-    }
+        console.log('Categoria deletada:', data);
+        toast.success('Categoria deletada com sucesso!');
+        await loadData();
+        closeConfirmModal();
 
-    console.log('Categoria deletada:', data);
-    toast.success('Categoria deletada com sucesso!');
-    await loadData(); // Recarrega os dados
-
-  } catch (error: any) {
-    console.error('Erro ao deletar categoria:', error);
-    toast.error(`Erro ao deletar categoria: ${error.message}`);
-  }
+      } catch (error: any) {
+        console.error('Erro ao deletar categoria:', error);
+        toast.error(`Erro ao deletar categoria: ${error.message}`);
+      }
+    },
+    'delete'
+  );
 };
 
 const handleUpdateCategory = async (categoryId: string, updates: Partial<LessonCategory>) => {
@@ -922,6 +977,59 @@ const handleToggleCategoryActive = async (categoryId: string, isActive: boolean)
               }}
             >
               Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação Customizado */}
+      <Dialog open={confirmModal.isOpen} onOpenChange={closeConfirmModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {confirmModal.type === 'delete' && (
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+              )}
+              {confirmModal.type === 'warning' && (
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-amber-600" />
+                </div>
+              )}
+              {confirmModal.type === 'info' && (
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <HelpCircle className="w-5 h-5 text-blue-600" />
+                </div>
+              )}
+              <span>{confirmModal.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {confirmModal.message}
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={closeConfirmModal}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant={confirmModal.type === 'delete' ? 'destructive' : confirmModal.type === 'warning' ? 'default' : 'default'}
+              onClick={() => {
+                confirmModal.onConfirm();
+                if (confirmModal.type === 'warning' || confirmModal.type === 'info') {
+                  closeConfirmModal();
+                }
+              }}
+            >
+              {confirmModal.type === 'delete' ? 'Excluir' : 
+               confirmModal.type === 'warning' ? 'Entendi' : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>
