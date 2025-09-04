@@ -1,6 +1,6 @@
 =============================================
  DUMP DO PROJETO: React Project
- GERADO EM: Wed, Aug 20, 2025  4:07:38 PM
+ GERADO EM: Thu, Sep  4, 2025 10:33:51 AM
 =============================================\n
 ================================================================================
 ARQUIVO: ./.gitignore
@@ -41,6 +41,31 @@ ARQUIVO: ./.vscode/extensions.json
         "anthropic.claude-code"
     ]
 }
+
+
+================================================================================
+ARQUIVO: ./add_active_field_categories.sql
+================================================================================\n
+-- Adicionar campo is_active na tabela lesson_categories
+-- Execute este script no SQL Editor do Supabase
+
+-- 1. Adicionar campo is_active (se não existir)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns 
+    WHERE table_name = 'lesson_categories' 
+    AND column_name = 'is_active'
+  ) THEN
+    ALTER TABLE lesson_categories ADD COLUMN is_active BOOLEAN DEFAULT true;
+  END IF;
+END $$;
+
+-- 2. Verificar estrutura da tabela
+SELECT column_name, data_type, is_nullable, column_default 
+FROM information_schema.columns 
+WHERE table_name = 'lesson_categories' 
+ORDER BY ordinal_position;
 
 
 ================================================================================
@@ -127,6 +152,54 @@ Three distinct user roles with separate dashboards and permissions:
 - pensar em ingles sempre mas responder sempre em pt-br portugues brasil
 - ao tetnar instalar uma lib, biblioteca ou dependencias, analisar antes se ela ja nao esta instalada, se estiver instalada nao reinstale
 
+## Supabase Integration
+- Project ID: `kzxiqdakyfxtyyuybwtl`
+- Edge Functions located in `/supabase/functions/`
+- Database migrations in `/supabase/migrations/`
+- Supabase CLI available via `supabase` command for local development
+- Types are auto-generated in `src/integrations/supabase/types.ts`
+
+## External Service Integrations
+- **Evolution API**: WhatsApp integration via Supabase Edge Functions
+- **OpenAI**: AI agent responses via `openai-handler` Edge Function
+- **Anthropic**: Claude AI integration via `@anthropic-ai/sdk`
+- **Google Calendar**: OAuth integration for scheduling features
+
+## Lovable Platform
+- This is a Lovable project (project ID: `3f253a16-b26d-4956-959b-871525025d74`)
+- Uses `lovable-tagger` for component development tracking
+- Changes made in Lovable sync automatically with this repository
+
+# important-instruction-reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.
+
+
+================================================================================
+ARQUIVO: ./clean_mockdata_only.sql
+================================================================================\n
+-- Script para limpar APENAS os dados mockados (aulas de exemplo)
+-- Execute este script no SQL Editor do Supabase
+
+-- 1. Deletar aulas de exemplo (dados mockados)
+DELETE FROM lessons 
+WHERE title IN (
+  'Bem-vindo à Plataforma',
+  'Criando seu Primeiro Agente', 
+  'Guia de Prompts Eficazes',
+  'Conectando WhatsApp'
+);
+
+-- 2. Verificar quantas aulas restaram
+SELECT 'lessons' as table_name, COUNT(*) as count FROM lessons
+UNION ALL
+SELECT 'lesson_categories' as table_name, COUNT(*) as count FROM lesson_categories;
+
+-- 3. Mostrar categorias que existem (para você saber quais você tem)
+SELECT name, description, icon, created_at FROM lesson_categories ORDER BY name;
+
 
 ================================================================================
 ARQUIVO: ./components.json
@@ -195,6 +268,7 @@ echo "Iniciando a cópia do código-fonte do projeto React..."
 #    - Adicionado 'yarn.lock', 'pnpm-lock.yaml' e '.env*' para cobrir outros gerenciadores
 #      de pacotes e arquivos de ambiente.
 # 5. '-print0 | while ...': Trata de forma segura nomes de arquivos com espaços ou caracteres especiais.
+
 find . \
   -type d \( -name "node_modules" -o -name ".git" -o -name "build" -o -name "dist" -o -name ".next" -o -name "coverage" \) -prune \
   -o \
@@ -240,6 +314,438 @@ echo "Arquivo '$OUTPUT_FILE' gerado com sucesso na raiz do projeto!"
 
 
 ================================================================================
+ARQUIVO: ./create_lessons_complete.sql
+================================================================================\n
+-- Script completo para criar o sistema de aulas
+-- Execute este script no SQL Editor do Supabase
+
+-- 1. Criar tabela lessons (se não existir)
+CREATE TABLE IF NOT EXISTS lessons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  content_type TEXT NOT NULL CHECK (content_type IN ('video', 'ebook', 'material', 'quiz')),
+  content_url TEXT,
+  thumbnail_url TEXT,
+  category_id UUID REFERENCES lesson_categories(id) ON DELETE CASCADE,
+  duration_minutes INTEGER,
+  file_size_mb DECIMAL,
+  is_premium BOOLEAN DEFAULT false,
+  is_published BOOLEAN DEFAULT false,
+  order_index INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Habilitar RLS na tabela lessons
+ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
+
+-- 3. Remover políticas existentes da tabela lessons (se houver)
+DROP POLICY IF EXISTS "Anyone can view published lessons" ON lessons;
+DROP POLICY IF EXISTS "Admins can manage lessons" ON lessons;
+DROP POLICY IF EXISTS "Admins can insert lessons" ON lessons;
+DROP POLICY IF EXISTS "Admins can update lessons" ON lessons;
+DROP POLICY IF EXISTS "Admins can delete lessons" ON lessons;
+
+-- 4. Criar políticas para lessons
+CREATE POLICY "lessons_select_policy" 
+ON lessons 
+FOR SELECT 
+USING (is_published = true OR current_setting('role', true) = 'service_role' OR session_user = 'postgres' OR (auth.uid() IS NOT NULL AND EXISTS (
+  SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+)));
+
+CREATE POLICY "lessons_insert_policy" 
+ON lessons 
+FOR INSERT 
+WITH CHECK (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lessons_update_policy" 
+ON lessons 
+FOR UPDATE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lessons_delete_policy" 
+ON lessons 
+FOR DELETE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+-- 5. Conceder permissões para service_role
+GRANT ALL ON lessons TO service_role;
+
+-- 6. Criar tabela user_lesson_progress (se não existir)
+CREATE TABLE IF NOT EXISTS user_lesson_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+  completed_at TIMESTAMPTZ,
+  progress_percentage INTEGER DEFAULT 0 CHECK (progress_percentage >= 0 AND progress_percentage <= 100),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, lesson_id)
+);
+
+-- 7. Habilitar RLS na tabela user_lesson_progress
+ALTER TABLE user_lesson_progress ENABLE ROW LEVEL SECURITY;
+
+-- 8. Criar políticas para user_lesson_progress
+CREATE POLICY "user_lesson_progress_policy" 
+ON user_lesson_progress 
+FOR ALL 
+USING (
+  user_id = auth.uid() OR
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+-- 9. Conceder permissões
+GRANT ALL ON user_lesson_progress TO service_role;
+
+-- 10. Criar função para atualizar updated_at (se não existir)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- 11. Criar triggers para updated_at
+DROP TRIGGER IF EXISTS update_lessons_updated_at ON lessons;
+CREATE TRIGGER update_lessons_updated_at 
+  BEFORE UPDATE ON lessons 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_user_lesson_progress_updated_at ON user_lesson_progress;
+CREATE TRIGGER update_user_lesson_progress_updated_at 
+  BEFORE UPDATE ON user_lesson_progress 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- 12. Tabela criada sem dados de exemplo - pronta para uso
+
+-- 13. Verificar se tudo foi criado corretamente
+SELECT 'lesson_categories' as table_name, COUNT(*) as count FROM lesson_categories
+UNION ALL
+SELECT 'lessons' as table_name, COUNT(*) as count FROM lessons
+UNION ALL
+SELECT 'user_lesson_progress' as table_name, COUNT(*) as count FROM user_lesson_progress;
+
+
+================================================================================
+ARQUIVO: ./create_lesson_categories_direct.sql
+================================================================================\n
+-- Execute este script diretamente no SQL Editor do Supabase
+-- Script para criar a tabela lesson_categories
+
+-- 1. Criar a tabela lesson_categories
+CREATE TABLE IF NOT EXISTS lesson_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  icon TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Habilitar RLS
+ALTER TABLE lesson_categories ENABLE ROW LEVEL SECURITY;
+
+-- 3. Remover políticas existentes (se houver)
+DROP POLICY IF EXISTS "Anyone can view lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can manage lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can insert lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can update lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can delete lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can insert lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can update lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can delete lesson categories" ON lesson_categories;
+
+-- 4. Criar políticas simples que funcionem
+CREATE POLICY "lesson_categories_select_policy" 
+ON lesson_categories 
+FOR SELECT 
+USING (true);
+
+CREATE POLICY "lesson_categories_insert_policy" 
+ON lesson_categories 
+FOR INSERT 
+WITH CHECK (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lesson_categories_update_policy" 
+ON lesson_categories 
+FOR UPDATE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lesson_categories_delete_policy" 
+ON lesson_categories 
+FOR DELETE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+-- 5. Conceder permissões
+GRANT ALL ON lesson_categories TO service_role;
+GRANT USAGE ON SCHEMA public TO service_role;
+
+-- 6. Inserir categorias padrão (apenas se a tabela estiver vazia)
+INSERT INTO lesson_categories (name, description, icon) 
+SELECT * FROM (VALUES
+  ('Introdução', 'Aulas introdutórias sobre a plataforma', 'PlayCircle'),
+  ('Configuração', 'Como configurar agentes e integrações', 'Settings'),
+  ('WhatsApp', 'Integração e automação via WhatsApp', 'MessageCircle'),
+  ('IA e Prompts', 'Criação e otimização de prompts', 'Brain'),
+  ('Analytics', 'Análise de dados e relatórios', 'BarChart'),
+  ('Vendas', 'Estratégias de vendas e conversão', 'TrendingUp'),
+  ('Suporte', 'Suporte técnico e troubleshooting', 'HelpCircle')
+) AS v(name, description, icon)
+WHERE NOT EXISTS (SELECT 1 FROM lesson_categories LIMIT 1);
+
+-- 7. Verificar se foi criado corretamente
+SELECT * FROM lesson_categories ORDER BY created_at;
+
+
+================================================================================
+ARQUIVO: ./create_tables_clean.sql
+================================================================================\n
+-- Script limpo para criar sistema de aulas (SEM dados de exemplo)
+-- Execute este script no SQL Editor do Supabase
+
+-- 1. Criar tabela lesson_categories (se não existir)
+CREATE TABLE IF NOT EXISTS lesson_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  icon TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 2. Habilitar RLS na tabela lesson_categories
+ALTER TABLE lesson_categories ENABLE ROW LEVEL SECURITY;
+
+-- 3. Remover políticas existentes (se houver)
+DROP POLICY IF EXISTS "Anyone can view lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can manage lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can insert lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can update lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can delete lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can insert lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can update lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can delete lesson categories" ON lesson_categories;
+
+-- 4. Criar políticas para lesson_categories
+CREATE POLICY "lesson_categories_select_policy" 
+ON lesson_categories 
+FOR SELECT 
+USING (true);
+
+CREATE POLICY "lesson_categories_insert_policy" 
+ON lesson_categories 
+FOR INSERT 
+WITH CHECK (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lesson_categories_update_policy" 
+ON lesson_categories 
+FOR UPDATE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lesson_categories_delete_policy" 
+ON lesson_categories 
+FOR DELETE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+-- 5. Criar tabela lessons (se não existir)
+CREATE TABLE IF NOT EXISTS lessons (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  description TEXT,
+  content_type TEXT NOT NULL CHECK (content_type IN ('video', 'ebook', 'material', 'quiz')),
+  content_url TEXT,
+  thumbnail_url TEXT,
+  category_id UUID REFERENCES lesson_categories(id) ON DELETE CASCADE,
+  duration_minutes INTEGER,
+  file_size_mb DECIMAL,
+  is_premium BOOLEAN DEFAULT false,
+  is_published BOOLEAN DEFAULT false,
+  order_index INTEGER DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 6. Habilitar RLS na tabela lessons
+ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
+
+-- 7. Criar políticas para lessons
+CREATE POLICY "lessons_select_policy" 
+ON lessons 
+FOR SELECT 
+USING (is_published = true OR current_setting('role', true) = 'service_role' OR session_user = 'postgres' OR (auth.uid() IS NOT NULL AND EXISTS (
+  SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+)));
+
+CREATE POLICY "lessons_insert_policy" 
+ON lessons 
+FOR INSERT 
+WITH CHECK (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lessons_update_policy" 
+ON lessons 
+FOR UPDATE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lessons_delete_policy" 
+ON lessons 
+FOR DELETE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+-- 8. Criar tabela user_lesson_progress (se não existir)
+CREATE TABLE IF NOT EXISTS user_lesson_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  lesson_id UUID NOT NULL REFERENCES lessons(id) ON DELETE CASCADE,
+  completed_at TIMESTAMPTZ,
+  progress_percentage INTEGER DEFAULT 0 CHECK (progress_percentage >= 0 AND progress_percentage <= 100),
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, lesson_id)
+);
+
+-- 9. Habilitar RLS na tabela user_lesson_progress
+ALTER TABLE user_lesson_progress ENABLE ROW LEVEL SECURITY;
+
+-- 10. Criar políticas para user_lesson_progress
+CREATE POLICY "user_lesson_progress_policy" 
+ON user_lesson_progress 
+FOR ALL 
+USING (
+  user_id = auth.uid() OR
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+-- 11. Conceder permissões para service_role
+GRANT ALL ON lesson_categories TO service_role;
+GRANT ALL ON lessons TO service_role;
+GRANT ALL ON user_lesson_progress TO service_role;
+GRANT USAGE ON SCHEMA public TO service_role;
+
+-- 12. Criar função para atualizar updated_at (se não existir)
+CREATE OR REPLACE FUNCTION update_updated_at_column()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.updated_at = NOW();
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+-- 13. Criar triggers para updated_at
+DROP TRIGGER IF EXISTS update_lesson_categories_updated_at ON lesson_categories;
+CREATE TRIGGER update_lesson_categories_updated_at 
+  BEFORE UPDATE ON lesson_categories 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_lessons_updated_at ON lessons;
+CREATE TRIGGER update_lessons_updated_at 
+  BEFORE UPDATE ON lessons 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+
+DROP TRIGGER IF EXISTS update_user_lesson_progress_updated_at ON user_lesson_progress;
+CREATE TRIGGER update_user_lesson_progress_updated_at 
+  BEFORE UPDATE ON user_lesson_progress 
+  FOR EACH ROW 
+  EXECUTE FUNCTION update_updated_at_column();
+
+-- 14. Verificar se tudo foi criado corretamente
+SELECT 'lesson_categories' as table_name, COUNT(*) as count FROM lesson_categories
+UNION ALL
+SELECT 'lessons' as table_name, COUNT(*) as count FROM lessons
+UNION ALL
+SELECT 'user_lesson_progress' as table_name, COUNT(*) as count FROM user_lesson_progress;
+
+
+================================================================================
 ARQUIVO: ./eslint.config.js
 ================================================================================\n
 import js from "@eslint/js";
@@ -272,6 +778,105 @@ export default tseslint.config(
   }
 );
 
+
+
+================================================================================
+ARQUIVO: ./fix_categories.sql
+================================================================================\n
+-- Script de correção para problemas de categorias de lições
+-- Execute este script diretamente no SQL Editor do Supabase
+
+-- 1. Verificar se a tabela lesson_categories existe
+SELECT EXISTS (
+   SELECT FROM information_schema.tables 
+   WHERE table_schema = 'public' 
+   AND table_name = 'lesson_categories'
+);
+
+-- 2. Verificar se a função is_admin existe
+SELECT EXISTS (
+   SELECT FROM information_schema.routines 
+   WHERE routine_schema = 'public' 
+   AND routine_name = 'is_admin'
+);
+
+-- 3. Verificar políticas RLS atuais
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual 
+FROM pg_policies 
+WHERE tablename = 'lesson_categories';
+
+-- 4. Aplicar correções das políticas RLS
+DROP POLICY IF EXISTS "Anyone can view lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can manage lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can insert lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can update lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can delete lesson categories" ON lesson_categories;
+
+-- 5. Criar políticas corrigidas
+CREATE POLICY "Anyone can view lesson categories" 
+ON lesson_categories 
+FOR SELECT 
+USING (true);
+
+CREATE POLICY "Service role and admins can insert lesson categories" 
+ON lesson_categories 
+FOR INSERT 
+WITH CHECK (
+  current_setting('role') = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND is_admin(auth.uid()))
+);
+
+CREATE POLICY "Service role and admins can update lesson categories" 
+ON lesson_categories 
+FOR UPDATE 
+USING (
+  current_setting('role') = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND is_admin(auth.uid()))
+);
+
+CREATE POLICY "Service role and admins can delete lesson categories" 
+ON lesson_categories 
+FOR DELETE 
+USING (
+  current_setting('role') = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND is_admin(auth.uid()))
+);
+
+-- 6. Garantir que a função is_admin está correta
+CREATE OR REPLACE FUNCTION public.is_admin(user_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.user_roles
+    WHERE user_roles.user_id = is_admin.user_id AND user_roles.role = 'admin'
+  );
+END;
+$$;
+
+-- 7. Conceder permissões necessárias
+GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO service_role;
+GRANT ALL ON lesson_categories TO service_role;
+GRANT USAGE ON SCHEMA public TO service_role;
+
+-- 8. Verificar se as políticas foram aplicadas corretamente
+SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual 
+FROM pg_policies 
+WHERE tablename = 'lesson_categories';
+
+-- 9. Testar inserção com dados de exemplo (remova os comentários para testar)
+-- INSERT INTO lesson_categories (name, description, icon) 
+-- VALUES ('Teste', 'Categoria de teste', 'Settings');
+
+-- 10. Verificar dados existentes
+SELECT * FROM lesson_categories ORDER BY created_at;
 
 
 ================================================================================
@@ -681,7 +1286,74 @@ Para que o Google Calendar funcione em produção (`https://agentsfy-ai.lovable.
 ================================================================================
 ARQUIVO: ./logs/logs.txt
 ================================================================================\n
-
+{
+  "event_message": "Erro do Supabase ao inserir: {}\n",
+  "id": "baa80b89-5979-4321-adeb-c370ae17d4bf",
+  "metadata": [
+    {
+      "boot_time": null,
+      "cpu_time_used": null,
+      "deployment_id": "kzxiqdakyfxtyyuybwtl_d80483b7-7642-46f2-8bd6-eaef3bed15bc_7",
+      "event_type": "Log",
+      "execution_id": "caad70c6-a36e-4d16-a070-03e95d86b703",
+      "function_id": "d80483b7-7642-46f2-8bd6-eaef3bed15bc",
+      "level": "error",
+      "memory_used": [],
+      "project_ref": "kzxiqdakyfxtyyuybwtl",
+      "reason": null,
+      "region": "sa-east-1",
+      "served_by": "supabase-edge-runtime-1.68.0-develop.39 (compatible with Deno v2.1.4)",
+      "timestamp": "2025-08-20T19:06:12.632Z",
+      "version": "7"
+    }
+  ],
+  "timestamp": 1755716772632000
+}
+{
+  "event_message": "Detalhes do erro: { status: 500, message: \"Erro no banco de dados: undefined\" }\n",
+  "id": "94c2a40f-1086-40b3-8652-bbd5f93a68e0",
+  "metadata": [
+    {
+      "boot_time": null,
+      "cpu_time_used": null,
+      "deployment_id": "kzxiqdakyfxtyyuybwtl_d80483b7-7642-46f2-8bd6-eaef3bed15bc_7",
+      "event_type": "Log",
+      "execution_id": "caad70c6-a36e-4d16-a070-03e95d86b703",
+      "function_id": "d80483b7-7642-46f2-8bd6-eaef3bed15bc",
+      "level": "error",
+      "memory_used": [],
+      "project_ref": "kzxiqdakyfxtyyuybwtl",
+      "reason": null,
+      "region": "sa-east-1",
+      "served_by": "supabase-edge-runtime-1.68.0-develop.39 (compatible with Deno v2.1.4)",
+      "timestamp": "2025-08-20T19:06:12.632Z",
+      "version": "7"
+    }
+  ],
+  "timestamp": 1755716772632000
+}{
+  "event_message": "Erro capturado no bloco catch principal (Status: 500): Erro no banco de dados: undefined\n",
+  "id": "ff7fd274-5b8c-49bb-8200-338c471567cb",
+  "metadata": [
+    {
+      "boot_time": null,
+      "cpu_time_used": null,
+      "deployment_id": "kzxiqdakyfxtyyuybwtl_d80483b7-7642-46f2-8bd6-eaef3bed15bc_7",
+      "event_type": "Log",
+      "execution_id": "caad70c6-a36e-4d16-a070-03e95d86b703",
+      "function_id": "d80483b7-7642-46f2-8bd6-eaef3bed15bc",
+      "level": "error",
+      "memory_used": [],
+      "project_ref": "kzxiqdakyfxtyyuybwtl",
+      "reason": null,
+      "region": "sa-east-1",
+      "served_by": "supabase-edge-runtime-1.68.0-develop.39 (compatible with Deno v2.1.4)",
+      "timestamp": "2025-08-20T19:06:12.632Z",
+      "version": "7"
+    }
+  ],
+  "timestamp": 1755716772632000
+}
 
 
 ================================================================================
@@ -25229,7 +25901,8 @@ import {
   Eye,
   EyeOff,
   Upload,
-  PlayCircle
+  PlayCircle,
+  AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -25240,6 +25913,10 @@ interface LessonCategory {
   name: string;
   description?: string;
   icon?: string;
+  is_active?: boolean;
+  lessons_count?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 interface Lesson {
@@ -25266,9 +25943,25 @@ export default function Lessons() {
   const [categories, setCategories] = useState<LessonCategory[]>([]);
   const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [isCategoryManageModalOpen, setIsCategoryManageModalOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
   const [editingCategory, setEditingCategory] = useState<LessonCategory | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Estado para modal de confirmação
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+    type: 'delete' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    type: 'delete'
+  });
 
   const [newLesson, setNewLesson] = useState<{
     title: string;
@@ -25306,6 +25999,27 @@ export default function Lessons() {
     }
   }, [user]);
 
+  // Função helper para abrir modal de confirmação
+  const openConfirmModal = (title: string, message: string, onConfirm: () => void, type: 'delete' | 'warning' | 'info' = 'delete') => {
+    setConfirmModal({
+      isOpen: true,
+      title,
+      message,
+      onConfirm,
+      type
+    });
+  };
+
+  const closeConfirmModal = () => {
+    setConfirmModal({
+      isOpen: false,
+      title: '',
+      message: '',
+      onConfirm: () => {},
+      type: 'delete'
+    });
+  };
+
   const loadData = async () => {
     try {
       setIsLoading(true);
@@ -25323,7 +26037,7 @@ export default function Lessons() {
         .from('lessons')
         .select(`
           *,
-          lesson_categories (
+          category:lesson_categories (
             id,
             name,
             description,
@@ -25403,22 +26117,31 @@ export default function Lessons() {
   };
 
   const handleDeleteLesson = async (lessonId: string) => {
-    if (!confirm('Tem certeza que deseja excluir esta aula?')) return;
+    const lesson = lessons.find(l => l.id === lessonId);
+    const lessonTitle = lesson?.title || 'esta aula';
 
-    try {
-      const { error } = await supabase
-        .from('lessons')
-        .delete()
-        .eq('id', lessonId);
+    openConfirmModal(
+      'Excluir Aula',
+      `Tem certeza que deseja excluir a aula "${lessonTitle}"? Esta ação não pode ser desfeita.`,
+      async () => {
+        try {
+          const { error } = await supabase
+            .from('lessons')
+            .delete()
+            .eq('id', lessonId);
 
-      if (error) throw error;
+          if (error) throw error;
 
-      toast.success('Aula excluída com sucesso!');
-      await loadData();
-    } catch (error) {
-      console.error('Erro ao excluir aula:', error);
-      toast.error('Erro ao excluir aula');
-    }
+          toast.success('Aula excluída com sucesso!');
+          await loadData();
+          closeConfirmModal();
+        } catch (error) {
+          console.error('Erro ao excluir aula:', error);
+          toast.error('Erro ao excluir aula');
+        }
+      },
+      'delete'
+    );
   };
 
   const handleTogglePublished = async (lesson: Lesson) => {
@@ -25466,6 +26189,89 @@ const handleCreateCategory = async () => {
   } catch (error: any) {
     console.error('Erro ao criar categoria:', error);
     toast.error(`Erro ao criar categoria: ${error.message}`);
+  }
+};
+
+const handleDeleteCategory = async (categoryId: string, categoryName: string) => {
+  // Verificar se há aulas nesta categoria
+  const categoryLessons = lessons.filter(lesson => lesson.category_id === categoryId);
+  
+  if (categoryLessons.length > 0) {
+    openConfirmModal(
+      'Não é possível deletar',
+      `A categoria "${categoryName}" possui ${categoryLessons.length} aula(s). Delete as aulas primeiro para poder excluir a categoria.`,
+      () => closeConfirmModal(),
+      'warning'
+    );
+    return;
+  }
+
+  openConfirmModal(
+    'Excluir Categoria',
+    `Tem certeza que deseja excluir a categoria "${categoryName}"? Esta ação não pode ser desfeita.`,
+    async () => {
+      try {
+        console.log('Deletando categoria:', categoryId);
+        
+        const { data, error } = await supabase.functions.invoke('delete-lesson-category', {
+          body: { categoryId }
+        });
+
+        if (error) {
+          const errorBody = await error.context.json();
+          throw new Error(errorBody.error || "Erro ao deletar categoria via função.");
+        }
+
+        console.log('Categoria deletada:', data);
+        toast.success('Categoria deletada com sucesso!');
+        await loadData();
+        closeConfirmModal();
+
+      } catch (error: any) {
+        console.error('Erro ao deletar categoria:', error);
+        toast.error(`Erro ao deletar categoria: ${error.message}`);
+      }
+    },
+    'delete'
+  );
+};
+
+const handleUpdateCategory = async (categoryId: string, updates: Partial<LessonCategory>) => {
+  try {
+    console.log('Atualizando categoria:', categoryId, updates);
+    
+    const { error } = await supabase
+      .from('lesson_categories')
+      .update(updates)
+      .eq('id', categoryId);
+
+    if (error) throw error;
+
+    toast.success('Categoria atualizada com sucesso!');
+    await loadData();
+    setEditingCategory(null);
+
+  } catch (error: any) {
+    console.error('Erro ao atualizar categoria:', error);
+    toast.error(`Erro ao atualizar categoria: ${error.message}`);
+  }
+};
+
+const handleToggleCategoryActive = async (categoryId: string, isActive: boolean) => {
+  try {
+    const { error } = await supabase
+      .from('lesson_categories')
+      .update({ is_active: isActive })
+      .eq('id', categoryId);
+
+    if (error) throw error;
+
+    toast.success(`Categoria ${isActive ? 'ativada' : 'desativada'} com sucesso!`);
+    await loadData();
+
+  } catch (error: any) {
+    console.error('Erro ao alterar status da categoria:', error);
+    toast.error(`Erro ao alterar status da categoria: ${error.message}`);
   }
 };
 
@@ -25569,6 +26375,13 @@ const handleCreateCategory = async () => {
               <Plus className="w-4 h-4 mr-2" />
               Nova Categoria
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setIsCategoryManageModalOpen(true)}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Gerenciar Categorias
+            </Button>
             <Button onClick={() => setIsLessonModalOpen(true)}>
               <Plus className="w-4 h-4 mr-2" />
               Nova Aula
@@ -25585,7 +26398,7 @@ const handleCreateCategory = async () => {
           <Tabs defaultValue="all" className="space-y-4">
             <TabsList>
               <TabsTrigger value="all">Todas ({lessons.length})</TabsTrigger>
-              {categories.map((category) => {
+              {categories.filter(cat => cat.is_active !== false).map((category) => {
                 const categoryLessons = lessons.filter(l => l.category_id === category.id);
                 return (
                   <TabsTrigger key={category.id} value={category.id}>
@@ -25604,7 +26417,7 @@ const handleCreateCategory = async () => {
               />
             </TabsContent>
 
-            {categories.map((category) => {
+            {categories.filter(cat => cat.is_active !== false).map((category) => {
               const categoryLessons = lessons.filter(l => l.category_id === category.id);
               return (
                 <TabsContent key={category.id} value={category.id}>
@@ -25849,6 +26662,241 @@ const handleCreateCategory = async () => {
             </Button>
             <Button onClick={handleCreateCategory}>
               Criar Categoria
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal para Gerenciar Categorias */}
+      <Dialog open={isCategoryManageModalOpen} onOpenChange={setIsCategoryManageModalOpen}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Gerenciar Categorias</DialogTitle>
+            <DialogDescription>
+              Edite, ative/desative ou delete categorias existentes
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {categories.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-30" />
+                <p>Nenhuma categoria encontrada</p>
+                <p className="text-sm">Crie uma nova categoria para começar</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {categories.map((category) => {
+                  const categoryLessons = lessons.filter(l => l.category_id === category.id);
+                  const isEditing = editingCategory?.id === category.id;
+                  
+                  return (
+                    <Card key={category.id} className={`p-4 ${category.is_active === false ? 'opacity-60 bg-muted/30' : ''}`}>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          {isEditing ? (
+                            <div className="space-y-3">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <Label className="text-xs">Nome</Label>
+                                  <Input
+                                    value={newCategory.name}
+                                    onChange={(e) => setNewCategory(prev => ({ ...prev, name: e.target.value }))}
+                                    placeholder="Nome da categoria"
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="text-xs">Ícone</Label>
+                                  <Select value={newCategory.icon} onValueChange={(value) => 
+                                    setNewCategory(prev => ({ ...prev, icon: value }))
+                                  }>
+                                    <SelectTrigger>
+                                      <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="BookOpen">Livro</SelectItem>
+                                      <SelectItem value="PlayCircle">Play</SelectItem>
+                                      <SelectItem value="Settings">Configurações</SelectItem>
+                                      <SelectItem value="MessageCircle">Mensagem</SelectItem>
+                                      <SelectItem value="Brain">Cérebro</SelectItem>
+                                      <SelectItem value="BarChart">Gráfico</SelectItem>
+                                      <SelectItem value="TrendingUp">Tendência</SelectItem>
+                                      <SelectItem value="HelpCircle">Ajuda</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                </div>
+                              </div>
+                              <div>
+                                <Label className="text-xs">Descrição</Label>
+                                <Textarea
+                                  value={newCategory.description}
+                                  onChange={(e) => setNewCategory(prev => ({ ...prev, description: e.target.value }))}
+                                  placeholder="Descrição da categoria..."
+                                  rows={2}
+                                />
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    handleUpdateCategory(category.id, {
+                                      name: newCategory.name,
+                                      description: newCategory.description,
+                                      icon: newCategory.icon
+                                    });
+                                  }}
+                                >
+                                  Salvar
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setEditingCategory(null);
+                                    resetCategoryForm();
+                                  }}
+                                >
+                                  Cancelar
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="flex items-center gap-3 mb-2">
+                                <h3 className="font-semibold">{category.name}</h3>
+                                <Badge variant={category.is_active !== false ? "default" : "secondary"}>
+                                  {category.is_active !== false ? "Ativa" : "Inativa"}
+                                </Badge>
+                                <Badge variant="outline" className="text-xs">
+                                  {categoryLessons.length} aula(s)
+                                </Badge>
+                              </div>
+                              {category.description && (
+                                <p className="text-sm text-muted-foreground mb-2">{category.description}</p>
+                              )}
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <span>Ícone: {category.icon}</span>
+                                <span>•</span>
+                                <span>Criada em: {new Date(category.created_at || '').toLocaleDateString('pt-BR')}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        
+                        {!isEditing && (
+                          <div className="flex items-center gap-2 ml-4">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => {
+                                setEditingCategory(category);
+                                setNewCategory({
+                                  name: category.name,
+                                  description: category.description || '',
+                                  icon: category.icon || 'BookOpen'
+                                });
+                              }}
+                              title="Editar categoria"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleToggleCategoryActive(category.id, !(category.is_active !== false))}
+                              title={category.is_active !== false ? "Desativar categoria" : "Ativar categoria"}
+                            >
+                              {category.is_active !== false ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </Button>
+                            
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => handleDeleteCategory(category.id, category.name)}
+                              className="text-destructive hover:text-destructive"
+                              title="Deletar categoria"
+                              disabled={categoryLessons.length > 0}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsCategoryManageModalOpen(false);
+                setEditingCategory(null);
+                resetCategoryForm();
+              }}
+            >
+              Fechar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal de Confirmação Customizado */}
+      <Dialog open={confirmModal.isOpen} onOpenChange={closeConfirmModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {confirmModal.type === 'delete' && (
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                </div>
+              )}
+              {confirmModal.type === 'warning' && (
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-amber-600" />
+                </div>
+              )}
+              {confirmModal.type === 'info' && (
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                  <HelpCircle className="w-5 h-5 text-blue-600" />
+                </div>
+              )}
+              <span>{confirmModal.title}</span>
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              {confirmModal.message}
+            </p>
+          </div>
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={closeConfirmModal}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant={confirmModal.type === 'delete' ? 'destructive' : confirmModal.type === 'warning' ? 'default' : 'default'}
+              onClick={() => {
+                confirmModal.onConfirm();
+                if (confirmModal.type === 'warning' || confirmModal.type === 'info') {
+                  closeConfirmModal();
+                }
+              }}
+            >
+              {confirmModal.type === 'delete' ? 'Excluir' : 
+               confirmModal.type === 'warning' ? 'Entendi' : 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -32321,8 +33369,13 @@ serve(async (req) => {
 
     if (insertError) {
       console.error("Erro do Supabase ao inserir:", insertError);
+      console.error("Código do erro:", insertError.code);
+      console.error("Detalhes do erro:", insertError.details);
+      console.error("Dica do erro:", insertError.hint);
+      
       // Lança o erro do Supabase para ser capturado pelo catch principal
-      throw { status: 500, message: `Erro no banco de dados: ${insertError.message}` };
+      const errorMessage = insertError.message || insertError.details || insertError.hint || 'Erro desconhecido no banco de dados';
+      throw { status: 500, message: `Erro no banco de dados: ${errorMessage}` };
     }
 
     console.log("Categoria criada com sucesso:", data);
@@ -32333,11 +33386,21 @@ serve(async (req) => {
 
   } catch (error) {
     // Bloco catch aprimorado para lidar com qualquer tipo de erro
-    const errorMessage = error.message || "Ocorreu um erro inesperado.";
-    const errorStatus = error.status || 500;
+    console.error("Erro completo capturado:", error);
+    console.error("Tipo do erro:", typeof error);
+    console.error("Propriedades do erro:", Object.keys(error || {}));
+    
+    let errorMessage = "Ocorreu um erro inesperado.";
+    let errorStatus = 500;
+    
+    if (error && typeof error === 'object') {
+      errorMessage = error.message || error.details || error.hint || error.error || JSON.stringify(error);
+      errorStatus = error.status || 500;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    }
     
     console.error(`Erro capturado no bloco catch principal (Status: ${errorStatus}):`, errorMessage);
-    console.error("Detalhes do erro:", error); // Loga o objeto de erro completo
 
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -32501,6 +33564,127 @@ serve(async (req) => {
   }
 });
 
+
+
+================================================================================
+ARQUIVO: ./supabase/functions/delete-lesson-category/index.ts
+================================================================================\n
+// Edge Function para deletar categorias de aulas
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+console.log("🗑️ Função delete-lesson-category iniciada");
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+    );
+
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      throw { status: 401, message: "Cabeçalho de autorização ausente" };
+    }
+
+    const supabaseUserClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+
+    const { data: { user } } = await supabaseUserClient.auth.getUser();
+    if (!user) {
+      throw { status: 401, message: "Usuário não autenticado" };
+    }
+
+    // Verificar se é admin
+    const { data: isAdmin, error: rpcError } = await supabaseAdmin.rpc('is_admin', { user_id: user.id });
+    if (rpcError) throw rpcError;
+    
+    if (!isAdmin) {
+      throw { status: 403, message: "Acesso negado. Apenas administradores podem deletar categorias." };
+    }
+
+    // Obter category_id do body
+    const { categoryId } = await req.json();
+    
+    if (!categoryId) {
+      throw { status: 400, message: "ID da categoria é obrigatório" };
+    }
+
+    console.log("Deletando categoria:", categoryId);
+
+    // Verificar se a categoria tem aulas associadas
+    const { data: lessonsCount, error: countError } = await supabaseAdmin
+      .from('lessons')
+      .select('id', { count: 'exact', head: true })
+      .eq('category_id', categoryId);
+
+    if (countError) {
+      console.error("Erro ao verificar aulas:", countError);
+      throw { status: 500, message: `Erro ao verificar aulas: ${countError.message}` };
+    }
+
+    // Se tem aulas, não pode deletar
+    if (lessonsCount && lessonsCount.length > 0) {
+      throw { status: 400, message: "Não é possível deletar categoria que possui aulas. Delete as aulas primeiro." };
+    }
+
+    // Deletar categoria
+    const { data, error: deleteError } = await supabaseAdmin
+      .from('lesson_categories')
+      .delete()
+      .eq('id', categoryId)
+      .select()
+      .single();
+
+    if (deleteError) {
+      console.error("Erro ao deletar categoria:", deleteError);
+      const errorMessage = deleteError.message || deleteError.details || deleteError.hint || 'Erro desconhecido ao deletar categoria';
+      throw { status: 500, message: `Erro no banco de dados: ${errorMessage}` };
+    }
+
+    if (!data) {
+      throw { status: 404, message: "Categoria não encontrada" };
+    }
+
+    console.log("Categoria deletada com sucesso:", data);
+    return new Response(JSON.stringify({ message: "Categoria deletada com sucesso", data }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: 200,
+    });
+
+  } catch (error) {
+    console.error("Erro completo capturado:", error);
+    
+    let errorMessage = "Ocorreu um erro inesperado.";
+    let errorStatus = 500;
+    
+    if (error && typeof error === 'object') {
+      errorMessage = error.message || error.details || error.hint || error.error || JSON.stringify(error);
+      errorStatus = error.status || 500;
+    } else if (typeof error === 'string') {
+      errorMessage = error;
+    }
+    
+    console.error(`Erro capturado no bloco catch principal (Status: ${errorStatus}):`, errorMessage);
+
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      status: errorStatus,
+    });
+  }
+});
 
 
 ================================================================================
@@ -36299,6 +37483,177 @@ WITH CHECK (
   -- Ou se o usuário autenticado tiver a role de admin, verificado pela sua função RPC.
   is_admin(auth.uid())
 );
+
+
+================================================================================
+ARQUIVO: ./supabase/migrations/20250820200000_fix_lesson_categories_final.sql
+================================================================================\n
+-- Final fix for lesson_categories RLS policies and service role access
+
+-- Drop all existing policies to start fresh
+DROP POLICY IF EXISTS "Anyone can view lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can manage lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can insert lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can update lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can delete lesson categories" ON lesson_categories;
+
+-- Create comprehensive policies that work with both authenticated users and service role
+CREATE POLICY "Anyone can view lesson categories" 
+ON lesson_categories 
+FOR SELECT 
+USING (true);
+
+CREATE POLICY "Service role and admins can insert lesson categories" 
+ON lesson_categories 
+FOR INSERT 
+WITH CHECK (
+  -- Allow service role (used by Edge Functions)
+  current_setting('role') = 'service_role' OR
+  -- Allow postgres superuser (fallback)
+  session_user = 'postgres' OR
+  -- Allow authenticated admin users
+  (auth.uid() IS NOT NULL AND is_admin(auth.uid()))
+);
+
+CREATE POLICY "Service role and admins can update lesson categories" 
+ON lesson_categories 
+FOR UPDATE 
+USING (
+  current_setting('role') = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND is_admin(auth.uid()))
+);
+
+CREATE POLICY "Service role and admins can delete lesson categories" 
+ON lesson_categories 
+FOR DELETE 
+USING (
+  current_setting('role') = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND is_admin(auth.uid()))
+);
+
+-- Ensure the is_admin function exists and is accessible
+-- Recreate the function to ensure it's properly defined
+CREATE OR REPLACE FUNCTION public.is_admin(user_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1
+    FROM public.user_roles
+    WHERE user_roles.user_id = is_admin.user_id AND user_roles.role = 'admin'
+  );
+END;
+$$;
+
+-- Grant necessary permissions
+GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin(uuid) TO service_role;
+
+-- Ensure the lesson_categories table has proper permissions for service role
+GRANT ALL ON lesson_categories TO service_role;
+GRANT USAGE ON SCHEMA public TO service_role;
+
+
+================================================================================
+ARQUIVO: ./supabase/migrations/20250820203000_create_lesson_categories_simple.sql
+================================================================================\n
+-- Simple migration to create lesson_categories table and basic policies
+
+-- Create the lesson_categories table if it doesn't exist
+CREATE TABLE IF NOT EXISTS lesson_categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  description TEXT,
+  icon TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE lesson_categories ENABLE ROW LEVEL SECURITY;
+
+-- Drop existing policies if they exist
+DROP POLICY IF EXISTS "Anyone can view lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can manage lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can insert lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can update lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Admins can delete lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can insert lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can update lesson categories" ON lesson_categories;
+DROP POLICY IF EXISTS "Service role and admins can delete lesson categories" ON lesson_categories;
+
+-- Create simple policies that work
+CREATE POLICY "lesson_categories_select_policy" 
+ON lesson_categories 
+FOR SELECT 
+USING (true);
+
+CREATE POLICY "lesson_categories_insert_policy" 
+ON lesson_categories 
+FOR INSERT 
+WITH CHECK (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lesson_categories_update_policy" 
+ON lesson_categories 
+FOR UPDATE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+CREATE POLICY "lesson_categories_delete_policy" 
+ON lesson_categories 
+FOR DELETE 
+USING (
+  current_setting('role', true) = 'service_role' OR
+  session_user = 'postgres' OR
+  (auth.uid() IS NOT NULL AND EXISTS (
+    SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'admin'
+  ))
+);
+
+-- Grant permissions
+GRANT ALL ON lesson_categories TO service_role;
+GRANT USAGE ON SCHEMA public TO service_role;
+
+-- Insert default categories if table is empty
+INSERT INTO lesson_categories (name, description, icon) 
+SELECT * FROM (VALUES
+  ('Introdução', 'Aulas introdutórias sobre a plataforma', 'PlayCircle'),
+  ('Configuração', 'Como configurar agentes e integrações', 'Settings'),
+  ('WhatsApp', 'Integração e automação via WhatsApp', 'MessageCircle'),
+  ('IA e Prompts', 'Criação e otimização de prompts', 'Brain'),
+  ('Analytics', 'Análise de dados e relatórios', 'BarChart'),
+  ('Vendas', 'Estratégias de vendas e conversão', 'TrendingUp'),
+  ('Suporte', 'Suporte técnico e troubleshooting', 'HelpCircle')
+) AS v(name, description, icon)
+WHERE NOT EXISTS (SELECT 1 FROM lesson_categories LIMIT 1);
+
+-- Add trigger for updated_at if function exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_proc WHERE proname = 'update_updated_at_column') THEN
+    DROP TRIGGER IF EXISTS update_lesson_categories_updated_at ON lesson_categories;
+    CREATE TRIGGER update_lesson_categories_updated_at 
+      BEFORE UPDATE ON lesson_categories 
+      FOR EACH ROW 
+      EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END
+$$;
 
 
 ================================================================================

@@ -74,7 +74,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       // Get the primary role (first one found, prefer admin > franchisee > customer)
       const rolesPriority = ['admin', 'franchisee', 'customer'];
       const availableRoles = userRoles?.map(ur => ur.role) || [];
-      const primaryRole = rolesPriority.find(role => availableRoles.includes(role)) || 'customer';
+      const primaryRole = rolesPriority.find(role => availableRoles.includes(role)) || 'franchisee';
 
       console.log('User roles found:', availableRoles, 'Primary role:', primaryRole);
 

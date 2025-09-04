@@ -37,6 +37,7 @@ echo "Iniciando a cópia do código-fonte do projeto React..."
 #    - Adicionado 'yarn.lock', 'pnpm-lock.yaml' e '.env*' para cobrir outros gerenciadores
 #      de pacotes e arquivos de ambiente.
 # 5. '-print0 | while ...': Trata de forma segura nomes de arquivos com espaços ou caracteres especiais.
+
 find . \
   -type d \( -name "node_modules" -o -name ".git" -o -name "build" -o -name "dist" -o -name ".next" -o -name "coverage" \) -prune \
   -o \
