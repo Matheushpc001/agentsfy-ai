@@ -43,7 +43,6 @@ export function AppSidebar() {
       { label: "Estatísticas", icon: BarChart2, href: "/admin/analytics" },
       { label: "Evolution API", icon: Settings, href: "/admin/evolution-config" },
       { label: "Aulas", icon: BookOpen, href: "/admin/lessons" },
-      { label: "Teste Agenda", icon: Settings, href: "/admin/scheduling-test" },
     ],
     franchisee: [
       { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
@@ -145,4 +144,3 @@ export function AppSidebar() {
     </Sidebar>
   );
 }
-

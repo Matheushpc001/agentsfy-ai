@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Calendar as CalendarIcon, Clock, Plus, User, X, Settings, ExternalLink, Calendar, Edit, Trash2, CheckCircle, Copy } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Plus, User, Calendar, Edit, Trash2, CheckCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import DashboardLayout from "@/components/layout/DashboardLayout";
@@ -75,9 +75,7 @@ export default function Schedule() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
-  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
-  const [googleEvents, setGoogleEvents] = useState<any[]>([]);
-  const [showGoogleAuth, setShowGoogleAuth] = useState(false);
+  // Integração Google removida: agenda nativa
   const [selectedCustomer, setSelectedCustomer] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
@@ -135,20 +133,7 @@ export default function Schedule() {
 
       setAppointments(appointmentsData || []);
 
-      // Verificar conexão Google Calendar
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('google_calendar_token')
-        .eq('id', user.id)
-        .single();
-      
-      const connected = !!profileData?.google_calendar_token;
-      setIsGoogleConnected(connected);
-      
-      // Se conectado, carregar eventos do Google Calendar
-      if (connected) {
-        await loadGoogleEvents(profileData.google_calendar_token, startOfDay, endOfDay);
-      }
+      // Integração Google removida: não há mais carregamento externo
       
     } catch (error) {
       console.error('Erro ao carregar dados:', error);
@@ -158,32 +143,7 @@ export default function Schedule() {
     }
   };
 
-  const loadGoogleEvents = async (token: string, startDate: string, endDate: string) => {
-    try {
-      const response = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
-        `timeMin=${encodeURIComponent(startDate)}&` +
-        `timeMax=${encodeURIComponent(endDate)}&` +
-        `singleEvents=true&orderBy=startTime`,
-        {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setGoogleEvents(data.items || []);
-      } else {
-        console.log('Erro ao carregar eventos do Google:', response.status);
-        setGoogleEvents([]);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar eventos do Google:', error);
-      setGoogleEvents([]);
-    }
-  };
+  // Integração Google removida
 
   const handleCreateAppointment = async () => {
     if (!user) {

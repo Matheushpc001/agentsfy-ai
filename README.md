@@ -60,6 +60,19 @@ This project is built with:
 - shadcn-ui
 - Tailwind CSS
 
+## Native Scheduling (Google Calendar removed)
+
+The platform now uses a 100% native scheduling system. Availability and appointment types are managed inside the app, and AI agents can query available slots and create appointments via Supabase Edge Functions:
+
+- `get-available-slots`: returns free slots for a customer/date/duration
+- `create-appointment`: validates conflicts and creates an appointment
+
+Tables added:
+- `availabilities` (working hours per weekday)
+- `appointment_types` (named durations per customer)
+
+Removed Google Calendar OAuth and sync. Old instructions and callback routes were deleted.
+
 ## How can I deploy this project?
 
 Simply open [Lovable](https://lovable.dev/projects/3f253a16-b26d-4956-959b-871525025d74) and click on Share -> Publish.

@@ -18,12 +18,13 @@ import Franchisees from "./pages/admin/Franchisees";
 import Analytics from "./pages/admin/Analytics";
 import Lessons from "./pages/admin/Lessons";
 import EvolutionConfig from "./pages/admin/EvolutionConfig";
+import SchedulingTest from "./pages/admin/SchedulingTest";
 
 // Franchisee pages
 import Agents from "./pages/franchisee/Agents";
 import Prompts from "./pages/franchisee/Prompts";
 import Customers from "./pages/franchisee/Customers";
-import Schedule from "./pages/franchisee/Schedule";
+import Schedule from "./pages/franchisee/ScheduleNative";
 import Plans from "./pages/franchisee/Plans";
 import WhatsAppConnections from "./pages/franchisee/WhatsAppConnections";
 import FranchiseeLessons from "./pages/franchisee/Lessons";
@@ -32,9 +33,9 @@ import FranchiseeLessons from "./pages/franchisee/Lessons";
 import CustomerDashboard from "./pages/customer/Dashboard";
 import AIAgentConfig from "./pages/customer/AIAgentConfig";
 import CustomerSchedule from "./pages/customer/Schedule";
+import CustomerScheduleConfig from "./pages/customer/ScheduleConfig";
 
 import UpdatePassword from "./pages/UpdatePassword";
-import OAuthCallback from "./pages/OAuthCallback";
 
 // Protected route component
 interface ProtectedRouteProps {
@@ -82,7 +83,7 @@ const AppRoutes = () => {
 
 
       <Route path="/a/:customerId" element={<CustomerPortalLogin />} />
-      <Route path="/oauth/callback" element={<OAuthCallback />} />
+      { /* Rota OAuth removida: integração Google Calendar descontinuada */ }
 
       {/* Protected routes */}
       <Route path="/dashboard" element={<ProtectedRoute element={<Dashboard />} allowedRoles={["admin", "franchisee", "customer"]} />} />
@@ -91,6 +92,7 @@ const AppRoutes = () => {
       <Route path="/admin/franchisees" element={<ProtectedRoute element={<Franchisees />} allowedRoles={["admin"]} />} />
       <Route path="/admin/analytics" element={<ProtectedRoute element={<Analytics />} allowedRoles={["admin"]} />} />
       <Route path="/admin/evolution-config" element={<ProtectedRoute element={<EvolutionConfig />} allowedRoles={["admin"]} />} />
+      <Route path="/admin/scheduling-test" element={<ProtectedRoute element={<SchedulingTest />} allowedRoles={["admin"]} />} />
       <Route path="/admin/lessons" element={<ProtectedRoute element={<Lessons />} allowedRoles={["admin"]} />} />
 
       {/* Franchisee routes */}
@@ -106,6 +108,7 @@ const AppRoutes = () => {
       <Route path="/customer/dashboard" element={<ProtectedRoute element={<CustomerDashboard />} allowedRoles={["customer"]} />} />
       <Route path="/customer/ai-agents" element={<ProtectedRoute element={<AIAgentConfig />} allowedRoles={["customer"]} />} />
       <Route path="/customer/schedule" element={<ProtectedRoute element={<CustomerSchedule />} allowedRoles={["customer"]} />} />
+      <Route path="/customer/schedule-config" element={<ProtectedRoute element={<CustomerScheduleConfig />} allowedRoles={["customer"]} />} />
       
       {/* Redirect root to auth or dashboard */}
       <Route path="/" element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/auth" replace />} />
