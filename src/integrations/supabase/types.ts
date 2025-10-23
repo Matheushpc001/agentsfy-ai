@@ -27,6 +27,7 @@ export type Database = {
           message_count: number | null
           name: string
           open_ai_key: string
+          open_ai_key_encrypted: string | null
           phone_number: string | null
           prompt: string | null
           response_time: number | null
@@ -46,6 +47,7 @@ export type Database = {
           message_count?: number | null
           name: string
           open_ai_key: string
+          open_ai_key_encrypted?: string | null
           phone_number?: string | null
           prompt?: string | null
           response_time?: number | null
@@ -65,6 +67,7 @@ export type Database = {
           message_count?: number | null
           name?: string
           open_ai_key?: string
+          open_ai_key_encrypted?: string | null
           phone_number?: string | null
           prompt?: string | null
           response_time?: number | null
@@ -135,6 +138,7 @@ export type Database = {
           is_active: boolean | null
           model: string | null
           openai_api_key: string | null
+          openai_api_key_encrypted: string | null
           phone_number: string
           response_delay_seconds: number | null
           system_prompt: string | null
@@ -149,6 +153,7 @@ export type Database = {
           is_active?: boolean | null
           model?: string | null
           openai_api_key?: string | null
+          openai_api_key_encrypted?: string | null
           phone_number: string
           response_delay_seconds?: number | null
           system_prompt?: string | null
@@ -163,6 +168,7 @@ export type Database = {
           is_active?: boolean | null
           model?: string | null
           openai_api_key?: string | null
+          openai_api_key_encrypted?: string | null
           phone_number?: string
           response_delay_seconds?: number | null
           system_prompt?: string | null
@@ -178,6 +184,41 @@ export type Database = {
           },
         ]
       }
+      appointment_types: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          description: string | null
+          duration_minutes: number
+          id: string
+          name: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          description?: string | null
+          duration_minutes: number
+          id?: string
+          name: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          description?: string | null
+          duration_minutes?: number
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_types_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       appointments: {
         Row: {
           created_at: string
@@ -185,7 +226,6 @@ export type Database = {
           description: string | null
           end_time: string
           franchisee_id: string
-          google_event_id: string | null
           id: string
           location: string | null
           start_time: string
@@ -199,7 +239,6 @@ export type Database = {
           description?: string | null
           end_time: string
           franchisee_id: string
-          google_event_id?: string | null
           id?: string
           location?: string | null
           start_time: string
@@ -213,7 +252,6 @@ export type Database = {
           description?: string | null
           end_time?: string
           franchisee_id?: string
-          google_event_id?: string | null
           id?: string
           location?: string | null
           start_time?: string
@@ -238,6 +276,41 @@ export type Database = {
           },
         ]
       }
+      availabilities: {
+        Row: {
+          created_at: string | null
+          customer_id: string
+          day_of_week: number
+          end_time: string
+          id: string
+          start_time: string
+        }
+        Insert: {
+          created_at?: string | null
+          customer_id: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          start_time: string
+        }
+        Update: {
+          created_at?: string | null
+          customer_id?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          start_time?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availabilities_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           agent_count: number | null
@@ -252,6 +325,7 @@ export type Database = {
           name: string
           portal_url: string | null
           role: string | null
+          status: string
           updated_at: string | null
         }
         Insert: {
@@ -267,6 +341,7 @@ export type Database = {
           name: string
           portal_url?: string | null
           role?: string | null
+          status?: string
           updated_at?: string | null
         }
         Update: {
@@ -282,6 +357,7 @@ export type Database = {
           name?: string
           portal_url?: string | null
           role?: string | null
+          status?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -369,47 +445,91 @@ export type Database = {
         }
         Relationships: []
       }
-      google_calendar_configs: {
+      lesson_categories: {
         Row: {
-          created_at: string
-          customer_id: string | null
-          franchisee_id: string
-          google_calendar_id: string | null
+          created_at: string | null
+          description: string | null
+          icon: string | null
           id: string
-          is_active: boolean
-          updated_at: string
+          is_active: boolean | null
+          name: string
+          updated_at: string | null
         }
         Insert: {
-          created_at?: string
-          customer_id?: string | null
-          franchisee_id: string
-          google_calendar_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
           id?: string
-          is_active?: boolean
-          updated_at?: string
+          is_active?: boolean | null
+          name: string
+          updated_at?: string | null
         }
         Update: {
-          created_at?: string
-          customer_id?: string | null
-          franchisee_id?: string
-          google_calendar_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          icon?: string | null
           id?: string
-          is_active?: boolean
-          updated_at?: string
+          is_active?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      lessons: {
+        Row: {
+          category_id: string | null
+          content_type: string
+          content_url: string | null
+          created_at: string | null
+          description: string | null
+          duration_minutes: number | null
+          file_size_mb: number | null
+          id: string
+          is_premium: boolean | null
+          is_published: boolean | null
+          order_index: number | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          category_id?: string | null
+          content_type: string
+          content_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          file_size_mb?: number | null
+          id?: string
+          is_premium?: boolean | null
+          is_published?: boolean | null
+          order_index?: number | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          category_id?: string | null
+          content_type?: string
+          content_url?: string | null
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          file_size_mb?: string | null
+          id?: string
+          is_premium?: string | null
+          is_published?: boolean | null
+          order_index?: number | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string | null
         }
         Relationships: [
           {
-            foreignKeyName: "google_calendar_configs_customer_id_fkey"
-            columns: ["customer_id"]
+            foreignKeyName: "lessons_category_id_fkey"
+            columns: ["category_id"]
             isOneToOne: false
-            referencedRelation: "customers"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "google_calendar_configs_franchisee_id_fkey"
-            columns: ["franchisee_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
+            referencedRelation: "lesson_categories"
             referencedColumns: ["id"]
           },
         ]
@@ -418,9 +538,6 @@ export type Database = {
         Row: {
           created_at: string
           email: string
-          google_calendar_email: string | null
-          google_calendar_refresh_token: string | null
-          google_calendar_token: string | null
           id: string
           name: string
           updated_at: string
@@ -428,9 +545,6 @@ export type Database = {
         Insert: {
           created_at?: string
           email: string
-          google_calendar_email?: string | null
-          google_calendar_refresh_token?: string | null
-          google_calendar_token?: string | null
           id: string
           name: string
           updated_at?: string
@@ -438,14 +552,59 @@ export type Database = {
         Update: {
           created_at?: string
           email?: string
-          google_calendar_email?: string | null
-          google_calendar_refresh_token?: string | null
-          google_calendar_token?: string | null
           id?: string
           name?: string
           updated_at?: string
         }
         Relationships: []
+      }
+      user_lesson_progress: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          id: string
+          lesson_id: string
+          notes: string | null
+          progress_percentage: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          lesson_id: string
+          notes?: string | null
+          progress_percentage?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          id?: string
+          lesson_id?: string
+          notes?: string | null
+          progress_percentage?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_lesson_progress_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_lesson_progress_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {

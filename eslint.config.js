@@ -23,6 +23,20 @@ export default tseslint.config(
         "warn",
         { allowConstantExport: true },
       ],
+      "no-case-declarations": "warn",
+      "prefer-const": "warn",
+      "no-empty": ["warn", { allowEmptyCatch: true }],
+      "@typescript-eslint/no-unused-expressions": [
+        "warn",
+        {
+          allowShortCircuit: true,
+          allowTernary: true,
+          allowTaggedTemplates: true,
+        },
+      ],
+      "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-empty-object-type": "warn",
+      "@typescript-eslint/no-require-imports": "warn",
       "@typescript-eslint/no-unused-vars": "off",
     },
   }
